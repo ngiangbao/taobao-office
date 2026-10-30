@@ -205,3 +205,19 @@ test('agent Đăng bài được tự đăng khi bật; agent khác thì không;
   const d = createDispatcher({ officeUrl: () => 'http://127.0.0.1:1/', agents: { all: () => [], get: () => null }, customers: { due: () => { asked++; return []; } }, getCfg: () => ({ followupEnabled: false }), run: async () => ({}), uploadsDir: path.join(os.tmpdir(), 'x') });
   d.followupTick(); assert.equal(asked, 0, 'tắt soạn tin nhắc');
 });
+
+test('điều khiển Chrome đầy đủ: bật thì agent thường bấm/gõ được nhưng vẫn không chạy mã tuỳ ý; tắt thì khoá như cũ; agent quét/đọc/khách không đổi', () => {
+  const P = 'mcp__playwright__browser_';
+  const full = policy('team', { scroll: true, full: true });
+  for (const t of ['click', 'type', 'fill_form', 'press_key', 'select_option', 'file_upload']) assert.ok(full.allowed.includes(P + t), t);
+  for (const t of ['evaluate', 'run_code_unsafe', 'network_requests']) assert.ok(full.denied.includes(P + t) && !full.allowed.includes(P + t), t);
+  assert.ok(full.denied.includes('Bash'));
+  const locked = policy('team', { scroll: true });
+  for (const t of ['click', 'type', 'fill_form']) assert.ok(locked.denied.includes(P + t) && !locked.allowed.includes(P + t), t);
+  for (const kind of ['scanner', 'reader', 'customer', 'inventory', 'assistant', 'publisher']) assert.deepEqual(policy(kind, { scroll: true, full: true }), policy(kind, { scroll: true }), kind);
+  const cp = require('node:child_process'), hook = path.join(__dirname, '..', 'lib', 'gate-hook.js');
+  const run = (env) => cp.spawnSync(process.execPath, [hook], { input: JSON.stringify({ tool_name: P + 'press_key', tool_input: { key: 'Enter' } }), env: { ...process.env, ...env } }).status;
+  assert.equal(run({ TBO_BROWSER_FULL: '' }), 2, 'khoá cứng: Enter bị chặn'); assert.equal(run({ TBO_BROWSER_FULL: '1' }), 0, 'bật đầy đủ: cho qua');
+  const claudeSrc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'claude.js'), 'utf8');
+  assert.match(claudeSrc, /cfg\.browserFull !== false/);
+});

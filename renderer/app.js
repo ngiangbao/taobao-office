@@ -209,7 +209,7 @@ form.addEventListener('submit', async (e) => {
   }
   for (const k of ['postAutoMax', 'autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentFromHour', 'commentToHour', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
   for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'model', 'chromeMode', 'fanpageUrl', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
-  for (const k of ['commentScan', 'commentAutoPost', 'postAutoPost', 'followupEnabled', 'ordersAutoRefresh']) cfg[k] = form.elements[k].value === '1';
+  for (const k of ['commentScan', 'commentAutoPost', 'postAutoPost', 'browserFull', 'followupEnabled', 'ordersAutoRefresh']) cfg[k] = form.elements[k].value === '1';
   cfg.ordersSheetUrl = $('#o-url').value.trim(); cfg.ordersWebhookUrl = $('#o-hook').value.trim(); cfg.ordersWebhookToken = $('#o-token').value; cfg.ordersSheetName = $('#o-sheetname').value.trim() || 'khách order'; cfg.ordersAutoAppend = $('#o-auto').value === '1';
   cfg.shopName = form.elements.shopName.value.trim().slice(0, 40) || 'Cửa hàng của tôi';
   document.title = cfg.shopName;

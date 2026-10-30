@@ -37,6 +37,7 @@ const DEFAULT_CFG = {
   model: 'haiku', // model cho mọi agent: haiku tiết kiệm token nhất (mặc định), sonnet cân bằng, opus mạnh nhất, default = Claude Code tự chọn
   chromeMode: 'app', // app = Chrome riêng của app; mine = Chrome của bạn (qua tiện ích Playwright)
   autoOffMinutes: 60, // lâu không dùng app (không gõ, không giao việc) thì tạm dừng việc tự chạy nền (quét bảng tin, đọc hộp thư, nhắc khách) để khỏi tốn token; 0 = không tự nghỉ
+  browserFull: true, // agent thường được điều khiển Chrome đầy đủ (bấm, gõ); tắt thì chỉ xem và cuộn. Đăng/nhắn vẫn dặn phải qua đề xuất chờ duyệt
   followupEnabled: true, ordersAutoRefresh: true, fanpageUrl: '', postAutoPost: false, postAutoMax: 3, // soạn tin nhắc khách; tự cập nhật khách từ link; fanpage của shop; tự đăng bài (mặc định TẮT)
   ordersSheetUrl: '', ordersWebhookUrl: '', ordersWebhookToken: '', ordersSheetName: 'khách order', ordersAutoAppend: true, // bảng đơn khách trên Google Sheets: khách mới tự thêm vào dòng cuối
   chromeIdleMinutes: 15, // Chrome dùng chung được tắt hẳn sau bấy nhiêu phút không dùng (0 = không tự tắt)
