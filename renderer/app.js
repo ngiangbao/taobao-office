@@ -8,7 +8,7 @@ let templates = {};
 const api = window.api || (() => {
   let list = [{ id: 'a', name: 'Báo giá', roleLabel: 'Báo giá', busy: false }, { id: 'b', name: 'Đăng bài', roleLabel: 'Đăng bài nhóm', busy: true }];
   return {
-    getCfg: async () => ({ cfg: { shopName: 'Lan Fashion', rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12, tone: '', browser: 'playwright', claudePath: '', groupsSheetUrl: '', groups: [] }, claude: null }),
+    getCfg: async () => ({ cfg: { shopName: 'Lan Fashion', rate: 3600, shipPerKg: 25000, servicePct: 5, tone: '', browser: 'playwright', claudePath: '', groupsSheetUrl: '', groups: [] }, claude: null }),
     setCfg: async () => true, openData: async () => {}, openLogin: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }),
     importGroups: async () => ({ ok: false, error: 'Đọc Google Sheets chỉ có trong app desktop.' }),
     syncStatus: async () => ({ connected: false, email: '' }),
@@ -209,7 +209,8 @@ form.addEventListener('submit', async (e) => {
     $('#s-groups-msg').textContent = `Đã lưu ${cfg.groups.length} nhóm. Agent sẽ dùng danh sách này khi soạn đề xuất đăng bài.`;
     return;
   }
-  for (const k of ['postAutoMax', 'autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentFromHour', 'commentToHour', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
+  for (const k of ['autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentFromHour', 'commentToHour', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
+  cfg.postAutoDelayMinutes = Math.max(1, Math.floor(Number(form.elements.postAutoDelayMinutes.value) || 5));
   for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'model', 'chromeMode', 'fanpageUrl', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
   for (const k of ['commentScan', 'commentAutoPost', 'postAutoPost', 'browserFull', 'followupEnabled', 'ordersAutoRefresh']) cfg[k] = form.elements[k].value === '1';
   cfg.ordersSheetUrl = $('#o-url').value.trim(); cfg.ordersWebhookUrl = $('#o-hook').value.trim(); cfg.ordersWebhookToken = $('#o-token').value; cfg.ordersSheetName = $('#o-sheetname').value.trim() || 'khách order'; cfg.ordersAutoAppend = $('#o-auto').value === '1';
@@ -717,10 +718,10 @@ $('#r-close').onclick = () => dlgR.close();
 const dlgA2 = $('#dlg-appr'), aList = $('#a-list');
 const KIND_VN = { bai_dang: 'Đăng bài vào nhóm', binh_luan: 'Bình luận vào bài viết' };
 const ST_VN = { pending: 'Chờ duyệt', approved: 'Đã duyệt, đang xếp hàng', running: 'Đang đăng…', done: 'Đã đăng', failed: 'Chưa đăng được', rejected: 'Đã từ chối' };
-let apprData = { items: [], limit: 12, today: 0 };
+let apprData = { items: [], today: 0 };
 function renderApprovals() {
   if (!dlgA2.open) return;
-  $('#a-limit').textContent = `Hôm nay đã đăng ${apprData.today}/${apprData.limit}`;
+  $('#a-limit').textContent = `Hôm nay đã đăng ${apprData.today} bài/bình luận`;
   aList.innerHTML = '';
   if (!apprData.items.length) { aList.textContent = 'Chưa có đề xuất nào. Khi agent muốn đăng bài hay bình luận, đề xuất sẽ hiện ở đây.'; return; }
   for (const it of apprData.items) {

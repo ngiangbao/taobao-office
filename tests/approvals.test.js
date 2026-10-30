@@ -29,7 +29,7 @@ async function setup(runImpl, cfg = {}, { withMsgs = false } = {}) {
   const runs = [], published = [];
   const run = async (agent, text, opts) => { runs.push({ agent, text, opts }); return runImpl(agent, text, opts, runs); };
   const publisher = async (item) => { published.push(item); return { text: 'ĐÃ ĐĂNG: https://www.facebook.com/groups/x/posts/1' }; };
-  const full = { publishGapSeconds: 0, photoSearchSeconds: 0.15, maxPostsPerDay: 12, ...cfg };
+  const full = { publishGapSeconds: 0, photoSearchSeconds: 0.15, ...cfg };
   const d = createDispatcher({ officeUrl: () => `http://127.0.0.1:${srv.address().port}/`, agents, customers, revenue, approvals, publisher, toJpeg: async () => JPEG, run, uploadsDir: path.join(dir, 'uploads'), onStatus() {}, history: null, getCfg: () => full });
   const idle = async () => { for (let i = 0; i < 60; i++) { await new Promise((r) => setTimeout(r, 25)); if (!d.anyBusy()) { await new Promise((r) => setTimeout(r, 50)); if (!d.anyBusy()) return; } } };
   const env = { dir, agents, approvals, customers, post, search, quote, runs, published, posts, msgs, d, idle, srv, close: () => { d.stop(); srv.closeAllConnections?.(); srv.close(); fs.rmSync(dir, { recursive: true, force: true }); } };
@@ -75,7 +75,12 @@ test('kho đề xuất: kiểm tra chặt đích, nội dung, ảnh; khoá nội
   assert.throws(() => ap.create({ ...base, text: 'x'.repeat(5001) }), /5000/);
   const a = ap.create({ ...base, files: [path.join(dir, 'uploads', 'a.jpg'), outside, '/etc/passwd'] });
   assert.deepEqual(a.files, [path.join(dir, 'uploads', 'a.jpg')], 'chỉ giữ ảnh nằm trong thư mục dữ liệu');
+  const autoPostAt = Date.now() + 60_000;
+  assert.ok(ap.scheduleAutoPost(a.id, autoPostAt));
+  assert.deepEqual(ap.pendingAutoPosts(Date.now()), []);
+  assert.deepEqual(ap.pendingAutoPosts(autoPostAt), [a]);
   const h0 = a.hash; assert.ok(ap.edit(a.id, 'Áo khoác be size M')); assert.notEqual(ap.get(a.id).hash, h0);
+  assert.deepEqual(ap.pendingAutoPosts(Date.now() + 60_000), [], 'sửa bài thì hủy lịch tự đăng');
   assert.throws(() => ap.approve(a.id, h0), /vừa thay đổi/, 'duyệt bản cũ phải bị từ chối');
   const ok = ap.approve(a.id, ap.get(a.id).hash); assert.equal(ok.status, 'approved'); assert.equal(ok.approvedHash, ok.hash);
   assert.throws(() => ap.approve(a.id), /không còn chờ/, 'không duyệt hai lần');

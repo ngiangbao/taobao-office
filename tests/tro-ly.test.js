@@ -47,7 +47,7 @@ test('bảng quyền: quét bảng tin chỉ xem; trợ lý riêng không có we
 test('giới hạn cứng của tự đăng bình luận', () => {
   const dir = tmp(); const ap = createApprovals(dir);
   const item = (text, kind = 'binh_luan') => ({ kind, text });
-  const on = { commentAutoPost: true, commentAutoMax: 2, maxPostsPerDay: 12 };
+  const on = { commentAutoPost: true, commentAutoMax: 2 };
   assert.equal(autoPostGuard({}, ap, item('Shop có nha bạn, nhắn shop nhé'), NOON).ok, false, 'mặc định tắt');
   assert.equal(autoPostGuard(on, ap, item('Shop có nha bạn, nhắn shop nhé'), NOON).ok, true);
   for (const bad of ['xem https://x.com', 'gọi 0912 345 678', 'liên hệ shop.com', 'hỏi @ai đó', 'a'.repeat(301)]) assert.equal(autoPostGuard(on, ap, item(bad), NOON).ok, false, bad);
@@ -75,9 +75,19 @@ async function setup(runImpl, cfg = {}) {
   const agents = createAgents(dir), approvals = createApprovals(dir), style = createStyle(dir, ROLES);
   const assistant = agents.add({ name: 'Trợ lý riêng', role: 'assistant' }), commenter = agents.add({ name: 'Trả lời comment', role: 'commenter' }), cskh = agents.add({ name: 'Chăm sóc khách', role: 'cskh' });
   const published = [];
-  const full = { publishGapSeconds: 0, maxPostsPerDay: 12, ...cfg };
+  const full = { publishGapSeconds: 0, postAutoDelayMinutes: 5, ...cfg };
   let d;
-  const autoApprove = (agent, a) => { const g = autoPostGuard(full, approvals, a, NOON); if (!g.ok) return g; const item = approvals.approve(a.id, a.hash, true); d.publishApproved(item); return { ok: true }; };
+  const autoApprove = (agent, a) => {
+    if (agent.role === 'post') {
+      if (!full.postAutoPost) return { ok: false, reason: 'chưa bật tự đăng bài' };
+      const delay = Math.max(1, Math.floor(Number(full.postAutoDelayMinutes) || 5));
+      approvals.scheduleAutoPost(a.id, Date.now() + delay * 60e3);
+      return { ok: true, scheduled: true, delayMinutes: delay };
+    }
+    const g = autoPostGuard(full, approvals, a, NOON);
+    if (!g.ok) return g;
+    const item = approvals.approve(a.id, a.hash, true); d.publishApproved(item); return { ok: true };
+  };
   d = createDispatcher({ officeUrl: () => `http://127.0.0.1:${srv.address().port}/`, agents, approvals, style, autoApprove, publisher: async (item) => { published.push(item); return { text: 'ĐÃ ĐĂNG: ok' }; }, run: runImpl, uploadsDir: path.join(dir, 'uploads'), getCfg: () => full });
   const idle = async () => { for (let i = 0; i < 80; i++) { await new Promise((r) => setTimeout(r, 25)); if (!d.anyBusy()) { await new Promise((r) => setTimeout(r, 60)); if (!d.anyBusy()) return; } } };
   return { dir, agents, approvals, style, assistant, commenter, cskh, d, posts, published, idle, close: () => { d.stop(); srv.closeAllConnections?.(); srv.close(); fs.rmSync(dir, { recursive: true, force: true }); } };
@@ -166,11 +176,11 @@ test('1688 là nền tảng chính thức: agent tìm hàng và báo giá hiểu
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('tự đăng bài: mặc định tắt; chỉ vào fanpage hoặc nhóm trong danh sách; không trùng 24 giờ; có hạn mức; bình luận và bài tính riêng', () => {
+test('tự đăng bài: mặc định tắt; chỉ vào fanpage hoặc nhóm trong danh sách; không trùng 24 giờ; bình luận giữ hạn mức riêng', () => {
   const { autoPostGuard: guard, allowedDestination } = require('../lib/commenter');
   const dir = tmp(); const ap = createApprovals(dir);
   const FAN = 'https://www.facebook.com/trang-cua-shop', GROUP = 'https://www.facebook.com/groups/abc';
-  const cfg = { postAutoPost: true, postAutoMax: 2, maxPostsPerDay: 12, fanpageUrl: FAN, groups: [{ name: 'A', url: GROUP }] };
+  const cfg = { postAutoPost: true, commentAutoPost: true, commentAutoMax: 2, maxPostsPerDay: 1, fanpageUrl: FAN, groups: [{ name: 'A', url: GROUP }] };
   const item = (target, text = 'Mẫu mới về, nhắn shop nhé') => ({ id: 'x', kind: 'bai_dang', target, text });
   assert.equal(guard({ ...cfg, postAutoPost: false }, ap, item(FAN), NOON).ok, false, 'mặc định tắt');
   assert.equal(guard(cfg, ap, item(FAN), NOON).ok, true);
@@ -186,11 +196,15 @@ test('tự đăng bài: mặc định tắt; chỉ vào fanpage hoặc nhóm tro
   assert.equal(guard(cfg, ap, { ...item(FAN, 'Bài cũ'), id: 'other' }, new Date()).ok === false, true, 'trùng nội dung trong 24 giờ');
   const b = ap.create({ agentId: 'p', agentName: 'p', kind: 'bai_dang', target: GROUP, text: 'Bài hai' }); ap.approve(b.id, b.hash, true);
   const today = new Date(); today.setHours(12, 0, 0, 0);
-  assert.equal(guard(cfg, ap, item(FAN, 'Bài ba'), today).ok, false, 'đủ hạn mức 2 bài/ngày');
+  assert.equal(guard(cfg, ap, item(FAN, 'Bài ba'), today).ok, true, 'bài đăng không bị giới hạn tổng số mỗi ngày');
+  ap.approve(ap.create({ agentId: 'c', agentName: 'commenter', kind: 'binh_luan', target: FAN, text: 'Bình luận một' }).id, undefined, true);
+  const secondComment = ap.create({ agentId: 'c', agentName: 'commenter', kind: 'binh_luan', target: FAN + '/bai-2', text: 'Bình luận hai' });
+  ap.approve(secondComment.id, undefined, true);
+  assert.equal(guard(cfg, ap, { kind: 'binh_luan', target: FAN + '/bai-3', text: 'Bình luận ba' }, today).ok, false, 'bình luận tự động vẫn theo giới hạn riêng');
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('agent Đăng bài được tự đăng khi bật; agent khác thì không; tắt soạn tin nhắc thì không nhắc khách', async () => {
+test('agent Đăng bài đặt lịch tự đăng khi bật; agent khác vẫn chờ duyệt; tắt soạn tin nhắc thì không nhắc khách', async () => {
   const FAN = 'https://www.facebook.com/trang-cua-shop';
   const run = async (agent) => ({ text: `Xong.\n[[DE_XUAT loai="bai_dang" dich="${FAN}"]]Hàng mới về nhé cả nhà (${agent.role})[[/DE_XUAT]]` });
   let t = await setup(run, { postAutoPost: true, fanpageUrl: FAN });
@@ -199,7 +213,9 @@ test('agent Đăng bài được tự đăng khi bật; agent khác thì không;
     assert.equal(t.approvals.pending().length, 1, 'cskh luôn chờ duyệt'); assert.equal(t.published.length, 0);
     const poster = t.agents.add({ name: 'Đăng bài', role: 'post' });
     await t.d.enqueue(poster, 'x', [], { id: 2, hops: 0, files: [], owner: true }); await t.idle();
-    assert.equal(t.published.length, 1, 'agent Đăng bài tự đăng khi đã bật'); assert.equal(t.published[0].auto, true); assert.equal(t.published[0].target, FAN);
+    assert.equal(t.published.length, 0, 'chưa hết thời gian chờ thì chưa đăng');
+    const scheduled = t.approvals.pending().find((item) => item.agentId === poster.id);
+    assert.ok(scheduled.autoPostAt >= Date.now() + 4 * 60e3, 'đề xuất có lịch sau 5 phút');
   } finally { t.close(); }
   let asked = 0;
   const d = createDispatcher({ officeUrl: () => 'http://127.0.0.1:1/', agents: { all: () => [], get: () => null }, customers: { due: () => { asked++; return []; } }, getCfg: () => ({ followupEnabled: false }), run: async () => ({}), uploadsDir: path.join(os.tmpdir(), 'x') });

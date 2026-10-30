@@ -64,13 +64,12 @@
         <section data-sec="post" hidden>
           <h3>Đăng bài và ảnh</h3>
           <h4>Duyệt hay tự đăng</h4>
-          <label>Khi agent soạn bài đăng<select name="postAutoPost" data-bool><option value="0">Chờ tôi duyệt từng bài (khuyên dùng)</option><option value="1">Agent tự đăng (có giới hạn bên dưới)</option></select></label>
+          <label>Khi agent soạn bài đăng<select name="postAutoPost" data-bool><option value="0">Chờ tôi duyệt từng bài (khuyên dùng)</option><option value="1">Agent tự đăng sau thời gian chờ</option></select></label>
           <div class="grid">
-            <label>Tự đăng tối đa bài mỗi ngày<input name="postAutoMax" type="number" min="0" max="30" step="1"></label>
-            <label>Tối đa bài và bình luận mỗi ngày (app tự chặn)<input name="maxPostsPerDay" type="number" min="1"></label>
+            <label>Đăng bài sau (phút)<input name="postAutoDelayMinutes" type="number" min="1" step="1"></label>
             <label>Giãn cách giữa hai lần đăng (giây)<input name="publishGapSeconds" type="number" min="0"></label>
           </div>
-          <p class="hint">Mặc định mọi bài và bình luận chờ bạn duyệt ở nút “Chờ duyệt”. Khi bật tự đăng, agent “Đăng bài” chỉ tự đăng vào <b>fanpage của bạn hoặc nhóm trong danh sách nhóm</b>, bài dưới 2.000 ký tự, trong khung giờ cho phép, không đăng trùng nội dung vào cùng nơi trong 24 giờ và không vượt hạn mức. Các agent khác luôn phải chờ bạn duyệt.</p>
+          <p class="hint">Khi bật “Agent tự đăng”, bài sẽ chờ đủ số phút trên rồi tự đăng nếu vẫn đạt giới hạn an toàn: chỉ fanpage của bạn hoặc nhóm trong danh sách, dưới 2.000 ký tự, trong khung giờ cho phép, không trùng nội dung trong 24 giờ và không vượt hạn mức chung của app. Sửa hoặc duyệt đề xuất trước giờ đó sẽ hủy lịch tự đăng. Các agent khác luôn phải chờ bạn duyệt.</p>
           <hr>
           <h4>Fanpage của tôi</h4>
           <label>Link fanpage (để đăng bài lên Trang của chính bạn)<input name="fanpageUrl" type="url" placeholder="https://www.facebook.com/ten-trang-cua-ban"></label>
@@ -88,7 +87,7 @@
           <label>Tối đa số bình luận đề xuất mỗi lượt<input name="commentPerScan" type="number" min="1" max="5" step="1"></label>
           <label>Tự đăng bình luận không cần duyệt từng cái<select name="commentAutoPost" data-bool><option value="0">Tắt (khuyên dùng: tôi duyệt từng bình luận)</option><option value="1">Bật (có giới hạn bên dưới)</option></select></label>
           <label>Hạn mức tự đăng mỗi ngày<input name="commentAutoMax" type="number" min="0" max="50" step="1"></label>
-          <p class="hint">Giới hạn cứng khi tự đăng: dưới 300 ký tự, không link, không số điện thoại, không @tên, không bình luận hai lần vào một bài, chỉ trong khung giờ trên, và không vượt “Tối đa bài/ngày”. Nút “Dừng tất cả” sẽ tắt luôn tự quét. Bình luận có an toàn đến đâu cũng nên xem lại vài ngày đầu trước khi bật tự đăng.</p>
+          <p class="hint">Giới hạn khi tự đăng bình luận: dưới 300 ký tự, không link, không số điện thoại, không @tên, không bình luận hai lần vào một bài và chỉ trong khung giờ trên. Nút “Dừng tất cả” sẽ tắt luôn tự quét. Bình luận có an toàn đến đâu cũng nên xem lại vài ngày đầu trước khi bật tự đăng.</p>
           <button type="button" id="s-comment-scan">Quét ngay một lượt</button>
           <p id="s-comment-status" class="hint" aria-live="polite"></p>
 
