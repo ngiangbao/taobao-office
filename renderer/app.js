@@ -17,6 +17,7 @@ const api = window.api || (() => {
     disconnectSync: async () => ({ ok: false, error: 'Đồng bộ riêng tư chỉ có trong app desktop.' }),
     onSync: () => {},
     listAgents: async () => ({ agents: list, templates: { quote: { label: 'Báo giá', prompt: 'Chuyên báo giá.' }, post: { label: 'Đăng bài nhóm', prompt: 'Chuyên đăng bài.' }, leads: { label: 'Tìm khách', prompt: 'Chuyên tìm khách.' }, custom: { label: 'Tùy chỉnh', prompt: '' } } }),
+    ensureDefaultAgents: async () => ({ ok: false, error: 'Chỉ có trong ứng dụng desktop.' }),
     addAgent: async (d) => { list = [...list, { id: String(Math.random()), name: d.name, roleLabel: d.role, busy: false }]; return { ok: true }; },
     removeAgent: async (id) => { list = list.filter((a) => a.id !== id); }, resetAgent: async () => true, stopAll: async () => true,
     historyQuery: async () => ({ items: [{ t: new Date().toISOString(), kind: 'user', agent: 'Báo giá', text: 'Báo giá áo khoác này' }, { t: new Date().toISOString(), kind: 'agent', agent: 'Báo giá', text: 'Đã báo giá xong (bản giả lập).' }], more: false }), historyDelete: async () => 1, openHistoryDir: async () => {},
@@ -34,6 +35,9 @@ const api = window.api || (() => {
 
 function renderAgents(list) {
   box.innerHTML = '';
+  const defaultRoles = ['cskh', 'search', 'quote', 'post', 'leads'];
+  const defaultAgents = defaultRoles.map((role) => list.find((a) => a.role === role));
+  $('#btn-default-agents').hidden = defaultAgents.every((agent) => agent?.started || agent?.starting);
   for (const a of list.filter((x) => x.kind !== 'customer' || x.busy)) { // agent chăm khách chỉ hiện trên thanh khi đang làm; xem đủ ở nút Khách
     const c = document.createElement('div'); c.className = 'chip' + (a.busy ? ' busy' : '');
     c.title = `${a.name} · ${a.roleLabel}${a.busy ? ' · đang làm việc' : ''}\nGọi trong nhóm chat: @${a.name}`;
@@ -41,7 +45,7 @@ function renderAgents(list) {
     c.children[1].textContent = a.name; // chỉ hiện tên agent
     c.querySelector('[data-r]').onclick = async () => { if (!(await api.resetAgent(a.id))) say(`${a.name} đang làm việc, hãy chờ xong.`); };
     if (a.kind === 'customer') c.querySelectorAll('button').forEach((b) => b.remove()); // khách quản lý ở hộp thoại Khách
-    else c.querySelector('[data-x]').onclick = () => { if (confirm(`Xóa agent "${a.name}"?`)) api.removeAgent(a.id); };
+    else c.querySelector('[data-x]').onclick = () => { if (confirm(`Xóa agent ${a.name}?`)) api.removeAgent(a.id); };
     box.append(c);
   }
   $('#btn-stop').hidden = !list.some((a) => a.busy);
@@ -58,6 +62,18 @@ $('#btn-add').onclick = () => {
   const desc = () => ($('#roledesc').textContent = templates[sel.value]?.prompt.replace(/^VAI TRÒ CỦA BẠN: /, '') || 'Bạn tự mô tả việc agent làm ở ô hướng dẫn riêng.');
   sel.onchange = desc; desc(); dlgA.showModal(); formA.elements.name.focus();
 };
+$('#btn-default-agents').onclick = async () => {
+  const button = $('#btn-default-agents');
+  button.disabled = true;
+  try {
+    const result = await api.ensureDefaultAgents();
+    if (!result.ok) say(`Không tạo được agent mặc định: ${result.error}`);
+    else if (!result.cliAvailable) say(result.created ? `Đã tạo ${result.created} agent. Hãy thiết lập Claude Code CLI để khởi chạy.` : 'Đã có agent nhưng chưa tìm thấy Claude Code CLI để khởi chạy.');
+    else say(result.created || result.started ? `Đã tạo ${result.created} agent và khởi chạy ${result.started} agent.` : 'Đội agent mặc định đã được tạo và khởi chạy.');
+  } catch (error) { say(`Không tạo được agent mặc định: ${error.message}`); }
+  finally { button.disabled = false; }
+};
+
 formA.addEventListener('submit', async (e) => {
   if (e.submitter?.value !== 'ok') return;
   e.preventDefault();
@@ -307,14 +323,16 @@ function updateSettingsStatus(u) {
   status.classList.toggle('err', u.state === 'error');
   status.textContent = u.state === 'checking' ? 'Đang kiểm tra cập nhật…'
     : u.state === 'current' ? 'Bạn đang dùng phiên bản mới nhất.'
-      : u.state === 'available' ? `Đang tải bản v${u.version}…`
-        : u.state === 'downloading' ? `Đang tải bản mới${u.percent != null ? `: ${u.percent}%` : '…'}`
-          : u.state === 'ready' ? `Đã tải bản v${u.version}. Ứng dụng sẽ cài sau khi các agent hoàn tất.`
+      : u.state === 'available' ? `Đã có bản v${u.version}; đang chờ lựa chọn của bạn.`
+      : u.state === 'deferred' ? `Bạn đã chọn để sau; bản v${u.version} chưa được tải.`
+      : u.state === 'downloading' ? `Đang tải bản mới${u.percent != null ? `: ${u.percent}%` : '…'}`
+          : u.state === 'ready' ? `Đã tải bản v${u.version}. Ứng dụng sẽ tự cài đặt sau khi các agent hoàn tất.`
             : u.state === 'error' ? `Kiểm tra cập nhật thất bại: ${u.error}` : status.textContent;
 }
 api.onUpdate((u) => {
   ver.classList.toggle('up', !['none', 'current', 'checking'].includes(u.state));
-  ver.textContent = u.state === 'downloading' || u.state === 'available' ? `${current} · đang tải bản mới${u.percent != null ? ' ' + u.percent + '%' : ''}`
+  ver.textContent = u.state === 'available' ? `${current} · có bản v${u.version}`
+    : u.state === 'downloading' ? `${current} · đang tải bản mới${u.percent != null ? ' ' + u.percent + '%' : ''}`
     : u.state === 'ready' ? `${current} · đã tải v${u.version}, tự khởi động lại sau giây lát…` : current;
   updateSettingsStatus(u);
 });

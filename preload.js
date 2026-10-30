@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   disconnectSync: () => ipcRenderer.invoke('sync:disconnect'),
   onSync: (cb) => ipcRenderer.on('sync:update', (_, result) => cb(result)),
   listAgents: () => ipcRenderer.invoke('agents:list'),
+  ensureDefaultAgents: () => ipcRenderer.invoke('agents:ensure-defaults'),
   addAgent: (d) => ipcRenderer.invoke('agents:add', d),
   removeAgent: (id) => ipcRenderer.invoke('agents:remove', id),
   resetAgent: (id) => ipcRenderer.invoke('agents:reset', id),

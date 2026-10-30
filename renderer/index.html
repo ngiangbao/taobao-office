@@ -12,6 +12,7 @@
   <header class="bar">
     <div id="agents" class="agents"></div>
     <button id="btn-add" class="add" title="Thêm một agent mới vào luồng làm việc">＋ Thêm agent</button>
+    <button id="btn-default-agents" class="ghost" hidden>＋ Tạo agent mặc định</button>
     <span class="spacer"></span>
     <button id="btn-stop" class="danger" hidden>Dừng tất cả</button>
     <button id="btn-appr" class="ghost" title="Mọi bài đăng và bình luận đều chờ bạn duyệt ở đây">Chờ duyệt</button>
@@ -189,7 +190,7 @@
 <dialog id="dlg-agent">
   <form method="dialog" id="agentform">
     <h3>Thêm agent mới</h3>
-    <p class="hint">Mỗi agent là một "người" riêng: hội thoại riêng, ngữ cảnh riêng. Gọi tên nó trong nhóm chat bằng <b>@Tên</b> để giao việc.</p>
+    <p class="hint">Mỗi agent là một người riêng: hội thoại riêng, ngữ cảnh riêng. Gõ trực tiếp <b>@Tên agent</b> rồi nhập việc cần giao, ví dụ <b>@Báo giá tính giá món này</b>. Không cần chọn tên từ danh sách.</p>
     <label>Tên agent (để gọi sau này)<input name="name" type="text" maxlength="24" placeholder="Ví dụ: Lan báo giá" required></label>
     <label>Vai trò
       <select name="role"></select>

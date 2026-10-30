@@ -32,13 +32,14 @@ const DEFAULT_AGENTS = [
   { name: 'Chăm sóc khách', role: 'cskh' }, { name: 'Tìm hàng', role: 'search' }, { name: 'Báo giá', role: 'quote' },
   { name: 'Đăng bài', role: 'post' }, { name: 'Tìm khách', role: 'leads' },
 ];
-let dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, agents, dispatcher, history, customers, revenue, inbox, approvals, googleSync, syncCloud, gateOk = false;
+let dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, promptUpdateAgain = null, agents, dispatcher, history, customers, revenue, inbox, approvals, googleSync, syncCloud, gateOk = false;
 const children = new Map(); // agentId -> process đang chạy
+const introducingAgents = new Set();
 const ICON = path.join(__dirname, 'renderer', 'icon.png');
 
 const loadCfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(fs.readFileSync(cfgPath, 'utf8')) }; } catch { return { ...DEFAULT_CFG }; } };
 const send = (ch, v) => win?.webContents.send(ch, v);
-const pushAgents = () => send('agents:update', agents.list().map((a) => ({ ...a, busy: dispatcher?.isBusy(a.id) || false })));
+const pushAgents = () => send('agents:update', agents.list().map((a) => ({ ...a, busy: dispatcher?.isBusy(a.id) || false, starting: introducingAgents.has(a.id) })));
 
 // Ba thẻ ở mục Hoạt động của văn phòng: Việc (agent đang làm), Khách (tổng số khách), Doanh thu (VNĐ đã thu)
 function writeStats() {
@@ -173,24 +174,64 @@ async function runReader(text) {
 }
 
 async function introduce(agent) {
-  const r = await dispatcher.enqueue(agent, 'Xin chào! Bạn vừa vào đội. Hãy chào bằng tiếng Việt, ngắn gọn (1-2 câu) và nói rõ bạn phụ trách việc gì. Không dùng công cụ nào.', [], undefined, { light: true }).catch(() => {});
-  return r;
+  if (!dispatcher || introducingAgents.has(agent.id)) return;
+  introducingAgents.add(agent.id);
+  pushAgents();
+  try {
+    return await dispatcher.enqueue(agent, 'Xin chào! Bạn vừa vào đội. Hãy chào bằng tiếng Việt, ngắn gọn (1-2 câu) và nói rõ bạn phụ trách việc gì. Không dùng công cụ nào.', [], undefined, { light: true }).catch(() => {});
+  } finally { introducingAgents.delete(agent.id); pushAgents(); }
 }
 
 function setupUpdater() {
   if (!isPackagedApp(app)) return; // chỉ bản đóng gói mới tự cập nhật
   try { ({ autoUpdater } = require('electron-updater')); } catch (e) { return console.error('updater', e); }
-  let pending = false;
-  const maybeInstall = () => { if (pending && !dispatcher.anyBusy()) { pending = false; setTimeout(() => autoUpdater.quitAndInstall(true, true), 8000); } };
+  let pending = false, promptedVersion = '', promptOpen = false, installTimer = null;
+  promptUpdateAgain = () => { if (!promptOpen) promptedVersion = ''; };
+  const maybeInstall = () => {
+    if (!pending || dispatcher?.anyBusy() || installTimer) return;
+    installTimer = setTimeout(() => {
+      installTimer = null;
+      if (!pending || dispatcher?.anyBusy()) return;
+      pending = false;
+      autoUpdater.quitAndInstall(true, true);
+    }, 8000);
+  };
   // Bản beta (0.x.y-beta.N) đi theo kênh beta: chỉ nhận bản beta mới hơn (file beta-*.yml), không bị kéo sang bản stable
   if (app.getVersion().includes('-')) autoUpdater.allowPrerelease = true;
-  autoUpdater.autoDownload = true;
+  autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.on('checking-for-update', () => send('update:status', { state: 'checking' }));
-  autoUpdater.on('update-available', (i) => send('update:status', { state: 'available', version: i.version }));
+  autoUpdater.on('update-available', (i) => {
+    send('update:status', { state: 'available', version: i.version });
+    if (promptedVersion === i.version || promptOpen) return;
+    promptedVersion = i.version;
+    promptOpen = true;
+    dialog.showMessageBox(win, {
+      type: 'info',
+      title: 'Có bản cập nhật Taobao Office',
+      message: `Đã có Taobao Office v${i.version}.`,
+      detail: 'Bạn có muốn tải và cài đặt bản mới ngay không? Sau khi tải xong, ứng dụng sẽ tự khởi động lại. Công việc của các agent đang chạy sẽ được chờ hoàn tất trước khi cài.',
+      buttons: ['Tải và cài đặt', 'Để sau'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    }).then(({ response }) => {
+      promptOpen = false;
+      if (response !== 0) { send('update:status', { state: 'deferred', version: i.version }); return; }
+      send('update:status', { state: 'downloading', percent: 0 });
+      return autoUpdater.downloadUpdate();
+    }).catch((e) => {
+      promptOpen = false;
+      console.error('Không tải được bản cập nhật:', e?.message);
+      send('update:status', { state: 'error', error: e?.message || 'Không tải được bản cập nhật.' });
+    });
+  });
   autoUpdater.on('update-not-available', () => send('update:status', { state: 'current' }));
   autoUpdater.on('download-progress', (p) => send('update:status', { state: 'downloading', percent: Math.round(p.percent) }));
-  autoUpdater.on('update-downloaded', (i) => { send('update:status', { state: 'ready', version: i.version }); pending = true; maybeInstall(); });
+  autoUpdater.on('update-downloaded', (i) => {
+    send('update:status', { state: 'ready', version: i.version });
+    if (promptedVersion === i.version) { pending = true; maybeInstall(); }
+  });
   autoUpdater.on('error', (e) => { console.error('updater', e?.message); send('update:status', { state: 'error', error: e?.message || 'Lỗi cập nhật không xác định.' }); });
   setInterval(maybeInstall, 15000);
   const check = () => autoUpdater.checkForUpdates().catch(() => {});
@@ -220,7 +261,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('app:updates:check', async () => {
     if (!autoUpdater) return { ok: false, error: 'Kiểm tra cập nhật chỉ có trong bản cài desktop.' };
-    try { await autoUpdater.checkForUpdates(); return { ok: true }; }
+    try { promptUpdateAgain?.(); await autoUpdater.checkForUpdates(); return { ok: true }; }
     catch (error) { send('update:status', { state: 'error', error: error.message }); return { ok: false, error: error.message }; }
   });
   ipcMain.handle('office:url', () => office?.url || null);
@@ -351,7 +392,21 @@ app.whenReady().then(async () => {
   ipcMain.handle('history:delete', (_, o) => history.remove(o || {}));
   ipcMain.handle('history:open', () => shell.openPath(history.dir));
   ipcMain.handle('log:open', () => shell.openPath(dataDir));
-  ipcMain.handle('agents:list', () => ({ agents: agents.list().map((a) => ({ ...a, busy: dispatcher?.isBusy(a.id) || false })), templates: Object.fromEntries(Object.entries(TEMPLATES).map(([k, v]) => [k, { label: v.label, prompt: v.prompt }])) }));
+  ipcMain.handle('agents:list', () => ({ agents: agents.list().map((a) => ({ ...a, busy: dispatcher?.isBusy(a.id) || false, starting: introducingAgents.has(a.id) })), templates: Object.fromEntries(Object.entries(TEMPLATES).map(([k, v]) => [k, { label: v.label, prompt: v.prompt }])) }));
+  ipcMain.handle('agents:ensure-defaults', async () => {
+    try {
+      const made = agents.ensureDefaults(DEFAULT_AGENTS);
+      const cliAvailable = !!findClaude(loadCfg().claudePath);
+      const targets = DEFAULT_AGENTS
+        .map(({ role }) => agents.all().find((agent) => agent.role === role))
+        .filter((agent) => agent && !agent.started && !introducingAgents.has(agent.id));
+      pushAgents();
+      if (cliAvailable && dispatcher) {
+        for (const agent of targets) await introduce(agent);
+      }
+      return { ok: true, created: made.length, started: cliAvailable ? targets.length : 0, cliAvailable };
+    } catch (error) { return { ok: false, error: error.message }; }
+  });
   ipcMain.handle('agents:add', async (_, d) => {
     try { const a = agents.add(d); pushAgents(); introduce(a); return { ok: true }; } catch (e) { return { ok: false, error: e.message }; }
   });
@@ -394,9 +449,11 @@ app.whenReady().then(async () => {
     if (approvals.recovered) setTimeout(() => dispatcher.sys(`⚠️ App bị tắt giữa lúc đang đăng ${approvals.recovered} đề xuất: hãy kiểm tra trên Facebook xem đã đăng chưa trước khi đăng lại (mở Chờ duyệt để xem).`), 3000);
     writeStats(); setInterval(writeStats, 5000);
     send('office:ready', office.url);
-    if (firstRun && findClaude(loadCfg().claudePath)) {
-      const made = DEFAULT_AGENTS.map((d) => agents.add(d));
-      (async () => { for (const a of made) await introduce(a); })(); // chào lần lượt, không chạy 5 tiến trình cùng lúc
+    if (firstRun) {
+      const made = agents.ensureDefaults(DEFAULT_AGENTS);
+      if (findClaude(loadCfg().claudePath)) {
+        (async () => { for (const a of made) await introduce(a); })(); // chào lần lượt, không chạy 5 tiến trình cùng lúc
+      }
     }
     pushAgents();
   } catch (e) { console.error('Không chạy được văn phòng:', e); send('office:error', String(e.message || e)); }
