@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createAgents } = require('../lib/agents');
-const { createCustomers } = require('../lib/customers');
+const { createCustomers, mergeLocalOrderCustomers } = require('../lib/customers');
 const { createRevenue, parseVnd } = require('../lib/revenue');
 const { createDispatcher } = require('../lib/dispatcher');
 const { createHistory } = require('../lib/history');
@@ -52,6 +52,26 @@ test('xóa khách khỏi kho cục bộ và lưu thay đổi vào tệp customer
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(t.dir, 'customers.json'), 'utf8')), []);
   assert.equal(t.customers.remove(customer.code), null);
   t.close();
+});
+
+test('danh sách khách trên máy gồm hồ sơ khách và khách chỉ xuất hiện trong đơn hàng', () => {
+  const customers = [
+    { code: 'KH-AAA22', name: 'Lan', phone: '0900', createdAt: 10, updatedAt: 20 },
+  ];
+  const orders = [
+    { custId: 'KH-AAA22', fbName: 'Lan', at: 30 },
+    { custId: 'KH-BBB33', fbName: 'Hương', at: 40 },
+    { custId: '', fbName: 'Mai', at: 50 },
+    { custId: '', fbName: 'mai', at: 60 },
+  ];
+  const rows = mergeLocalOrderCustomers(customers, orders);
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows.map(({ name, orderCount, deletable }) => ({ name, orderCount, deletable })), [
+    { name: 'Mai', orderCount: 2, deletable: false },
+    { name: 'Hương', orderCount: 1, deletable: false },
+    { name: 'Lan', orderCount: 1, deletable: true },
+  ]);
+  assert.equal(rows.find((row) => row.name === 'Lan').phone, '0900');
 });
 
 test('khi giao việc cho agent chuyên môn: che tên, số điện thoại bằng mã; agent chuyên môn chỉ thấy mã', async () => {

@@ -271,11 +271,11 @@
 
 <dialog id="dlg-cust-data" class="wide">
   <div class="hist-head"><h3>Dữ liệu khách hàng lưu trên máy</h3><input id="lc-q" type="search" placeholder="Tìm theo tên, mã, số điện thoại…"><button id="lc-delete" class="danger" disabled>Xóa đã chọn</button><button id="lc-close" class="ghost">Đóng</button></div>
-  <p class="hint">Bảng này quản lý hồ sơ trong danh sách khách hàng và thư mục agent/hồ sơ riêng của họ. Đơn hàng, doanh thu và lịch sử chat được giữ nguyên; nếu bật đồng bộ Google, dữ liệu còn trên bảng có thể được đồng bộ lại.</p>
+  <p class="hint">Bảng này gộp hồ sơ chăm sóc khách và tên khách trong đơn hàng đã lưu trên máy. Chỉ hồ sơ có agent mới chọn xóa được; xóa hồ sơ không xóa đơn hàng, doanh thu hay lịch sử chat. Khách chỉ có trong đơn hàng sẽ được giữ nguyên.</p>
   <p id="lc-msg" class="hint" aria-live="polite"></p>
   <div class="customer-table-wrap">
     <table class="customer-table">
-      <thead><tr><th><input id="lc-all" type="checkbox" aria-label="Chọn tất cả khách đang hiện"></th><th>Mã khách</th><th>Tên</th><th>Điện thoại</th><th>Địa chỉ</th><th>Size</th><th>Ngày tạo</th><th>Cập nhật</th></tr></thead>
+      <thead><tr><th><input id="lc-all" type="checkbox" aria-label="Chọn tất cả khách đang hiện"></th><th>Mã khách</th><th>Tên</th><th>Điện thoại</th><th>Địa chỉ</th><th>Size</th><th>Ngày tạo</th><th>Cập nhật</th><th>Số đơn</th></tr></thead>
       <tbody id="lc-rows"></tbody>
     </table>
   </div>

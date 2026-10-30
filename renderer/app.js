@@ -582,15 +582,17 @@ function renderLocalCustomers() {
   localCustomerRows.replaceChildren();
   if (!visible.length) {
     const row = document.createElement('tr'), cell = document.createElement('td');
-    cell.colSpan = 8; cell.className = 'hint'; cell.textContent = localCustomers.length ? 'Không có khách nào khớp.' : 'Chưa có dữ liệu khách hàng lưu trên máy.';
+    cell.colSpan = 9; cell.className = 'hint'; cell.textContent = localCustomers.length ? 'Không có khách nào khớp.' : 'Chưa có dữ liệu khách hàng lưu trên máy.';
     row.append(cell); localCustomerRows.append(row);
   } else {
     for (const customer of visible) {
       const row = document.createElement('tr'), selectCell = document.createElement('td'), checkbox = document.createElement('input');
-      checkbox.type = 'checkbox'; checkbox.checked = selectedLocalCustomers.has(customer.code); checkbox.dataset.code = customer.code;
+      checkbox.type = 'checkbox'; checkbox.disabled = customer.deletable === false;
+      checkbox.checked = customer.deletable !== false && selectedLocalCustomers.has(customer.code);
+      if (customer.deletable !== false) checkbox.dataset.code = customer.code;
       checkbox.setAttribute('aria-label', `Chọn khách ${customer.name}`);
       selectCell.append(checkbox); row.append(selectCell);
-      for (const value of [customer.code, customer.name, customer.phone, customer.address, customer.size, localDate(customer.createdAt), localDate(customer.updatedAt)]) {
+      for (const value of [customer.code, customer.name, customer.phone, customer.address, customer.size, localDate(customer.createdAt), localDate(customer.updatedAt), String(customer.orderCount ?? 0)]) {
         const cell = document.createElement('td'); cell.textContent = value || '—'; row.append(cell);
       }
       localCustomerRows.append(row);
@@ -600,9 +602,10 @@ function renderLocalCustomers() {
   $('#lc-delete').disabled = selected === 0;
   $('#lc-delete').textContent = selected ? `Xóa đã chọn (${selected})` : 'Xóa đã chọn';
   const selectAll = $('#lc-all');
-  const selectedVisible = visible.filter((customer) => selectedLocalCustomers.has(customer.code)).length;
-  selectAll.checked = visible.length > 0 && selectedVisible === visible.length;
-  selectAll.indeterminate = selectedVisible > 0 && selectedVisible < visible.length;
+  const selectable = visible.filter((customer) => customer.deletable !== false);
+  const selectedVisible = selectable.filter((customer) => selectedLocalCustomers.has(customer.code)).length;
+  selectAll.checked = selectable.length > 0 && selectedVisible === selectable.length;
+  selectAll.indeterminate = selectedVisible > 0 && selectedVisible < selectable.length;
   $('#lc-msg').textContent = `${localCustomers.length} khách lưu trên máy · Đã chọn ${selected}.`;
 }
 async function loadLocalCustomers() {
@@ -637,6 +640,7 @@ $('#lc-q').oninput = renderLocalCustomers;
 $('#lc-all').onchange = (event) => {
   const query = fold($('#lc-q').value);
   for (const customer of localCustomers.filter((item) => fold(`${item.code} ${item.name} ${item.phone} ${item.address} ${item.size}`).includes(query))) {
+    if (customer.deletable === false) continue;
     if (event.target.checked) selectedLocalCustomers.add(customer.code); else selectedLocalCustomers.delete(customer.code);
   }
   renderLocalCustomers();

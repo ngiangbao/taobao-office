@@ -19,7 +19,7 @@ const browser = require('./lib/browser');
 const { createHistory } = require('./lib/history');
 const { isPackagedApp } = require('./lib/runtime');
 const { weekStats } = require('./lib/stats');
-const { createCustomers } = require('./lib/customers');
+const { createCustomers, mergeLocalOrderCustomers } = require('./lib/customers');
 const { createRevenue, parseVnd } = require('./lib/revenue');
 const { createInbox, READER_PROMPT } = require('./lib/inbox');
 const { readInventory, forAgent } = require('./lib/inventory');
@@ -484,7 +484,7 @@ app.whenReady().then(async () => {
     catch (error) { return { ok: false, error: error.message }; }
   });
   ipcMain.handle('customers:list', () => custList());
-  ipcMain.handle('customers:local-list', () => customers.all().map((c) => ({
+  ipcMain.handle('customers:local-list', () => mergeLocalOrderCustomers(customers.all().map((c) => ({
     code: c.code,
     name: c.name,
     phone: c.phone || '',
@@ -492,7 +492,7 @@ app.whenReady().then(async () => {
     size: c.size || '',
     createdAt: c.createdAt || 0,
     updatedAt: c.updatedAt || 0,
-  })));
+  })), orders.all()));
   ipcMain.handle('customers:local-delete', (_, rawCodes) => {
     if (!Array.isArray(rawCodes) || rawCodes.length === 0 || rawCodes.length > 500) {
       return { ok: false, error: 'Hãy chọn từ 1 đến 500 khách hàng.' };
