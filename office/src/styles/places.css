@@ -64,3 +64,6 @@ button.pl-row:focus-visible { outline: 2px solid var(--accent); }
 .btn--accent { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .btn--accent:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
 .btn--ghost { background: transparent; color: var(--muted); margin: 6px 4px 2px; }
+
+/* Taobao Office: không hiện nhãn "Nhóm <thư mục> · n" trên văn phòng, chỉ hiện tên agent */
+.team-tag { display: none !important; }

@@ -13,3 +13,6 @@ Chép nguyên bản (bỏ thư mục docs/, tests/, .github/). Giấy phép: off
 - `server/index.mjs`: thêm `GET /api/shop` (đọc `shop-stats.json` trong thư mục dữ liệu) và `op: 'sys'` của `/api/chat` (dòng thông báo hệ thống, chỉ từ máy này).
 - `src/i18n/locales/vi/*.js`: Việt hóa lại thuật ngữ cho cửa hàng thời trang (Lệnh → Xử lý, Sửa file → Ghi chép, Đọc → Xem, Web → Tìm hàng,
   session/phiên → agent/ca làm, deploy → ra mắt, commit → chốt đơn, thư viện → phòng mẫu, phòng máy → kho hàng, giám đốc → chủ shop...).
+- `src/components/office/TopBar.tsx`, `src/office/ui/activity.js`, `src/office/ui/embed.js`: nhãn "My Office" góc trái hiện tên cửa hàng (từ /api/shop); nút Cài đặt (bánh răng) mở cửa sổ Cài đặt của app khi được nhúng. Ghi công dự án gốc nằm ở Cài đặt > Giới thiệu và NOTICE.md.
+- `src/office/ui/wrapped.js`, `src/i18n/locales/{vi,en}/wrapped.js`: thẻ Tổng kết tuần có ba thẻ bằng nhau Việc / Khách / Doanh thu trong 7 ngày (khách và doanh thu đọc từ `/api/shop`, trường `week`), nhãn góc trái là tên cửa hàng.
+- `server/index.mjs` (biến môi trường `OFFICE_ONLY_AGENTS=1`, app đặt sẵn): văn phòng chỉ hiện các phiên là agent của app (có trong `agent-names.json`), bỏ qua mọi phiên Claude khác trên máy; `src/styles/places.css`: ẩn nhãn nhóm `.team-tag`.

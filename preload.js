@@ -28,5 +28,9 @@ contextBridge.exposeInMainWorld('api', {
   inboxManual: (d) => ipcRenderer.invoke('inbox:manual', d),
   inboxPoll: () => ipcRenderer.invoke('inbox:poll'),
   onInbox: (cb) => ipcRenderer.on('inbox:result', (_, r) => cb(r)),
+  listApprovals: () => ipcRenderer.invoke('approvals:list'),
+  editApproval: (d) => ipcRenderer.invoke('approvals:edit', d),
+  decideApproval: (d) => ipcRenderer.invoke('approvals:decide', d),
+  onApprovals: (cb) => ipcRenderer.on('approvals:update', (_, l) => cb(l)),
   openData: () => ipcRenderer.invoke('log:open'),
 });

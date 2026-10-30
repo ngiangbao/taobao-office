@@ -235,6 +235,7 @@ async function pollShop() {
     const r = await fetch('/api/shop', { cache: 'no-store' }); if (!r.ok) return;
     const t = await r.text(); if (t === shopJson) return;
     shopJson = t; state.shop = JSON.parse(t); renderHud();
+    const brand = document.getElementById('brand-name'); if (brand && state.shop.shopName) brand.textContent = state.shop.shopName; // nhãn góc trái = tên cửa hàng
   } catch { /* chưa có số liệu */ }
 }
 if (typeof window !== 'undefined') { setInterval(pollShop, 2500); pollShop(); }

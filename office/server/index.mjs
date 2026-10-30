@@ -514,6 +514,7 @@ setInterval(() => chat.clock(), 30_000).unref();
 // `from` của op 'say' có thể là mã phiên Claude (sid): đổi sang mã người trong văn phòng
 const fromId = (f) => [...sessions.values()].find((x) => x.sid === f)?.id || f;
 // tên agent do app Taobao Office đặt: { [sid]: tên }, đọc từ agent-names.json trong thư mục dữ liệu
+const ONLY_AGENTS = process.env.OFFICE_ONLY_AGENTS === '1';
 const agentName = (sid) => { try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'agent-names.json'), 'utf8'))[sid] || ''; } catch { return ''; } };
 const chatOut = () => ({ ok: true, msgs: chat.state.msgs, pinned: chat.state.pinned, typing: chat.state.typing });
 
@@ -574,6 +575,7 @@ async function doScan() {
   for (const f of files) {
     let j;
     try { j = JSON.parse(await fsp.readFile(path.join(SESS_DIR, f), 'utf8')); } catch { continue; }
+    if (ONLY_AGENTS && !agentName(j.sessionId)) continue; // chạy trong app Taobao Office: chỉ hiện agent của app, bỏ qua các phiên Claude khác trên máy
     if (!j.pid || !alive(j.pid) || !(await sameProcess(j))) continue;
     const key = 'p' + j.pid;
     live.add(key);
@@ -698,6 +700,7 @@ async function onHook(p) {
   lastHookAt = Date.now();
   const ev = p.hook_event_name, sid = p.session_id;
   if (!ev || !sid) return;
+  if (ONLY_AGENTS && !agentName(sid)) return; // (xem doScan) phiên không phải agent của app thì bỏ qua
   rollDay();
   let s = bySid(sid);
   if (!s) { await scanSessions(); s = bySid(sid); }

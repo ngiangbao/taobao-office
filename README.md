@@ -15,6 +15,14 @@
 - **Lịch sử chat lưu mãi mãi** trên máy (`history/YYYY-MM.jsonl`), xem và tìm kiếm bằng nút "Lịch sử".
 - **Tự cập nhật** từ GitHub Releases (Windows, Linux AppImage). macOS chưa ký nên phải cập nhật tay.
 
+## Hàng chờ duyệt: agent không thể tự đăng
+- **Khóa bằng kỹ thuật, không chỉ lời dặn.** Agent thường chỉ xem, điều hướng và cuộn trang: các công cụ bấm, gõ, điền form, tải file, chạy mã và kể cả phím Enter đều bị khóa (`--disallowedTools`, thắng cả cấu hình trong `~/.claude` của bạn). Đã kiểm chứng bằng Claude thật.
+- Muốn đăng bài hay bình luận, agent gửi **đề xuất** (`[[DE_XUAT]]`) vào nút **Chờ duyệt**. Bạn xem, sửa, rồi bấm *Duyệt và đăng*: một lượt "người đăng" riêng, là lượt duy nhất có quyền thao tác trình duyệt, đăng đúng nguyên văn bản bạn duyệt. Bị từ chối thì không bao giờ được đăng.
+- App tự giới hạn số bài mỗi ngày, giãn cách giữa hai lần đăng, chỉ nhận link Facebook, và nếu app tắt giữa lúc đang đăng thì **không tự đăng lại** (có thể đã đăng rồi), chỉ báo bạn kiểm tra.
+- Chưa kiểm chứng: lượt đăng trên giao diện Facebook thật (cần bạn đăng nhập) và việc tải ảnh lên bài đăng.
+- Ảnh sản phẩm vào khung chat: agent gửi ảnh bằng `[[GUI_ANH]]` (ví dụ khi khách chốt đơn). Khi **bạn gửi ảnh sản phẩm**, app gọi đúng **một** agent Tìm hàng đi tìm, không chuyền tay.
+- Tên cửa hàng đặt ở Cài đặt > Cửa hàng; nó thay nhãn "My Office" cạnh biểu tượng tòa nhà, tiêu đề cửa sổ, và là tên mà agent dùng khi xưng với khách.
+
 ## Khách hàng: mỗi khách một agent riêng
 - **Khách nhắn đến thì tự có một agent**, kèm **mã định danh riêng** (dạng `KH-7F3K9`) chỉ bạn và agent đó biết. Khách nhắn lại thì đúng agent đó tự dậy với đầy đủ hồ sơ.
 - **Che danh tính**: khi giao việc cho agent chuyên môn (tìm hàng, báo giá), tên và số điện thoại thật của khách được thay bằng mã.
@@ -31,6 +39,7 @@ npm run prepare:office   # dựng văn phòng một lần
 npm start
 ```
 Kiểm thử (không tốn tiền, dùng agent giả): `node --test tests/`.
+Cài bản beta lên máy mình trước khi phát hành (Linux): `scripts/install-beta.sh` (thêm `--office` khi đã sửa thư mục `office/`). Máy chỉ giữ bản beta mới nhất và một bản beta trước đó; bản beta chỉ tự cập nhật sang bản beta mới hơn.
 Đóng gói: `npm run dist:linux` / `dist:win` (chạy trên Windows) / `dist:mac` (chạy trên macOS).
 
 Yêu cầu: Node 20+, Claude Code đã cài và đăng nhập, Chrome/Chromium cho Playwright.

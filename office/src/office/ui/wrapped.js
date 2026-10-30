@@ -12,6 +12,7 @@ import { toast } from './activity.js';
 import { t as tr, num, locale } from '../../i18n/index.js';
 
 const W = 1080, H = 1350;
+const vnd = (v) => (v >= 1e9 ? `${num(v / 1e9, 2)} tỷ` : `${num(v)}₫`);   // doanh thu đầy đủ trên thẻ; từ 1 tỷ thì rút gọn
 // weekday 0 is Sunday; 1 Jan 2023 was one
 const weekdayName = (i) => (Number.isInteger(i) && i >= 0 && i < 7 ? new Intl.DateTimeFormat(locale(), { weekday: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2023, 0, 1 + i))) : '');
 const ddmm = (day) => { const [, m, d] = String(day || '').split('-'); return d ? tr('wrapped.date', { d, m }) : ''; };
@@ -20,7 +21,8 @@ const hrs = (x) => { const n = Math.round((Number(x) || 0) * 10) / 10; return { 
 let lastData = null;
 
 const demoWeek = () => ({ from: '2026-10-21', to: '2026-10-27', days: 7, hoursSum: 63.4, hoursWall: 38.2, waitHours: 9.6, stats: { prompts: 312, edit: 1840, read: 4210, cmd: 2985, web: 140, deploy: 9 },
-  commits: 46, pushes: 21, longestMin: 214, cost: 412.5, sessions: 27, projects: [{ name: 'landing-page', hours: 21.3 }, { name: 'shop-api', hours: 17.8 }], busiest: { day: '2026-10-23', weekday: 4, hours: 14.2 } });
+  commits: 46, pushes: 21, longestMin: 214, cost: 412.5, sessions: 27, projects: [{ name: 'landing-page', hours: 21.3 }, { name: 'shop-api', hours: 17.8 }], busiest: { day: '2026-10-23', weekday: 4, hours: 14.2 },
+  shop: { shopName: 'Lan Fashion', week: { customers: 14, revenue: 18750000 } } });
 
 // the office right now: draw a frame and copy it in the same task, before the browser clears the canvas
 function officeShot() {
@@ -36,7 +38,7 @@ function draw(d, shot) {
   for (const [x, y, r, col] of [[930, 120, 380, 'rgba(217, 119, 87, .22)'], [120, 980, 420, 'rgba(140, 79, 168, .22)']]) { const gl = g.createRadialGradient(x, y, 0, x, y, r); gl.addColorStop(0, col); gl.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gl; g.fillRect(0, 0, W, H); }
   // header: the mark, the name, the week
   g.save(); g.translate(60, 52); g.scale(2.6, 2.6); g.fillStyle = '#E8865F'; g.fill(new Path2D(OFFICE_MARK), 'evenodd'); g.restore();
-  g.fillStyle = '#F6EFE4'; g.font = `800 34px ${F}`; g.textBaseline = 'middle'; g.fillText('My Office', 136, 84);
+  g.fillStyle = '#F6EFE4'; g.font = `800 34px ${F}`; g.textBaseline = 'middle'; g.fillText(d.shop?.shopName || 'My Office', 136, 84);   // tên cửa hàng
   g.fillStyle = '#A9B1C4'; g.font = `600 28px ${F}`; g.textAlign = 'right'; g.fillText(d.from === d.to ? ddmm(d.to) : `${ddmm(d.from)} – ${ddmm(d.to)}`, W - 60, 84); g.textAlign = 'left';
   g.fillStyle = '#FFFFFF'; g.font = `800 64px ${F}`; g.fillText(tr('wrapped.title'), 60, 178);
   // the office picture, cropped to fill its frame
@@ -48,13 +50,15 @@ function draw(d, shot) {
   g.fillStyle = '#FFB86B'; g.font = `800 120px ${F}`; g.fillText(tr('wrapped.hours', hrs(d.hoursSum)), 60, 788);
   g.fillStyle = '#DCE3F0'; g.font = `600 30px ${F}`; g.fillText(tr('wrapped.worked', hrs(d.hoursWall)), 64, 884);
   g.fillStyle = '#8D97AA'; g.font = `500 26px ${F}`; g.fillText(`${tr('wrapped.waited', hrs(d.waitHours))} · ${tr('wrapped.sessions', { n: d.sessions || 0, c: num(d.sessions) })}`, 64, 926);
-  // four tiles
-  const tiles = [[num(d.stats?.prompts), tr('wrapped.prompts')], [num(d.stats?.edit), tr('wrapped.edits')], [num(d.stats?.cmd), tr('wrapped.cmds')], [`$${num(d.cost)}`, tr('wrapped.cost')]];
+  // ba thẻ bằng nhau: việc, khách và doanh thu trong tuần
+  const wk = d.shop?.week || {};
+  const tiles = [[num(d.stats?.prompts), tr('wrapped.kpiWork')], [num(wk.customers || 0), tr('wrapped.kpiCustomers')], [vnd(wk.revenue || 0), tr('wrapped.kpiRevenue')]];
+  const tw = 306, gap = 21;
   tiles.forEach(([v, k], i) => {
-    const x = 60 + i * 245, y = 972;
-    roundRect(g, x, y, 225, 150, 22); g.fillStyle = 'rgba(255,255,255,.06)'; g.fill(); g.strokeStyle = 'rgba(255,255,255,.10)'; g.stroke();
-    g.fillStyle = '#FFFFFF'; g.font = `800 ${v.length > 6 ? 40 : 50}px ${F}`; g.fillText(v, x + 22, y + 60);
-    g.fillStyle = '#A9B1C4'; g.font = `600 24px ${F}`; g.fillText(k, x + 22, y + 112);
+    const x = 60 + i * (tw + gap), y = 972;
+    roundRect(g, x, y, tw, 150, 22); g.fillStyle = 'rgba(255,255,255,.06)'; g.fill(); g.strokeStyle = 'rgba(255,255,255,.10)'; g.stroke();
+    g.fillStyle = '#FFFFFF'; g.font = `800 ${v.length > 10 ? 34 : v.length > 6 ? 42 : 52}px ${F}`; g.fillText(v, x + 24, y + 62);
+    g.fillStyle = '#A9B1C4'; g.font = `600 24px ${F}`; g.fillText(k, x + 24, y + 112);
   });
   // the week's highlights
   const top = d.projects?.[0], lines = [
@@ -78,6 +82,7 @@ async function open() {
   else {
     try { d = await (await fetch(`/api/wrapped${TOKEN ? `?k=${encodeURIComponent(TOKEN)}` : ''}`)).json(); }
     catch { $('wrap-note').textContent = tr('wrapped.loadFailed'); return; }
+    try { d.shop = await (await fetch('/api/shop', { cache: 'no-store' })).json(); } catch { d.shop = {}; }   // khách và doanh thu của tuần do app ghi
   }
   lastData = d;
   // canvas text does not wait for web fonts: load the weights the card uses first (the sample text pulls in both the Latin

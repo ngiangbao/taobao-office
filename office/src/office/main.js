@@ -212,3 +212,4 @@ export function startOffice() {
   started = true;
   for (const m of MODULES) m.setup();
 }
+import './ui/embed.js'; // Taobao Office: nút Cài đặt mở cửa sổ của app khi được nhúng

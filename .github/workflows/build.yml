@@ -21,6 +21,16 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npm install
+      - name: Đồng bộ phiên bản từ tag (tag có dấu "-", ví dụ v0.4.0-beta.2, là bản thử: phát hành dạng prerelease, kênh beta)
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        shell: bash
+        run: |
+          node -e "
+            const fs = require('fs'); const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const v = process.env.GITHUB_REF_NAME.replace(/^v/, ''); p.version = v;
+            if (v.includes('-')) p.build.publish[0].releaseType = 'prerelease';
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
+            console.log('version =', v, '| releaseType =', p.build.publish[0].releaseType);"
       - run: npm run prepare:office
       - name: Build (và phát hành khi có tag)
         shell: bash

@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src http://127.0.0.1:* http://localhost:*">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: http://127.0.0.1:* http://localhost:*; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src http://127.0.0.1:* http://localhost:*">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Taobao Office</title>
 <link rel="stylesheet" href="style.css">
@@ -10,19 +10,15 @@
 <body>
 <div class="app">
   <header class="bar">
-    <b class="brand">Taobao Office</b>
     <div id="agents" class="agents"></div>
     <button id="btn-add" class="add" title="Thêm một agent mới vào luồng làm việc">＋ Thêm agent</button>
     <span class="spacer"></span>
     <button id="btn-stop" class="danger" hidden>Dừng tất cả</button>
-    <a class="credit" href="https://github.com/khanh020905/my-office" target="_blank" rel="noopener">Văn phòng: My Office · khanh020905 (MIT)</a>
-    <button id="btn-login" class="ghost" title="Mở Chrome của app để tự đăng nhập Facebook/Taobao">Đăng nhập FB/Taobao</button>
+    <button id="btn-appr" class="ghost" title="Mọi bài đăng và bình luận đều chờ bạn duyệt ở đây">Chờ duyệt</button>
     <button id="btn-inbound" class="ghost" title="Dán tin của khách vào, hoặc đọc hộp thư Messenger">＋ Tin khách</button>
     <button id="btn-cust" class="ghost" title="Mỗi khách có một agent riêng">Khách</button>
     <button id="btn-rev" class="ghost" title="Sổ doanh thu: tiền đã thu thật">Doanh thu</button>
-    <button id="btn-hist" class="ghost" title="Toàn bộ lịch sử chat với các agent">Lịch sử</button>
-    <button id="btn-data" class="ghost">Nhật ký</button>
-    <button id="btn-cfg" class="ghost">Cài đặt</button>
+    <button id="btn-gear" class="ghost" title="Cài đặt" hidden>⚙ Cài đặt</button>
   </header>
   <div id="toast" class="toast" hidden></div>
   <main class="stage">
@@ -32,17 +28,92 @@
 </div>
 <div id="ver" class="ver"></div>
 
-<dialog id="dlg-hist" class="wide">
-  <div class="hist-head">
-    <h3>Lịch sử chat với agent</h3>
-    <select id="h-agent"></select>
-    <input id="h-q" type="search" placeholder="Tìm trong lịch sử…">
-    <button id="h-dir" class="ghost" title="Mở thư mục lưu lịch sử trên máy">Mở thư mục</button>
-    <button id="h-close" class="ghost">Đóng</button>
+<dialog id="dlg-settings" class="settings" aria-label="Cài đặt">
+  <div class="s-win">
+    <nav class="s-nav" aria-label="Mục cài đặt">
+      <h2>Cài đặt</h2>
+      <button type="button" data-nav="shop" class="on">Cửa hàng</button>
+      <button type="button" data-nav="post">Đăng bài và ảnh</button>
+      <button type="button" data-nav="cust">Khách hàng</button>
+      <button type="button" data-nav="conn">Kết nối tài khoản</button>
+      <button type="button" data-nav="hist">Lịch sử chat</button>
+      <button type="button" data-nav="office">Văn phòng 3D</button>
+      <button type="button" data-nav="about">Giới thiệu</button>
+    </nav>
+    <div class="s-main">
+      <button type="button" id="s-close" class="s-x" aria-label="Đóng">✕</button>
+      <form id="cfgform">
+        <section data-sec="shop">
+          <h3>Cửa hàng</h3>
+          <p class="hint">Tên cửa hàng, công thức báo giá và giọng văn mà mọi agent dùng.</p>
+          <label>Tên cửa hàng<input name="shopName" type="text" maxlength="40" placeholder="Ví dụ: Lan Fashion"></label>
+          <div class="grid">
+            <label>Tỷ giá (VNĐ/¥)<input name="rate" type="number" step="any"></label>
+            <label>Phí cân (VNĐ/kg)<input name="shipPerKg" type="number" step="any"></label>
+            <label>Phí dịch vụ (%)<input name="servicePct" type="number" step="any"></label>
+          </div>
+          <label>Giọng văn của shop<input name="tone" type="text"></label>
+          <label>Nhóm Facebook (mỗi dòng: Tên | link | ghi chú)<textarea name="groups" rows="6"></textarea></label>
+        </section>
+        <section data-sec="post" hidden>
+          <h3>Đăng bài và ảnh</h3>
+          <p class="hint">Agent không tự đăng được: mọi bài và bình luận chờ bạn duyệt ở nút "Chờ duyệt".</p>
+          <div class="grid">
+            <label>Tối đa bài và bình luận mỗi ngày (app tự chặn)<input name="maxPostsPerDay" type="number" min="1"></label>
+            <label>Giãn cách giữa hai lần đăng (giây)<input name="publishGapSeconds" type="number" min="0"></label>
+            <label>Gửi ảnh sản phẩm: chờ bao nhiêu giây rồi tự tìm hàng (0 = tắt)<input name="photoSearchSeconds" type="number" min="0"></label>
+          </div>
+        </section>
+        <section data-sec="cust" hidden>
+          <h3>Khách hàng</h3>
+          <p class="hint">Cách agent chăm khách và nhận tin khách.</p>
+          <div class="grid">
+            <label>Khách im lặng bao nhiêu phút thì agent soạn tin nhắc<input name="followupMinutes" type="number" min="0"></label>
+            <label>Nhắc tối đa mấy lần mỗi lượt<input name="followupMax" type="number" min="0"></label>
+            <label>Làm mới trí nhớ khi hội thoại dài quá (token, 0 = tắt)<input name="refreshTokens" type="number" min="0"></label>
+            <label>Khách nghỉ quá bao nhiêu giờ thì hiện "đang ngủ"<input name="sleepHours" type="number" min="1"></label>
+            <label>Tự đọc hộp thư Messenger mỗi N phút (0 = tắt)<input name="inboxMinutes" type="number" min="0"></label>
+            <label>Địa chỉ hộp thư<input name="inboxUrl" type="text"></label>
+          </div>
+          <p class="hint">Đọc hộp thư dùng Chrome đã đăng nhập và chỉ đọc. Mở cuộc trò chuyện sẽ hiện "đã xem" với khách.</p>
+        </section>
+        <section data-sec="conn" hidden>
+          <h3>Kết nối tài khoản</h3>
+          <p class="hint">Facebook và Taobao dùng chung một Chrome của app: bạn đăng nhập một lần, mọi agent dùng chung, mỗi agent một tab riêng. App không lưu mật khẩu của bạn.</p>
+          <div class="row-btns"><button type="button" id="s-login">Đăng nhập Facebook và Taobao…</button><span id="s-loginmsg" class="hint"></span></div>
+          <label>Đường dẫn lệnh claude (để trống = tự tìm)<input name="claudePath" type="text"></label>
+          <p id="claudeinfo" class="hint"></p>
+        </section>
+        <div class="s-foot"><span id="s-saved" class="hint"></span><button type="submit" id="s-save">Lưu thay đổi</button></div>
+      </form>
+      <section data-sec="hist" hidden>
+        <h3>Lịch sử chat</h3>
+        <p class="hint">Toàn bộ tin giữa bạn, khách và các agent, lưu mãi mãi trên máy này. Tin mới nhất nằm trên cùng.</p>
+        <div class="hist-head"><select id="h-agent"></select><input id="h-q" type="search" placeholder="Tìm trong lịch sử…"><button type="button" id="h-dir" class="ghost" title="Mở thư mục lưu lịch sử trên máy">Mở thư mục</button></div>
+        <div id="h-list" class="hist-list"></div>
+        <div class="hist-foot"><button type="button" id="h-more" class="ghost" hidden>Xem thêm tin cũ hơn</button></div>
+      </section>
+      <section data-sec="office" hidden>
+        <h3>Văn phòng 3D</h3>
+        <p class="hint">Kiểu văn phòng, cảnh, thời gian, nhân vật, đồ họa, ngôn ngữ và âm thanh. Bấm là áp dụng ngay vào văn phòng.</p>
+        <div id="s-office-groups" class="o-groups"><p class="hint">Đang đọc tùy chọn của văn phòng…</p></div>
+      </section>
+      <section data-sec="about" hidden>
+        <h3>Giới thiệu</h3>
+        <p>Trợ lý order Taobao cho cửa hàng thời trang: đội agent Claude chăm khách, tìm hàng, báo giá và đăng bài, có văn phòng 3D để theo dõi.</p>
+        <p class="hint">Phiên bản <b id="s-ver"></b></p>
+        <h4>Ghi công</h4>
+        <p>Văn phòng 3D là dự án <b>My Office</b> của <a href="https://github.com/khanh020905/my-office" target="_blank" rel="noopener">khanh020905</a>, theo giấy phép MIT. My Office là dự án cộng đồng, không do Anthropic tạo ra hay chứng nhận.</p>
+      </section>
+    </div>
   </div>
-  <p class="hint">Lưu mãi mãi trên máy bạn, không bao giờ bị xóa tự động. Tin mới nhất nằm trên cùng.</p>
-  <div id="h-list" class="hist-list"></div>
-  <div class="hist-foot"><button id="h-more" class="ghost" hidden>Xem thêm tin cũ hơn</button></div>
+</dialog>
+
+<dialog id="dlg-appr" class="wide">
+  <div class="hist-head"><h3>Chờ duyệt</h3><span id="a-limit" class="hint"></span><button id="a-close" class="ghost">Đóng</button></div>
+  <p class="hint">Agent <b>không thể</b> tự đăng hay bình luận: họ chỉ đề xuất. Bạn xem, sửa nếu muốn rồi bấm <b>Duyệt và đăng</b>: một lượt riêng sẽ đăng <b>đúng nguyên văn</b> nội dung bạn thấy ở đây.</p>
+  <p id="a-err" class="err"></p>
+  <div id="a-list" class="hist-list"></div>
 </dialog>
 
 <dialog id="dlg-cust" class="wide">
@@ -94,37 +165,6 @@
   </form>
 </dialog>
 
-<dialog id="dlg">
-  <form method="dialog" id="cfgform">
-    <h3>Cài đặt shop</h3>
-    <div class="grid">
-      <label>Tỷ giá (VNĐ/¥)<input name="rate" type="number" step="any"></label>
-      <label>Phí cân (VNĐ/kg)<input name="shipPerKg" type="number" step="any"></label>
-      <label>Phí dịch vụ (%)<input name="servicePct" type="number" step="any"></label>
-      <label>Tối đa bài/ngày<input name="maxPostsPerDay" type="number"></label>
-    </div>
-    <label>Giọng văn của shop<input name="tone" type="text"></label>
-    <label>Nhóm Facebook (mỗi dòng: Tên | link | ghi chú)<textarea name="groups" rows="6"></textarea></label>
-    <div class="grid">
-      <label>Điều khiển trình duyệt
-        <select name="browser"><option value="playwright">Chrome riêng của app (khuyên dùng)</option><option value="chrome">Tiện ích Claude in Chrome</option></select>
-      </label>
-      <label>Đường dẫn lệnh claude (để trống = tự tìm)<input name="claudePath" type="text"></label>
-    </div>
-    <h4>Khách hàng</h4>
-    <div class="grid">
-      <label>Khách im lặng bao nhiêu phút thì agent soạn tin nhắc<input name="followupMinutes" type="number" min="0"></label>
-      <label>Nhắc tối đa mấy lần mỗi lượt<input name="followupMax" type="number" min="0"></label>
-      <label>Làm mới trí nhớ khi hội thoại dài quá (token, 0 = tắt)<input name="refreshTokens" type="number" min="0"></label>
-      <label>Khách nghỉ quá bao nhiêu giờ thì hiện "đang ngủ"<input name="sleepHours" type="number" min="1"></label>
-      <label>Tự đọc hộp thư Messenger mỗi N phút (0 = tắt)<input name="inboxMinutes" type="number" min="0"></label>
-      <label>Địa chỉ hộp thư<input name="inboxUrl" type="text"></label>
-    </div>
-    <p class="hint">Đọc hộp thư dùng Chrome đã đăng nhập và chỉ đọc. Mở cuộc trò chuyện sẽ hiện "đã xem" với khách.</p>
-    <p id="claudeinfo" class="hint"></p>
-    <menu><button value="cancel" class="ghost">Hủy</button><button id="save" value="ok">Lưu</button></menu>
-  </form>
-</dialog>
 <script type="module" src="app.js"></script>
 </body>
 </html>

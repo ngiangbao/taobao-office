@@ -8,7 +8,7 @@ let templates = {};
 const api = window.api || (() => {
   let list = [{ id: 'a', name: 'Báo giá', roleLabel: 'Báo giá', busy: false }, { id: 'b', name: 'Đăng bài', roleLabel: 'Đăng bài nhóm', busy: true }];
   return {
-    getCfg: async () => ({ cfg: { rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12, tone: '', browser: 'playwright', claudePath: '', groups: [] }, claude: null }),
+    getCfg: async () => ({ cfg: { shopName: 'Lan Fashion', rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12, tone: '', browser: 'playwright', claudePath: '', groups: [] }, claude: null }),
     setCfg: async () => true, openData: async () => {}, openLogin: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }),
     listAgents: async () => ({ agents: list, templates: { quote: { label: 'Báo giá', prompt: 'Chuyên báo giá.' }, post: { label: 'Đăng bài nhóm', prompt: 'Chuyên đăng bài.' }, leads: { label: 'Tìm khách', prompt: 'Chuyên tìm khách.' }, custom: { label: 'Tùy chỉnh', prompt: '' } } }),
     addAgent: async (d) => { list = [...list, { id: String(Math.random()), name: d.name, roleLabel: d.role, busy: false }]; return { ok: true }; },
@@ -18,7 +18,9 @@ const api = window.api || (() => {
     renameCustomer: async () => true, pauseCustomer: async () => true, refreshCustomer: async () => true, customerProfile: async () => '# Hồ sơ khách Lan\n- Xưng hô: chị Lan\n- Size: M\n- Thích: màu be, dáng ngắn',
     onCustomers: () => {}, listRevenue: async () => ({ total: 936800, items: [{ id: 'a1', t: new Date().toISOString(), amount: 436800, name: 'Lan', code: 'KH-7F3K9', note: 'cọc áo khoác be', source: 'agent' }] }),
     addRevenue: async () => ({ ok: true }), voidRevenue: async () => true, inboxManual: async () => ({ ok: true, code: 'KH-NEW01', created: true }), inboxPoll: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), onInbox: () => {},
-    onAgents: () => {}, officeUrl: async () => 'http://localhost:4310/', onOfficeReady: () => {}, version: async () => 'dev', onUpdate: () => {},
+    listApprovals: async () => ({ limit: 12, today: 3, items: [{ id: 'p1', num: 7, status: 'pending', agentName: 'Đăng bài', kind: 'bai_dang', target: 'https://www.facebook.com/groups/vi-du', text: 'Áo khoác lông cừu be về hàng, size S-M-L, ib shop nhé 💕', files: [], hash: 'h1', t: Date.now() }, { id: 'p2', num: 6, status: 'done', agentName: 'Tìm khách', kind: 'binh_luan', target: 'https://www.facebook.com/groups/vi-du/posts/1', text: 'Shop có mẫu này ạ, bạn ib shop nha', files: [], result: 'ĐÃ ĐĂNG: ok', t: Date.now() - 3600e3 }] }),
+    editApproval: async () => true, decideApproval: async () => ({ ok: true }), onApprovals: () => {},
+    onAgents: () => {}, officeUrl: async () => new URLSearchParams(location.search).get('office') || 'http://localhost:4310/', onOfficeReady: () => {}, onOfficeError: () => {}, version: async () => 'dev', onUpdate: () => {},  // bản xem thử trong trình duyệt: thêm ?office=<địa chỉ> để chọn văn phòng
   };
 })();
 
@@ -27,8 +29,8 @@ function renderAgents(list) {
   for (const a of list.filter((x) => x.kind !== 'customer' || x.busy)) { // agent chăm khách chỉ hiện trên thanh khi đang làm; xem đủ ở nút Khách
     const c = document.createElement('div'); c.className = 'chip' + (a.busy ? ' busy' : '');
     c.title = `${a.name} · ${a.roleLabel}${a.busy ? ' · đang làm việc' : ''}\nGọi trong nhóm chat: @${a.name}`;
-    c.innerHTML = '<span class="dot"></span><span></span><small></small><button data-r title="Hội thoại mới (quên ngữ cảnh cũ)">⟳</button><button data-x title="Xóa agent">✕</button>';
-    c.children[1].textContent = a.name; c.children[2].textContent = a.roleLabel;
+    c.innerHTML = '<span class="dot"></span><span></span><button data-r title="Hội thoại mới (quên ngữ cảnh cũ)">⟳</button><button data-x title="Xóa agent">✕</button>';
+    c.children[1].textContent = a.name; // chỉ hiện tên agent
     c.querySelector('[data-r]').onclick = async () => { if (!(await api.resetAgent(a.id))) say(`${a.name} đang làm việc, hãy chờ xong.`); };
     if (a.kind === 'customer') c.querySelectorAll('button').forEach((b) => b.remove()); // khách quản lý ở hộp thoại Khách
     else c.querySelector('[data-x]').onclick = () => { if (confirm(`Xóa agent "${a.name}"?`)) api.removeAgent(a.id); };
@@ -57,14 +59,85 @@ formA.addEventListener('submit', async (e) => {
 });
 
 $('#btn-stop').onclick = () => api.stopAll();
-$('#btn-login').onclick = async () => {
+// ---------- Cửa sổ Cài đặt (kiểu Claude): mở từ nút bánh răng của văn phòng ----------
+const dlgS = $('#dlg-settings'), form = $('#cfgform');
+const FORM_SECS = ['shop', 'post', 'cust', 'conn']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
+let curSec = 'shop', histAgent = '';
+function showSection(id) {
+  curSec = id;
+  dlgS.querySelectorAll('.s-nav button').forEach((b) => b.classList.toggle('on', b.dataset.nav === id));
+  dlgS.querySelectorAll('section[data-sec]').forEach((sec) => { sec.hidden = sec.dataset.sec !== id; });
+  form.hidden = !FORM_SECS.includes(id);
+  $('#s-saved').textContent = '';
+  if (id === 'hist') { const ag = histAgent; histAgent = ''; initHist(ag); }
+  if (id === 'about') api.version().then((v) => ($('#s-ver').textContent = v));
+  if (id === 'office') askOffice();
+}
+async function fillSettings() {
+  const { cfg, claude } = await api.getCfg();
+  for (const el of form.elements) if (el.name && el.name !== 'groups') el.value = cfg[el.name] ?? '';
+  form.elements.groups.value = cfg.groups.map((g) => [g.name, g.url || '', g.note || ''].join(' | ')).join('\n');
+  $('#claudeinfo').textContent = claude ? `Đã tìm thấy claude: ${claude}` : 'Chưa tìm thấy lệnh claude: cài Claude Code và đăng nhập (chạy `claude` một lần), hoặc nhập đường dẫn ở trên.';
+}
+async function openSettings(sec = curSec) { await fillSettings(); showSection(sec); if (!dlgS.open) dlgS.showModal(); }
+dlgS.querySelectorAll('.s-nav button').forEach((b) => (b.onclick = () => showSection(b.dataset.nav)));
+$('#s-close').onclick = () => dlgS.close();
+dlgS.addEventListener('click', (e) => { if (e.target === dlgS) dlgS.close(); }); // bấm ra ngoài thì đóng
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const { cfg } = await api.getCfg();
+  for (const k of ['rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
+  for (const k of ['tone', 'claudePath', 'inboxUrl']) cfg[k] = form.elements[k].value;
+  cfg.shopName = form.elements.shopName.value.trim().slice(0, 40) || 'Cửa hàng của tôi';
+  document.title = cfg.shopName;
+  cfg.groups = form.elements.groups.value.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map(([name, url, note]) => ({ name, url, note }));
+  await api.setCfg(cfg);
+  $('#s-saved').textContent = 'Đã lưu ✓'; setTimeout(() => ($('#s-saved').textContent = ''), 3000);
+});
+$('#s-login').onclick = async () => {
   const r = await api.openLogin();
-  say(r.ok ? 'Đã mở Chrome của app. Hãy tự đăng nhập Facebook và Taobao trong cửa sổ đó (tự giải CAPTCHA nếu có). Cứ để nguyên cửa sổ: các agent sẽ dùng chung đăng nhập và mỗi agent mở tab riêng.' : r.error);
+  $('#s-loginmsg').textContent = r.ok ? 'Đã mở Chrome của app. Hãy tự đăng nhập Facebook và Taobao trong cửa sổ đó (tự giải CAPTCHA nếu có), và cứ để nguyên cửa sổ.' : r.error;
 };
-$('#btn-data').onclick = () => api.openData();
+// Nút bánh răng của văn phòng (cạnh nút Xem lại) mở cửa sổ này; mục "Văn phòng 3D" mở lại bảng tùy chọn gốc của văn phòng
+window.addEventListener('message', (ev) => {
+  if (ev.source !== frame.contentWindow) return;
+  const d = ev.data || {};
+  if (d.tbo === 'open-settings') openSettings();
+  else if (d.tbo === 'office-state') renderOfficeSettings(d.groups || []);
+  else if (d.tbo === 'office-ready' && dlgS.open && curSec === 'office') askOffice(); // văn phòng vừa tải lại (ví dụ sau khi đổi ngôn ngữ)
+});
+// ---------- Mục "Văn phòng 3D": tùy chọn của chính văn phòng, hiện thẳng trong cửa sổ này ----------
+const askOffice = () => frame.contentWindow?.postMessage({ tbo: 'office-get' }, '*');
+function renderOfficeSettings(groups) {
+  const box = $('#s-office-groups'); box.innerHTML = '';
+  if (!groups.length) { box.innerHTML = '<p class="hint">Chưa đọc được tùy chọn của văn phòng. Hãy chờ văn phòng mở xong rồi thử lại.</p>'; return; }
+  let lastTab = '', lastHeading = '';
+  const apply = (sel) => frame.contentWindow?.postMessage({ tbo: 'office-apply', sel }, '*');
+  for (const g of groups) {
+    if (g.tabLabel && g.tab !== lastTab) { const t = document.createElement('div'); t.className = 'o-tab'; t.textContent = g.tabLabel; box.append(t); lastTab = g.tab; }
+    if (g.heading && g.heading !== lastHeading && g.heading !== g.tabLabel) { const h = document.createElement('h4'); h.textContent = g.heading; box.append(h); }
+    lastHeading = g.heading;
+    const wrap = document.createElement('div'); wrap.className = g.kind === 'choice' ? 'o-grid' : '';
+    for (const it of g.items) {
+      const b = document.createElement('button'); b.type = 'button';
+      if (g.kind === 'toggle') { b.className = 'o-switch'; b.setAttribute('role', 'switch'); b.setAttribute('aria-checked', String(it.pressed)); b.innerHTML = '<span></span><i></i>'; b.firstChild.textContent = it.label; }
+      else {
+        b.className = g.kind === 'action' ? 'ghost' : 'o-card'; if (g.kind === 'choice') b.setAttribute('aria-pressed', String(it.pressed));
+        if (it.img && g.kind === 'choice') { const im = document.createElement('img'); im.src = it.img; im.alt = ''; b.append(im); }
+        const l = document.createElement('b'); l.textContent = it.label; b.append(l);
+        if (it.sub && g.kind === 'choice') { const s = document.createElement('small'); s.textContent = it.sub; b.append(s); }
+      }
+      b.onclick = () => apply(it.sel);
+      wrap.append(b);
+    }
+    box.append(wrap);
+  }
+}
+$('#btn-gear').onclick = () => openSettings(); // dự phòng khi văn phòng không mở được
+if (!window.api) $('#btn-gear').hidden = false; // bản xem thử trong trình duyệt không có bánh răng của văn phòng
 
-// Lịch sử chat với agent (lưu vĩnh viễn)
-const dlgH = $('#dlg-hist'), hList = $('#h-list'), hMore = $('#h-more');
+// ---------- Lịch sử chat với agent (lưu vĩnh viễn), nằm trong Cài đặt ----------
+const hList = $('#h-list'), hMore = $('#h-more');
 let hBefore = '', hLastDay = '', hTimer = null;
 const fmtTime = (iso) => new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 const fmtDay = (iso) => new Date(iso).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -73,7 +146,7 @@ function addHist(items) {
     const day = fmtDay(r.t);
     if (day !== hLastDay) { const d = document.createElement('div'); d.className = 'hist-day'; d.textContent = day; hList.append(d); hLastDay = day; }
     const el = document.createElement('div'); el.className = 'h-item ' + r.kind;
-    const who = r.kind === 'inbound' ? `Khách nhắn → ${r.agent}${r.code ? ' (' + r.code + ')' : ''}` : r.kind === 'system' ? `Hệ thống · ${r.agent}` : r.kind === 'user' ? `Chủ shop → ${r.agent ? '@' + r.agent : '(chưa giao cho ai)'}` : r.kind === 'handoff' ? `${r.agent} ➜ giao cho @${r.to}` : r.kind === 'error' ? `${r.agent} · lỗi` : r.agent;
+    const who = r.kind === 'inbound' ? `Khách nhắn → ${r.agent}${r.code ? ' (' + r.code + ')' : ''}` : r.kind === 'system' ? `Hệ thống · ${r.agent}` : r.kind === 'proposal' ? `Đề xuất · ${r.agent}` : r.kind === 'user' ? `Chủ shop → ${r.agent ? '@' + r.agent : '(chưa giao cho ai)'}` : r.kind === 'handoff' ? `${r.agent} ➜ giao cho @${r.to}` : r.kind === 'error' ? `${r.agent} · lỗi` : r.agent;
     const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `${fmtTime(r.t)} · ${who}${r.chain ? ` · chuỗi #${r.chain}` : ''}`;
     const body = document.createElement('div'); body.textContent = r.text + (r.files?.length ? `\n[${r.files.length} ảnh đính kèm]` : '');
     el.append(meta, body); hList.append(el);
@@ -87,35 +160,16 @@ async function loadHist(reset) {
   if (reset && !r.items.length) hList.textContent = 'Chưa có tin nào khớp.';
   hMore.hidden = !r.more;
 }
-async function openHist(agentId = '') {
+async function initHist(agentId = '') {
   const sel = $('#h-agent'); sel.innerHTML = ''; sel.add(new Option('Tất cả agent', ''));
   for (const a of (await api.listAgents()).agents) sel.add(new Option(a.name, a.id));
-  sel.value = agentId; $('#h-q').value = ''; if (!dlgH.open) dlgH.showModal(); loadHist(true);
+  sel.value = agentId; $('#h-q').value = ''; loadHist(true);
 }
-$('#btn-hist').onclick = () => openHist();
+const openHist = (agentId = '') => { histAgent = agentId; return openSettings('hist'); }; // dùng ở hộp thoại Khách
 $('#h-agent').onchange = () => loadHist(true);
 $('#h-q').oninput = () => { clearTimeout(hTimer); hTimer = setTimeout(() => loadHist(true), 250); };
 hMore.onclick = () => loadHist(false);
-$('#h-close').onclick = () => dlgH.close();
 $('#h-dir').onclick = () => api.openHistoryDir();
-
-// Cài đặt
-const dlg = $('#dlg'), form = $('#cfgform');
-$('#btn-cfg').onclick = async () => {
-  const { cfg, claude } = await api.getCfg();
-  for (const el of form.elements) if (el.name && el.name !== 'groups') el.value = cfg[el.name] ?? '';
-  form.elements.groups.value = cfg.groups.map((g) => [g.name, g.url || '', g.note || ''].join(' | ')).join('\n');
-  $('#claudeinfo').textContent = claude ? `Đã tìm thấy claude: ${claude}` : 'Chưa tìm thấy lệnh claude — cài Claude Code và đăng nhập, hoặc nhập đường dẫn ở trên.';
-  dlg.showModal();
-};
-form.addEventListener('submit', async (e) => {
-  if (e.submitter?.value !== 'ok') return;
-  const { cfg } = await api.getCfg();
-  for (const k of ['rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes']) cfg[k] = Number(form.elements[k].value) || 0;
-  for (const k of ['tone', 'browser', 'claudePath', 'inboxUrl']) cfg[k] = form.elements[k].value;
-  cfg.groups = form.elements.groups.value.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map(([name, url, note]) => ({ name, url, note }));
-  await api.setCfg(cfg);
-});
 
 // Số phiên bản ở góc phải dưới + trạng thái tự cập nhật
 const ver = $('#ver'); let current = '';
@@ -126,9 +180,10 @@ api.onUpdate((u) => {
     : u.state === 'ready' ? `${current} · đã tải v${u.version}, tự khởi động lại sau giây lát…` : current;
 });
 
+api.getCfg().then(({ cfg }) => { if (cfg.shopName) document.title = cfg.shopName; });
 api.getCfg().then(({ claude }) => { if (!claude) say('Chưa tìm thấy lệnh `claude`. Cài Claude Code và đăng nhập (chạy `claude` một lần), hoặc nhập đường dẫn trong Cài đặt.'); });
 api.officeUrl().then(showOffice); api.onOfficeReady(showOffice);
-api.onOfficeError?.((m) => { wait.classList.remove('hide'); wait.style.whiteSpace = 'pre-wrap'; wait.style.padding = '24px'; wait.style.textAlign = 'center'; wait.style.color = '#f99'; wait.textContent = `Không mở được văn phòng.\n\n${m}\n\nHãy đóng app rồi mở lại; nếu vẫn lỗi, cài lại bản mới nhất.`; say('Văn phòng 3D không chạy, nhưng các agent và hộp thoại vẫn dùng được nếu agent cần nhóm chat thì phải mở lại app.'); });
+api.onOfficeError?.((m) => { $('#btn-gear').hidden = false; wait.classList.remove('hide'); wait.style.whiteSpace = 'pre-wrap'; wait.style.padding = '24px'; wait.style.textAlign = 'center'; wait.style.color = '#f99'; wait.textContent = `Không mở được văn phòng.\n\n${m}\n\nHãy đóng app rồi mở lại; nếu vẫn lỗi, cài lại bản mới nhất.`; say('Văn phòng 3D không chạy, nhưng các agent và hộp thoại vẫn dùng được nếu agent cần nhóm chat thì phải mở lại app.'); });
 refresh();
 
 // ---------- Khách hàng: mỗi khách một agent, mã định danh riêng ----------
@@ -217,3 +272,45 @@ $('#revform').addEventListener('submit', async (e) => {
   $('#r-err').textContent = ''; e.target.reset(); loadRev();
 });
 $('#r-close').onclick = () => dlgR.close();
+
+// ---------- Chờ duyệt: agent chỉ đề xuất, bạn duyệt rồi mới đăng ----------
+const dlgA2 = $('#dlg-appr'), aList = $('#a-list');
+const KIND_VN = { bai_dang: 'Đăng bài vào nhóm', binh_luan: 'Bình luận vào bài viết' };
+const ST_VN = { pending: 'Chờ duyệt', approved: 'Đã duyệt, đang xếp hàng', running: 'Đang đăng…', done: 'Đã đăng', failed: 'Chưa đăng được', rejected: 'Đã từ chối' };
+let apprData = { items: [], limit: 12, today: 0 };
+function renderApprovals() {
+  const pend = apprData.items.filter((x) => x.status === 'pending').length;
+  const b = $('#btn-appr'); b.textContent = pend ? `Chờ duyệt (${pend})` : 'Chờ duyệt'; b.classList.toggle('has', pend > 0);
+  if (!dlgA2.open) return;
+  $('#a-limit').textContent = `Hôm nay đã đăng ${apprData.today}/${apprData.limit}`;
+  aList.innerHTML = '';
+  if (!apprData.items.length) { aList.textContent = 'Chưa có đề xuất nào. Khi agent muốn đăng bài hay bình luận, đề xuất sẽ hiện ở đây.'; return; }
+  for (const it of apprData.items) {
+    const el = document.createElement('div'); el.className = 'appr ' + it.status;
+    el.innerHTML = '<div class="meta"></div><div class="tgt"></div><textarea></textarea><div class="acts"></div>';
+    el.querySelector('.meta').textContent = `#${it.num} · ${KIND_VN[it.kind] || it.kind} · ${it.agentName} · ${new Date(it.t).toLocaleString('vi-VN')}`;
+    el.querySelector('.tgt').textContent = `Đích: ${it.target}${it.files?.length ? ` · ${it.files.length} ảnh` : ''}`;
+    const ta = el.querySelector('textarea'); ta.value = it.text; ta.readOnly = it.status !== 'pending';
+    const acts = el.querySelector('.acts');
+    if (it.status === 'pending') {
+      const mk = (label, cls, fn) => { const x = document.createElement('button'); x.textContent = label; if (cls) x.className = cls; x.onclick = fn; acts.append(x); };
+      const approve = async () => {
+        $('#a-err').textContent = '';
+        if (ta.value.trim() !== it.text) { if (!(await api.editApproval({ id: it.id, text: ta.value }))) { $('#a-err').textContent = 'Không lưu được nội dung đã sửa.'; return; } }
+        const fresh = (await api.listApprovals()).items.find((x) => x.id === it.id);
+        const r = await api.decideApproval({ id: it.id, decision: 'approve', hash: fresh?.hash });
+        if (!r.ok) $('#a-err').textContent = r.error;
+      };
+      mk('Duyệt và đăng', '', approve);
+      mk('Từ chối', 'ghost', async () => { await api.decideApproval({ id: it.id, decision: 'reject' }); });
+    } else {
+      const st = document.createElement('span'); st.className = 'st ' + it.status; st.textContent = `${ST_VN[it.status] || it.status}${it.result ? ` · ${it.result}` : ''}`; acts.append(st);
+    }
+    aList.append(el);
+  }
+}
+const loadApprovals = async () => { apprData = await api.listApprovals(); renderApprovals(); };
+api.onApprovals((d) => { apprData = d; renderApprovals(); });
+$('#btn-appr').onclick = async () => { await loadApprovals(); dlgA2.showModal(); renderApprovals(); };
+$('#a-close').onclick = () => dlgA2.close();
+loadApprovals();
