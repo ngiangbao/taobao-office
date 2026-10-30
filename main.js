@@ -32,6 +32,7 @@ const DEFAULT_CFG = {
   photoSearchSeconds: 6, // chủ shop gửi ảnh sản phẩm: chờ bấy nhiêu giây xem có lời nhắn đi kèm không, nếu không thì giao cho đúng một agent tìm hàng (0 = tắt)
   model: 'haiku', // model cho mọi agent: haiku tiết kiệm token nhất (mặc định), sonnet cân bằng, opus mạnh nhất, default = Claude Code tự chọn
   chromeMode: 'app', // app = Chrome riêng của app; mine = Chrome của bạn (qua tiện ích Playwright)
+  autoOffMinutes: 60, // lâu không dùng app (không gõ, không giao việc) thì tạm dừng việc tự chạy nền (quét bảng tin, đọc hộp thư, nhắc khách) để khỏi tốn token; 0 = không tự nghỉ
   chromeIdleMinutes: 15, // Chrome dùng chung được tắt hẳn sau bấy nhiêu phút không dùng (0 = không tự tắt)
   commentScan: false, commentMinutes: 15, commentFromHour: 8, commentToHour: 22, commentPerScan: 3, // Trả lời comment: quét bảng tin định kỳ (mặc định TẮT)
   commentAutoPost: false, commentAutoMax: 8, // tự đăng bình luận không cần duyệt từng cái (mặc định TẮT, có hạn mức mỗi ngày)
@@ -43,13 +44,19 @@ const DEFAULT_AGENTS = [
   { name: 'Chăm sóc khách', role: 'cskh' }, { name: 'Tìm hàng', role: 'search' }, { name: 'Báo giá', role: 'quote' },
   { name: 'Đăng bài', role: 'post' }, { name: 'Tìm khách', role: 'leads' },
 ];
-let chromeTimer, style, scanner, dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, promptUpdateAgain = null, agents, dispatcher, history, customers, revenue, inbox, approvals, googleSync, syncCloud, gateOk = false;
+let lastActive = Date.now(), dormantNoted = false, chromeTimer, style, scanner, dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, promptUpdateAgain = null, agents, dispatcher, history, customers, revenue, inbox, approvals, googleSync, syncCloud, gateOk = false;
 const children = new Map(); // agentId -> process đang chạy
 const introducingAgents = new Set();
 const ICON = path.join(__dirname, 'renderer', 'icon.png');
 
 const loadCfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(fs.readFileSync(cfgPath, 'utf8')) }; } catch { return { ...DEFAULT_CFG }; } };
 const send = (ch, v) => win?.webContents.send(ch, v);
+// Nghỉ khi lâu không dùng: agent (tiến trình claude) vốn tắt ngay sau mỗi việc; phần có thể tự chạy nền là quét bảng tin, đọc hộp thư, nhắc khách
+const isDormant = () => { const m = Number(loadCfg().autoOffMinutes ?? 60); return m > 0 && Date.now() - lastActive > m * 60e3; };
+function markActive() {
+  if (dormantNoted) { dormantNoted = false; dispatcher?.sys('☀️ Các agent đã tỉnh lại, việc tự chạy nền hoạt động trở lại.'); }
+  lastActive = Date.now();
+}
 const pushAgents = () => send('agents:update', agents.list().map((a) => ({ ...a, busy: dispatcher?.isBusy(a.id) || false, starting: introducingAgents.has(a.id) })));
 
 // Ba thẻ ở mục Hoạt động của văn phòng: Việc (agent đang làm), Khách (tổng số khách), Doanh thu (VNĐ đã thu)
@@ -328,7 +335,7 @@ app.whenReady().then(async () => {
     fs.writeFileSync(f, next.slice(-60000), { mode: 0o600 }); return { ok: true, size: Math.min(next.length, 60000) };
   });
   ipcMain.handle('style:remove', (_, id) => { const ok = style.remove(id); send('style:update', style.all()); return ok; });
-  ipcMain.handle('commenter:scan', async () => (scanner ? scanner.scan('chạy tay') : { ok: false, error: 'Văn phòng chưa sẵn sàng.' }));
+  ipcMain.handle('commenter:scan', async () => (markActive(), scanner ? scanner.scan('chạy tay') : { ok: false, error: 'Văn phòng chưa sẵn sàng.' }));
   ipcMain.handle('cfg:get', () => ({ cfg: loadCfg(), claude: findClaude(loadCfg().claudePath) }));
   ipcMain.handle('app:platform', () => process.platform);
   ipcMain.handle('claude:select', async () => {
@@ -497,12 +504,12 @@ app.whenReady().then(async () => {
         try { const item = approvals.approve(a.id, a.hash, true); pushApprovals(); dispatcher.publishApproved(item); return { ok: true }; }
         catch (e) { return { ok: false, reason: e.message }; }
       },
-      publisher: runPublisher, toJpeg, onApprovals: pushApprovals, getCfg: loadCfg, onCustomers: pushCustomers, onRevenue: writeStats,
+      publisher: runPublisher, toJpeg, onApprovals: pushApprovals, getCfg: loadCfg, paused: isDormant, onActivity: markActive, onCustomers: pushCustomers, onRevenue: writeStats,
       onStatus: () => { pushAgents(); writeStats(); }, log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
     });
     dispatcher.start();
     scanner = createScanner({
-      getCfg: loadCfg, busy: () => dispatcher.anyBusy(), log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
+      getCfg: () => { const c = loadCfg(); return isDormant() ? { ...c, commentScan: false } : c; }, busy: () => dispatcher.anyBusy(), log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
       run: async (reason) => {
         const agent = agents.all().find((a) => a.role === 'commenter');
         if (!agent) throw new Error('Chưa có agent Trả lời comment.');
@@ -511,6 +518,8 @@ app.whenReady().then(async () => {
     });
     scanner.start();
     browser.touch(dataDir); // thời gian chờ tắt Chrome tính từ lúc mở app
+    win?.on('focus', markActive); win?.webContents.on('before-input-event', () => { if (Date.now() - lastActive > 5000) markActive(); });
+    setInterval(() => { if (isDormant() && !dormantNoted) { dormantNoted = true; dispatcher.sys(`😴 ${loadCfg().autoOffMinutes} phút không dùng app: các agent nghỉ, việc tự chạy nền (quét bảng tin, đọc hộp thư, nhắc khách) tạm dừng để tiết kiệm token. Gõ hoặc giao việc là tỉnh lại ngay.`); } }, 60e3).unref();
     chromeTimer = setInterval(async () => {
       const mins = Number(loadCfg().chromeIdleMinutes ?? 15);
       if (loadCfg().chromeMode === 'mine' || !(mins > 0) || dispatcher.anyBusy() || browser.idleMs(dataDir) < mins * 60e3 || !(await browser.up())) return;
@@ -524,7 +533,7 @@ app.whenReady().then(async () => {
         if (line) dispatcher.post(a, line);
       }, i * 1300));
     }, 6000);
-    inbox = createInbox({ dataDir, runReader, deliver: (msg) => dispatcher.deliverInbound(msg), getCfg: loadCfg, onResult: (r) => send('inbox:result', r) });
+    inbox = createInbox({ dataDir, runReader, deliver: (msg) => dispatcher.deliverInbound(msg), getCfg: () => { const c = loadCfg(); return isDormant() ? { ...c, inboxMinutes: 0 } : c; }, onResult: (r) => send('inbox:result', r) });
     inbox.start();
     let syncing = false;
     const backgroundSync = async () => {

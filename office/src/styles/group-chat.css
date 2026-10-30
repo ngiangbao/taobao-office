@@ -307,3 +307,4 @@
 .is-drop { outline: 2px dashed var(--zc-blue); outline-offset: -4px; }
 .zc-fchip { position: relative; display: inline-flex; align-items: center; height: 56px; max-width: 180px; padding: 0 22px 0 10px; border: 1px solid var(--zc-line); border-radius: 8px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #f3f4f6; color: #222; }
 .zc-fchip-x { position: absolute; top: 2px; right: 2px; }
+.zc-men-rest { opacity: .45; font-weight: 400; }

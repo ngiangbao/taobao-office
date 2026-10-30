@@ -425,7 +425,10 @@ const statusOf = (s) => tr(s.status === 'rest' ? 'chat.memberRest' : s.status ==
 // Remote Control also gets "Giao việc ↗", which opens it in the Claude app (the real way to give it work)
 const foldQ = (x) => String(x || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/gi, 'd').toLowerCase().trim();
 const AT_TAIL = /@([^@\n]{0,24})$/;   // what is typed after the last @ (spaces allowed: agent names have them)
+let mentionTop = null;   // the first suggestion: Tab or Enter fills in the rest of its name
+function pickMention(s) { const pos = input.selectionStart, before = input.value.slice(0, pos).replace(AT_TAIL, `@${dn(s)} `); input.value = before + input.value.slice(pos); input.setSelectionRange(before.length, before.length); mentionEl.hidden = true; mentionTop = null; syncBar(); input.focus(); }
 function mentions() {
+  mentionTop = null;
   const m = AT_TAIL.exec(input.value.slice(0, input.selectionStart));
   if (!m) { mentionEl.hidden = true; return; }
   const q = foldQ(m[1]);
@@ -433,12 +436,15 @@ function mentions() {
   const list = [...sessions.values()].map((s) => [rank(s), s]).filter(([r]) => r < 9).sort((a, b) => a[0] - b[0] || (b[1].lastAt || 0) - (a[1].lastAt || 0)).slice(0, 8).map(([, s]) => s);
   if (!list.length && /\s/.test(m[1])) { mentionEl.hidden = true; return; }   // (a space and nothing matches: it is just a sentence)
   if (!list.length) { mentionEl.replaceChildren(el('small', 'zc-men-empty', tr('chat.noSessions'))); mentionEl.hidden = false; return; }
+  if (foldQ(dn(list[0])) !== q) mentionTop = list[0];   // (already typed in full: Enter sends)
   mentionEl.replaceChildren(...list.map((s) => {
     const row = el('div', 'zc-men-row'), b = el('button', 'zc-men-o'); b.type = 'button';
-    const t = el('span', 'zc-men-t'); t.append(el('b', null, dn(s)), el('small', null, `📁 ${folderOf(s)} · ${statusOf(s)}`));
+    const t = el('span', 'zc-men-t'); const nm = dn(s), typed = q && foldQ(nm).startsWith(q) ? Math.min(nm.length, m[1].length) : 0, nameEl = el('b');
+    nameEl.append(nm.slice(0, typed)); if (typed) nameEl.append(el('span', 'zc-men-rest', nm.slice(typed))); else nameEl.append(nm.slice(typed));
+    t.append(nameEl, el('small', null, `📁 ${folderOf(s)} · ${statusOf(s)}`));
     b.append(avatar(faceOf(s.id, dn(s)), 30), t);
     b.addEventListener('pointerdown', (e) => e.preventDefault());   // (the input keeps the keyboard up)
-    b.addEventListener('click', () => { const pos = input.selectionStart, before = input.value.slice(0, pos).replace(AT_TAIL, `@${dn(s)} `); input.value = before + input.value.slice(pos); input.setSelectionRange(before.length, before.length); mentionEl.hidden = true; syncBar(); input.focus(); });
+    b.addEventListener('click', () => pickMention(s));
     const task = el('button', 'zc-men-task'); task.type = 'button'; task.title = tr('chat.task.title'); task.append(icon('clipboard'));
     task.addEventListener('pointerdown', (e) => e.preventDefault());
     task.addEventListener('click', () => { mentionEl.hidden = true; openTaskSheet(root, { to: { id: s.id }, text: input.value.replace(AT_TAIL, '').trim() }); });
@@ -533,7 +539,7 @@ function build() {
   input = el('textarea', 'zc-in'); input.rows = 1; input.maxLength = 600;
   input.placeholder = tr(matchMedia('(max-width: 640px)').matches ? 'chat.placeholder' : 'chat.placeholderPc', { group: tr('chat.group') });
   input.addEventListener('input', () => { syncBar(); mentions(); input.style.height = ''; input.style.height = `${Math.min(110, input.scrollHeight)}px`; });
-  input.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } if (e.key === 'Escape') { if (replyTo) setReply(null); else toggle(false); } });
+  input.addEventListener('keydown', (e) => { e.stopPropagation(); if (mentionTop && !mentionEl.hidden && (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey && !e.isComposing))) { e.preventDefault(); pickMention(mentionTop); return; } if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } if (e.key === 'Escape') { if (replyTo) setReply(null); else toggle(false); } });
   // the phone's 🎤: speak into the input (the browser's speech recognition, in the office's language)
   let stopMic = null;
   const micBtn = ib('mic', tr('chat.task.mic'), () => { if (stopMic) { stopMic(); stopMic = null; } else stopMic = dictate(micBtn, input, () => { syncBar(); input.dispatchEvent(new Event('input')); }); }, 'zc-mo zc-when-empty zc-mic');

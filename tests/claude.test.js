@@ -16,8 +16,11 @@ test('model: mặc định haiku (tiết kiệm nhất), đổi được, "defau
   const { runClaude } = require('../lib/claude');
   const args = async (cfg) => {
     const out = path.join(dir, 'args.txt'); process.env.ARGS_OUT = out;
-    const { done } = runClaude({ text: 'x', cfg: { claudePath: fake, ...cfg }, dataDir: dir, agent: { name: 'A', sid: 's', dir, started: false, rolePrompt: '', team: [] }, onEvent: () => {} });
-    await done; return fs.readFileSync(out, 'utf8').split('\n');
+    const run = () => runClaude({ text: 'x', cfg: { claudePath: fake, ...cfg }, dataDir: dir, agent: { name: 'A', sid: 's', dir, started: false, rolePrompt: '', team: [] }, onEvent: () => {} }).done;
+    for (let i = 0; i < 4; i++) { // (máy bận có thể trả "Text file busy" ngay sau khi vừa ghi tệp chạy thử: thử lại)
+      const r = await run(); if (fs.existsSync(out)) return fs.readFileSync(out, 'utf8').split('\n'); if (i === 3) throw new Error('claude giả không chạy: ' + r.err);
+      await new Promise((ok) => setTimeout(ok, 100));
+    }
   };
   return (async () => {
     try {

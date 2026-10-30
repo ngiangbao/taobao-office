@@ -149,3 +149,10 @@ test('lời chào: mỗi vai trò một câu tiếng Việt, agent từng khách
   assert.match(greeting({ role: 'cskh' }, { hour: 8, customers: 3 }), /buổi sáng.*3 khách/);
   assert.match(greeting({ role: 'commenter' }, { scanOn: false }), /chưa bật/);
 });
+
+test('app nghỉ vì lâu không dùng: không nhắc khách tự động; tỉnh lại thì nhắc bình thường', () => {
+  let asleep = true, asked = 0;
+  const d = createDispatcher({ officeUrl: () => 'http://127.0.0.1:1/', agents: { all: () => [], get: () => null }, customers: { due: () => { asked++; return []; } }, paused: () => asleep, run: async () => ({}), uploadsDir: path.join(os.tmpdir(), 'x') });
+  d.followupTick(); assert.equal(asked, 0);
+  asleep = false; d.followupTick(); assert.equal(asked, 1);
+});

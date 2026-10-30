@@ -148,6 +148,8 @@
               <option value="opus">Opus: mạnh nhất, tốn nhất</option>
               <option value="default">Theo mặc định của Claude Code</option>
             </select></label>
+          <label>Tự cho agent nghỉ khi không dùng app (phút, 0 = không nghỉ)<input name="autoOffMinutes" type="number" min="0" max="1440" step="1"></label>
+          <p class="hint">Mỗi agent chỉ chạy khi có việc rồi tự thoát, không tốn token lúc rảnh. Khi bạn không gõ hay giao việc quá thời gian này, các việc tự chạy nền (quét bảng tin, đọc hộp thư Messenger, nhắc khách) tạm dừng; bạn gõ hoặc mở lại cửa sổ là chạy tiếp.</p>
           <p class="hint">Áp dụng cho mọi agent từ lượt chạy kế tiếp. Haiku đủ cho chat, báo giá, soạn bài. Nếu đối chiếu ảnh với kho hoặc quét bảng tin chưa đủ chính xác, thử Sonnet.</p>
           <p class="hint">Claude Code CLI là công cụ dòng lệnh mà agent sử dụng; ứng dụng Claude Desktop (cửa sổ chat) không thay thế CLI. Cài từ hướng dẫn chính thức, sau đó chạy lệnh `claude` trong Terminal/PowerShell một lần để đăng nhập.</p>
           <p class="hint">Lệnh cài đặt chính thức cho hệ điều hành này:</p>
