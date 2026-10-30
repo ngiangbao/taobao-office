@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('api', {
   openLogin: () => ipcRenderer.invoke('login:open'),
   officeUrl: () => ipcRenderer.invoke('office:url'),
   onOfficeReady: (cb) => ipcRenderer.on('office:ready', (_, u) => cb(u)),
+  version: () => ipcRenderer.invoke('app:version'),
+  onUpdate: (cb) => ipcRenderer.on('update:status', (_, u) => cb(u)),
   openData: () => ipcRenderer.invoke('log:open'),
   onEvent: (cb) => ipcRenderer.on('claude:event', (_, ev) => cb(ev)),
 });

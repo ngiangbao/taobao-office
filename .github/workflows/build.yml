@@ -1,24 +1,37 @@
 name: build
+# Gắn tag (vd. v0.2.1, trùng "version" trong package.json) => build 3 hệ điều hành và PHÁT HÀNH lên GitHub Releases.
+# App đã cài sẽ tự tải bản mới từ đó. Chạy tay (workflow_dispatch) chỉ build thử, không phát hành.
 on:
   push: { tags: ['v*'] }
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, script: dist:linux }
-          - { os: windows-latest, script: dist:win }
-          - { os: macos-latest, script: dist:mac }
+          - { os: ubuntu-latest, args: '--linux AppImage deb' }
+          - { os: windows-latest, args: '--win nsis' }
+          - { os: macos-latest, args: '--mac dmg zip' }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npm install
-      - run: npm run ${{ matrix.script }}
-      - uses: actions/upload-artifact@v4
+      - run: npm run prepare:office
+      - name: Build (và phát hành khi có tag)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then PUB=always; else PUB=never; fi
+          npx electron-builder ${{ matrix.args }} --publish $PUB
+      - if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
         with:
           name: taobao-office-${{ matrix.os }}
           path: |
@@ -26,3 +39,5 @@ jobs:
             dist/*.deb
             dist/*.exe
             dist/*.dmg
+            dist/*.zip
+            dist/latest*.yml

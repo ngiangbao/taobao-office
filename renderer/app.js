@@ -9,6 +9,7 @@ let attached = []; // [{name, path}]
 const api = window.api || {
   getCfg: async () => ({ cfg: { rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12, tone: '', browser: 'playwright', claudePath: '', groups: [] }, claude: null }),
   setCfg: async () => true, reset: async () => true, stop: async () => true, openData: async () => {}, saveFile: async (n) => '/mock/' + n,
+  version: async () => 'dev', onUpdate: () => {},
   officeUrl: async () => 'http://localhost:4310/', onOfficeReady: () => {},
   onEvent: (cb) => (window.__mockEmit = cb),
   send: async (t) => {
@@ -90,7 +91,7 @@ $('#btn-cfg').onclick = async () => {
 form.addEventListener('submit', async (e) => {
   if (e.submitter?.value !== 'ok') return;
   const { cfg } = await api.getCfg();
-  for (const k of ['rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay']) cfg[k] = Number(form.elements[k].value) || 0;
+  for (const k of ['rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'display']) cfg[k] = Number(form.elements[k].value) || 0;
   for (const k of ['tone', 'browser', 'claudePath']) cfg[k] = form.elements[k].value;
   cfg.groups = form.elements.groups.value.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map(([name, url, note]) => ({ name, url, note }));
   await api.setCfg(cfg);
@@ -101,3 +102,12 @@ api.getCfg().then(({ claude }) => { if (!claude) add('err', 'Chưa tìm thấy l
 
 api.officeUrl().then(showOffice);
 api.onOfficeReady(showOffice);
+
+// Số phiên bản ở góc phải dưới + trạng thái tự cập nhật
+const ver = $('#ver'); let current = '';
+api.version().then((v) => { current = 'v' + v; ver.textContent = current; });
+api.onUpdate((u) => {
+  ver.classList.toggle('up', u.state !== 'none');
+  ver.textContent = u.state === 'downloading' ? `${current} · đang tải bản mới${u.percent != null ? ' ' + u.percent + '%' : ''}`
+    : u.state === 'ready' ? `${current} · đã tải v${u.version}, tự khởi động lại sau giây lát…` : current;
+});

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, screen } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
@@ -15,16 +15,21 @@ function findChrome() {
 
 const DEFAULT_CFG = {
   rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12,
-  tone: 'thân thiện, xưng "shop", gọi khách là "bạn"', browser: 'playwright', claudePath: '',
+  display: 3, tone: 'thân thiện, xưng "shop", gọi khách là "bạn"', browser: 'playwright', claudePath: '',
   groups: [],
 };
+let autoUpdater = null;
 let dataDir, cfgPath, sessionId = null, running = null, win, office = null, hooksFile = null;
 
 const loadCfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(fs.readFileSync(cfgPath, 'utf8')) }; } catch { return { ...DEFAULT_CFG }; } };
 
 function createWindow() {
+  // mở ở màn hình thứ N (mặc định 3); ít màn hình hơn thì dùng màn hình cuối
+  const ds = screen.getAllDisplays();
+  const wa = (ds[Math.max(0, (loadCfg().display || 3) - 1)] || ds[ds.length - 1]).workArea;
   win = new BrowserWindow({
-    width: 1280, height: 800, backgroundColor: '#14161c', title: 'Taobao Office',
+    x: wa.x + Math.round((wa.width - Math.min(1280, wa.width)) / 2), y: wa.y + Math.round((wa.height - Math.min(800, wa.height)) / 2),
+    width: Math.min(1280, wa.width), height: Math.min(800, wa.height), backgroundColor: '#14161c', title: 'Taobao Office',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   win.setMenuBarVisibility(false);
@@ -38,6 +43,7 @@ app.whenReady().then(async () => {
   cfgPath = path.join(dataDir, 'config.json');
   try { sessionId = fs.readFileSync(path.join(dataDir, 'session.txt'), 'utf8').trim() || null; } catch {}
 
+  ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('office:url', () => office?.url || null);
   ipcMain.handle('cfg:get', () => ({ cfg: loadCfg(), claude: findClaude(loadCfg().claudePath) }));
   ipcMain.handle('cfg:set', (_, c) => { fs.writeFileSync(cfgPath, JSON.stringify(c, null, 2)); return true; });
@@ -67,17 +73,38 @@ app.whenReady().then(async () => {
         },
       });
       const { code, err } = await running.done;
-      running = null;
+      running = null; maybeInstall();
       if (code !== 0) return { ok: false, error: err.trim().slice(-600) || `claude thoát với mã ${code}` };
       return { ok: true };
     } catch (e) { running = null; return { ok: false, error: e.message }; }
   });
   createWindow();
+  setupUpdater();
   try {
     office = await startOffice(app, dataDir);
     hooksFile = writeHookSettings(office.dir, office.port, dataDir);
     win?.webContents.send('office:ready', office.url);
   } catch (e) { console.error('Không chạy được văn phòng:', e); }
 });
+// Tự cập nhật: tải ngầm bản mới từ GitHub Releases, rồi tự khởi động lại khi app đang rảnh. Người dùng không phải làm gì.
+let pendingInstall = false;
+function maybeInstall() {
+  if (!pendingInstall || running) return;
+  pendingInstall = false;
+  setTimeout(() => autoUpdater.quitAndInstall(true, true), 8000); // cho người dùng kịp thấy thông báo
+}
+function setupUpdater() {
+  if (!app.isPackaged) return;
+  try { ({ autoUpdater } = require('electron-updater')); } catch (e) { return console.error('updater', e); }
+  const tell = (o) => win?.webContents.send('update:status', o);
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-available', (i) => tell({ state: 'downloading', version: i.version }));
+  autoUpdater.on('download-progress', (p) => tell({ state: 'downloading', percent: Math.round(p.percent) }));
+  autoUpdater.on('update-downloaded', (i) => { tell({ state: 'ready', version: i.version }); pendingInstall = true; maybeInstall(); });
+  autoUpdater.on('error', (e) => console.error('updater', e?.message));
+  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  check(); setInterval(check, 4 * 3600 * 1000);
+}
 app.on('before-quit', () => { office?.child.kill(); });
 app.on('window-all-closed', () => app.quit());

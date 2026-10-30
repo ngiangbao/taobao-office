@@ -29,3 +29,4 @@ dialog::backdrop{background:#0008}label{display:block;margin:8px 0;font-size:12p
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}menu{display:flex;justify-content:flex-end;gap:8px;padding:0}.hint{color:var(--mute);font-size:12px}
 @media(max-width:800px){.app{grid-template-columns:1fr;grid-template-rows:200px 1fr}}
 .credit{color:var(--mute);font-size:11px;text-decoration:none;margin-right:6px}.credit:hover{color:var(--text)}
+.ver{position:fixed;right:10px;bottom:3px;font-size:11px;color:var(--mute);pointer-events:none;z-index:5}.ver.up{color:var(--acc)}.composer{padding-bottom:20px}

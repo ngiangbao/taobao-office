@@ -1,6 +1,6 @@
 {
   "name": "taobao-office",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Trợ lý order Taobao: chat với Claude, văn phòng 3D hiển thị việc đang làm",
   "main": "main.js",
   "author": "Taobao Office <noreply@example.com>",
@@ -32,7 +32,10 @@
     },
     "mac": {
       "category": "public.app-category.business",
-      "target": "dmg"
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "extraResources": [
       {
@@ -40,11 +43,20 @@
         "to": "office",
         "filter": [
           "**/*",
-          "!.git",
+          "!node_modules/**",
           "!**/*.map",
-          "!node_modules/.cache/**",
+          ".next/**/*",
           "!.next/cache/**"
         ]
+      }
+    ],
+    "afterPack": "scripts/after-pack.cjs",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ngiangbao",
+        "repo": "taobao-office",
+        "releaseType": "release"
       }
     ]
   },
@@ -52,5 +64,8 @@
     "electron": "^45.1.0",
     "electron-builder": "^26.18.0",
     "three": "^0.187.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
   }
 }
