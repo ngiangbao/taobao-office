@@ -10,19 +10,21 @@
 .st-tabs button:hover { color: var(--ink); }
 .st-tabs button[aria-selected="true"] { color: var(--ink); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent-line); }
 .st-tabs button:focus-visible { outline: 2px solid var(--accent); }
-.st-body { overflow: auto; overscroll-behavior: contain; padding: 4px 14px 18px; }
-.st-panel { display: grid; gap: 8px; }
+.st-body { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 4px 14px 18px; }
+.st-panel { display: grid; min-width: 0; gap: 8px; }
 .st-panel[hidden] { display: none; }
 .st-panel h3 { margin: 12px 2px 0; }
 .st-group { display: grid; gap: 8px; }
 .st-group:not(:has(.tb-btn:not([hidden]))) { display: none; }   /* no phone or alert button on this device */
 
-.st-cards { display: grid; gap: 8px; }
+.st-cards { display: grid; min-width: 0; gap: 8px; }
 .st-cards--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .st-cards--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .st-cards--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .st-cards .scene { transition: border-color .15s, background .15s, transform .15s; }
 .st-cards .scene:hover { transform: translateY(-1px); }
+.st-cards .scene { min-width: 0; }
+.st-cards .scene b, .st-cards .scene small { min-width: 0; overflow-wrap: anywhere; }
 .st-cards .scene small { line-height: 1.3; }
 
 /* floor plans: a real picture of each */
@@ -59,8 +61,8 @@
 .st-lang[aria-pressed="true"] .st-code { background: var(--accent); color: var(--on-accent); }
 
 /* real weather: one chip per city */
-.wx-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.wx-chips button { all: unset; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); font-size: .74rem; font-weight: 600; color: var(--muted); cursor: pointer; }
+.wx-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 78px), 1fr)); gap: 5px; }
+.wx-chips button { all: unset; box-sizing: border-box; min-width: 0; padding: 5px 6px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); font-size: .68rem; line-height: 1.25; font-weight: 600; color: var(--muted); cursor: pointer; text-align: center; overflow-wrap: anywhere; }
 .wx-chips button:hover { color: var(--ink); border-color: var(--line-2); }
 .wx-chips button[aria-pressed="true"] { color: var(--ink); border-color: var(--accent-line); background: var(--accent-soft); }
 .wx-chips button:focus-visible { outline: 2px solid var(--accent); }
