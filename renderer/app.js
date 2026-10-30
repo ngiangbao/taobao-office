@@ -22,6 +22,8 @@ const api = window.api || (() => {
     removeAgent: async (id) => { list = list.filter((a) => a.id !== id); }, resetAgent: async () => true, stopAll: async () => true,
     historyQuery: async () => ({ items: [{ t: new Date().toISOString(), kind: 'user', agent: 'Báo giá', text: 'Báo giá áo khoác này' }, { t: new Date().toISOString(), kind: 'agent', agent: 'Báo giá', text: 'Đã báo giá xong (bản giả lập).' }], more: false }), historyDelete: async () => 1, openHistoryDir: async () => {},
     listCustomers: async () => [{ code: 'KH-7F3K9', name: 'Lan', agentName: 'Khách Lan', state: 'awake', busy: false, lastInboundAt: Date.now() - 600000, followupDue: Date.now() + 240000, paused: false, followupCount: 0, ctx: 42000 }, { code: 'KH-2M8QX', name: 'Hương', agentName: 'Khách Hương', state: 'asleep', busy: false, lastInboundAt: Date.now() - 86400000 * 3, followupDue: 0, paused: false, followupCount: 1, ctx: 8000 }],
+    listLocalCustomers: async () => [{ code: 'KH-7F3K9', name: 'Lan', phone: '0912345678', address: 'Hà Nội', size: 'M', createdAt: Date.now() - 86400000, updatedAt: Date.now() }],
+    deleteLocalCustomers: async (codes) => ({ ok: true, deleted: codes.length }),
     ordersList: async () => ({ items: [], statuses: ['Đã đặt hàng', 'Đã về'], sync: {} }), ordersSave: async () => ({ ok: true, items: [] }), ordersDelete: async () => ({ ok: true, items: [] }), ordersImport: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersImportFile: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersExport: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersTsv: async () => '', ordersAssignIds: async () => ({ ok: true, assigned: 0, items: [] }), ordersScript: async () => '', ordersWebhookTest: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersOpenSheet: async () => false, openInventory: async () => ({ ok: false }),
     exportCustomers: async () => ({ ok: false, error: 'Xuất Excel chỉ có trong app desktop.' }),
     renameCustomer: async () => true, renameAgent: async () => ({ ok: true }), skillsList: async () => [{ id: 'a1', name: 'Báo giá', role: 'quote', roleLabel: 'Báo giá', skills: [{ id: 's1', title: 'Báo giá bằng VNĐ', text: 'Luôn báo giá bằng VNĐ, không báo tệ.', at: Date.now(), source: 'owner', version: 2 }] }, { id: 'a2', name: 'Chăm sóc khách', role: 'cskh', roleLabel: 'Chăm sóc khách', skills: [] }], skillsSave: async () => ({ ok: true, agents: [] }), skillsRemove: async () => ({ ok: true, agents: [] }), skillsReviewNow: async () => ({ ok: true, reviewed: 0 }), skillsExportJson: async () => ({ canceled: true }), skillsImport: async () => ({ canceled: true }), onSkills: () => {}, agentBySid: async () => null, pauseCustomer: async () => true, refreshCustomer: async () => true, customerProfile: async () => '# Hồ sơ khách Lan\n- Xưng hô: chị Lan\n- Size: M\n- Thích: màu be, dáng ngắn',
@@ -503,7 +505,6 @@ const ago = (t) => { if (!t) return 'chưa nhắn'; const m = Math.round((Date.n
 const clock = (t) => new Date(t).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 function renderCusts() {
   const q = $('#c-q').value.trim().toLowerCase();
-  $('#btn-cust').textContent = `Khách (${custs.length})`;
   if (!dlgC.open) return;
   cList.innerHTML = '';
   const list = custs.filter((c) => !q || `${c.name} ${c.code} ${c.agentName}`.toLowerCase().includes(q));
@@ -559,7 +560,6 @@ async function loadSheetCusts(refresh) {
   if (!oData.items?.length) oData = await api.ordersList();
   renderSheetCusts();
 }
-$('#btn-cust').onclick = async () => { cProf.hidden = true; await loadCusts(); dlgC.showModal(); renderCusts(); renderSheetCusts(); loadSheetCusts(true); };
 $('#c-export').onclick = async () => {
   const button = $('#c-export'), message = $('#c-export-msg');
   button.disabled = true; message.classList.remove('err'); message.textContent = 'Đang tạo tệp Excel…';
@@ -572,6 +572,100 @@ $('#c-export').onclick = async () => {
     message.classList.add('err'); message.textContent = `Không xuất được tệp Excel: ${error.message}`;
   } finally { button.disabled = false; }
 };
+const dlgLocalCustomers = $('#dlg-cust-data'), localCustomerRows = $('#lc-rows'), selectedLocalCustomers = new Set();
+let localCustomers = [];
+const localDate = (time) => time ? new Date(time).toLocaleDateString('vi-VN') : '—';
+function renderLocalCustomers() {
+  const query = fold($('#lc-q').value);
+  const visible = localCustomers.filter((customer) => fold(`${customer.code} ${customer.name} ${customer.phone} ${customer.address} ${customer.size}`).includes(query));
+  localCustomerRows.replaceChildren();
+  if (!visible.length) {
+    const row = document.createElement('tr'), cell = document.createElement('td');
+    cell.colSpan = 8; cell.className = 'hint'; cell.textContent = localCustomers.length ? 'Không có khách nào khớp.' : 'Chưa có dữ liệu khách hàng lưu trên máy.';
+    row.append(cell); localCustomerRows.append(row);
+  } else {
+    for (const customer of visible) {
+      const row = document.createElement('tr'), selectCell = document.createElement('td'), checkbox = document.createElement('input');
+      checkbox.type = 'checkbox'; checkbox.checked = selectedLocalCustomers.has(customer.code); checkbox.dataset.code = customer.code;
+      checkbox.setAttribute('aria-label', `Chọn khách ${customer.name}`);
+      selectCell.append(checkbox); row.append(selectCell);
+      for (const value of [customer.code, customer.name, customer.phone, customer.address, customer.size, localDate(customer.createdAt), localDate(customer.updatedAt)]) {
+        const cell = document.createElement('td'); cell.textContent = value || '—'; row.append(cell);
+      }
+      localCustomerRows.append(row);
+    }
+  }
+  const selected = selectedLocalCustomers.size;
+  $('#lc-delete').disabled = selected === 0;
+  $('#lc-delete').textContent = selected ? `Xóa đã chọn (${selected})` : 'Xóa đã chọn';
+  const selectAll = $('#lc-all');
+  const selectedVisible = visible.filter((customer) => selectedLocalCustomers.has(customer.code)).length;
+  selectAll.checked = visible.length > 0 && selectedVisible === visible.length;
+  selectAll.indeterminate = selectedVisible > 0 && selectedVisible < visible.length;
+  $('#lc-msg').textContent = `${localCustomers.length} khách lưu trên máy · Đã chọn ${selected}.`;
+}
+async function loadLocalCustomers() {
+  const status = $('#lc-msg'); status.classList.remove('err'); status.textContent = 'Đang tải dữ liệu khách hàng…';
+  try {
+    localCustomers = await api.listLocalCustomers();
+    if (!Array.isArray(localCustomers)) throw new Error('Dữ liệu khách hàng trả về không hợp lệ.');
+    renderLocalCustomers();
+    return true;
+  } catch (error) {
+    localCustomers = []; selectedLocalCustomers.clear(); renderLocalCustomers();
+    status.classList.add('err'); status.textContent = `Không tải được dữ liệu khách hàng: ${error.message}`;
+    return false;
+  }
+}
+$('#customers-export').onclick = async () => {
+  const button = $('#customers-export'), status = $('#customers-local-msg');
+  button.disabled = true; status.classList.remove('err'); status.textContent = 'Đang tạo tệp Excel…';
+  try {
+    const result = await api.exportCustomers();
+    if (result.canceled) { status.textContent = 'Đã hủy xuất tệp.'; return; }
+    if (!result.ok) throw new Error(result.error);
+    status.textContent = `Đã xuất ${result.count} khách hàng: ${result.filePath}`;
+  } catch (error) {
+    status.classList.add('err'); status.textContent = `Không xuất được tệp Excel: ${error.message}`;
+  } finally { button.disabled = false; }
+};
+$('#customers-local-open').onclick = async () => {
+  $('#lc-q').value = ''; selectedLocalCustomers.clear(); await loadLocalCustomers(); dlgLocalCustomers.showModal();
+};
+$('#lc-q').oninput = renderLocalCustomers;
+$('#lc-all').onchange = (event) => {
+  const query = fold($('#lc-q').value);
+  for (const customer of localCustomers.filter((item) => fold(`${item.code} ${item.name} ${item.phone} ${item.address} ${item.size}`).includes(query))) {
+    if (event.target.checked) selectedLocalCustomers.add(customer.code); else selectedLocalCustomers.delete(customer.code);
+  }
+  renderLocalCustomers();
+};
+localCustomerRows.onchange = (event) => {
+  const code = event.target.dataset.code;
+  if (!code) return;
+  if (event.target.checked) selectedLocalCustomers.add(code); else selectedLocalCustomers.delete(code);
+  renderLocalCustomers();
+};
+$('#lc-delete').onclick = async () => {
+  const codes = [...selectedLocalCustomers];
+  if (!codes.length || !confirm(`Xóa ${codes.length} khách đã chọn cùng agent và hồ sơ lưu trên máy? Đơn hàng, doanh thu và lịch sử chat sẽ được giữ lại.`)) return;
+  const button = $('#lc-delete'), status = $('#lc-msg');
+  button.disabled = true; status.classList.remove('err'); status.textContent = 'Đang xóa…';
+  try {
+    const result = await api.deleteLocalCustomers(codes);
+    if (!result.ok) throw new Error(result.error);
+    selectedLocalCustomers.clear();
+    if (!(await loadLocalCustomers())) {
+      status.classList.add('err'); status.textContent = `Đã xóa ${result.deleted} khách nhưng không tải lại được danh sách. Hãy đóng rồi mở lại bảng.`;
+      return;
+    }
+    status.textContent = `Đã xóa ${result.deleted} khách cùng hồ sơ và agent trên máy.`;
+  } catch (error) {
+    renderLocalCustomers();
+    status.classList.add('err'); status.textContent = `Không xóa được khách hàng: ${error.message}`;
+  } finally { button.disabled = selectedLocalCustomers.size === 0; }
+};
+$('#lc-close').onclick = () => dlgLocalCustomers.close();
 $('#c-q').oninput = () => { renderCusts(); renderSheetCusts(); }; $('#c-close').onclick = () => dlgC.close();
 loadCusts(); setInterval(() => { if (dlgC.open) loadCusts(); }, 15000);
 
@@ -611,11 +705,6 @@ async function loadRev() {
     list.append(el);
   }
 }
-$('#btn-rev').onclick = async () => {
-  const sel = $('#revform').elements.code; sel.length = 1;
-  for (const c of await api.listCustomers()) sel.add(new Option(`${c.name} (${c.code})`, c.code));
-  $('#revform').reset(); $('#r-err').textContent = ''; await loadRev(); dlgR.showModal();
-};
 $('#revform').addEventListener('submit', async (e) => {
   e.preventDefault(); const f = e.target.elements;
   const r = await api.addRevenue({ code: f.code.value, amount: f.amount.value, note: f.note.value });
@@ -630,8 +719,6 @@ const KIND_VN = { bai_dang: 'Đăng bài vào nhóm', binh_luan: 'Bình luận v
 const ST_VN = { pending: 'Chờ duyệt', approved: 'Đã duyệt, đang xếp hàng', running: 'Đang đăng…', done: 'Đã đăng', failed: 'Chưa đăng được', rejected: 'Đã từ chối' };
 let apprData = { items: [], limit: 12, today: 0 };
 function renderApprovals() {
-  const pend = apprData.items.filter((x) => x.status === 'pending').length;
-  const b = $('#btn-appr'); b.textContent = pend ? `Chờ duyệt (${pend})` : 'Chờ duyệt'; b.classList.toggle('has', pend > 0);
   if (!dlgA2.open) return;
   $('#a-limit').textContent = `Hôm nay đã đăng ${apprData.today}/${apprData.limit}`;
   aList.innerHTML = '';
@@ -662,6 +749,5 @@ function renderApprovals() {
 }
 const loadApprovals = async () => { apprData = await api.listApprovals(); renderApprovals(); };
 api.onApprovals((d) => { apprData = d; renderApprovals(); });
-$('#btn-appr').onclick = async () => { await loadApprovals(); dlgA2.showModal(); renderApprovals(); };
 $('#a-close').onclick = () => dlgA2.close();
 loadApprovals();

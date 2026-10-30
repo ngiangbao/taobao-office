@@ -43,6 +43,17 @@ test('mỗi khách một mã riêng và một agent; khách nhắn lại thì d�
   t.close();
 });
 
+test('xóa khách khỏi kho cục bộ và lưu thay đổi vào tệp customers.json', async () => {
+  const t = await setup(async () => ({ text: 'Nháp.' }));
+  const { customer } = t.customers.ensure({ name: 'Lan' });
+  const removed = t.customers.remove(customer.code);
+  assert.equal(removed.code, customer.code);
+  assert.equal(t.customers.byCode(customer.code), undefined);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(t.dir, 'customers.json'), 'utf8')), []);
+  assert.equal(t.customers.remove(customer.code), null);
+  t.close();
+});
+
 test('khi giao việc cho agent chuyên môn: che tên, số điện thoại bằng mã; agent chuyên môn chỉ thấy mã', async () => {
   let specialistPrompt = '';
   const t = await setup(async (agent, text) => {

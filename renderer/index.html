@@ -15,9 +15,6 @@
     <button id="btn-default-agents" class="ghost" hidden>＋ Tạo agent mặc định</button>
     <span class="spacer"></span>
     <button id="btn-stop" class="danger" hidden>Dừng tất cả</button>
-    <button id="btn-appr" class="ghost" title="Mọi bài đăng và bình luận đều chờ bạn duyệt ở đây">Chờ duyệt</button>
-    <button id="btn-cust" class="ghost" title="Mỗi khách có một agent riêng">Khách</button>
-    <button id="btn-rev" class="ghost" title="Sổ doanh thu: tiền đã thu thật">Doanh thu</button>
     <button id="btn-gear" class="ghost" title="Cài đặt" hidden>⚙ Cài đặt</button>
   </header>
   <div id="toast" class="toast" hidden></div>
@@ -118,7 +115,9 @@
         <section data-sec="cust" hidden>
           <h3>Khách hàng</h3>
           <h4>Bảng khách order trên Google Sheets</h4>
-          <p class="hint">Dán link bảng có trang “khách order” (đặt “Bất kỳ ai có liên kết đều xem được”). Nút <b>Khách</b> ở thanh trên hiện danh sách khách từ bảng này.</p>
+          <p class="hint">Dán link bảng có trang “khách order” (đặt “Bất kỳ ai có liên kết đều xem được”). Dùng mục xem dữ liệu khách lưu trên máy để quản lý hồ sơ khách đã lưu trên thiết bị.</p>
+          <div class="row-btns"><button type="button" id="customers-export">Xuất khách hàng thành Excel</button><button type="button" id="customers-local-open" class="ghost">Xem dữ liệu khách lưu trên máy</button></div>
+          <p id="customers-local-msg" class="hint" aria-live="polite"></p>
           <div class="o-import">
             <input id="o-url" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit">
             <select id="o-mode"><option value="merge">Thêm đơn mới, bỏ dòng trùng</option><option value="replace">Thay toàn bộ danh sách</option></select>
@@ -267,6 +266,18 @@
   <h4>Khách đang có agent chăm</h4>
   <div id="c-list" class="hist-list"></div>
   <pre id="c-profile" class="profile" hidden></pre>
+</dialog>
+
+<dialog id="dlg-cust-data" class="wide">
+  <div class="hist-head"><h3>Dữ liệu khách hàng lưu trên máy</h3><input id="lc-q" type="search" placeholder="Tìm theo tên, mã, số điện thoại…"><button id="lc-delete" class="danger" disabled>Xóa đã chọn</button><button id="lc-close" class="ghost">Đóng</button></div>
+  <p class="hint">Bảng này quản lý hồ sơ trong danh sách khách hàng và thư mục agent/hồ sơ riêng của họ. Đơn hàng, doanh thu và lịch sử chat được giữ nguyên; nếu bật đồng bộ Google, dữ liệu còn trên bảng có thể được đồng bộ lại.</p>
+  <p id="lc-msg" class="hint" aria-live="polite"></p>
+  <div class="customer-table-wrap">
+    <table class="customer-table">
+      <thead><tr><th><input id="lc-all" type="checkbox" aria-label="Chọn tất cả khách đang hiện"></th><th>Mã khách</th><th>Tên</th><th>Điện thoại</th><th>Địa chỉ</th><th>Size</th><th>Ngày tạo</th><th>Cập nhật</th></tr></thead>
+      <tbody id="lc-rows"></tbody>
+    </table>
+  </div>
 </dialog>
 
 <dialog id="dlg-orders" class="wide">

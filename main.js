@@ -484,6 +484,55 @@ app.whenReady().then(async () => {
     catch (error) { return { ok: false, error: error.message }; }
   });
   ipcMain.handle('customers:list', () => custList());
+  ipcMain.handle('customers:local-list', () => customers.all().map((c) => ({
+    code: c.code,
+    name: c.name,
+    phone: c.phone || '',
+    address: c.address || '',
+    size: c.size || '',
+    createdAt: c.createdAt || 0,
+    updatedAt: c.updatedAt || 0,
+  })));
+  ipcMain.handle('customers:local-delete', (_, rawCodes) => {
+    if (!Array.isArray(rawCodes) || rawCodes.length === 0 || rawCodes.length > 500) {
+      return { ok: false, error: 'Hãy chọn từ 1 đến 500 khách hàng.' };
+    }
+    const codes = [...new Set(rawCodes.map((code) => String(code || '').trim().toUpperCase()))];
+    if (codes.some((code) => !code || code.length > 80 || /[\\/\u0000-\u001f]/.test(code))) {
+      return { ok: false, error: 'Danh sách mã khách hàng không hợp lệ.' };
+    }
+    const targets = codes.map((code) => customers.byCode(code));
+    if (targets.some((customer) => !customer)) return { ok: false, error: 'Một số khách đã bị xóa hoặc không còn tồn tại. Hãy tải lại danh sách.' };
+    const entries = targets.map((customer) => ({ customer, agent: agents.get(customer.agentId) }));
+    for (const { customer, agent } of entries) {
+      if (agent && (agent.kind !== 'customer' || agent.customerCode !== customer.code)) {
+        return { ok: false, error: `Không thể xóa ${customer.name}: agent liên kết không khớp.` };
+      }
+      if (agent && dispatcher?.isBusy(agent.id)) return { ok: false, error: `${customer.name} đang có agent làm việc. Hãy thử lại sau.` };
+      if (agent) {
+        const agentsDir = path.resolve(dataDir, 'agents') + path.sep;
+        const agentDir = path.resolve(agent.dir);
+        if (!agentDir.startsWith(agentsDir)) return { ok: false, error: `Thư mục dữ liệu của ${customer.name} không hợp lệ.` };
+      }
+    }
+    try {
+      for (const { agent } of entries) {
+        if (!agent) continue;
+        children.get(agent.id)?.kill();
+        children.delete(agent.id);
+        fs.rmSync(agent.dir, { recursive: true, force: true });
+      }
+      for (const { customer, agent } of entries) {
+        customers.remove(customer.code);
+        if (agent) agents.remove(agent.id);
+      }
+      pushCustomers();
+      return { ok: true, deleted: entries.length };
+    } catch (error) {
+      pushCustomers();
+      return { ok: false, error: `Không xóa hết được dữ liệu khách hàng: ${error.message}` };
+    }
+  });
   ipcMain.handle('customers:export', async () => {
     try {
       const { canceled, filePath } = await dialog.showSaveDialog(win, {

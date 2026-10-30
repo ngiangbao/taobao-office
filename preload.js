@@ -48,6 +48,8 @@ contextBridge.exposeInMainWorld('api', {
   openHistoryDir: () => ipcRenderer.invoke('history:open'),
   listCustomers: () => ipcRenderer.invoke('customers:list'),
   exportCustomers: () => ipcRenderer.invoke('customers:export'),
+  listLocalCustomers: () => ipcRenderer.invoke('customers:local-list'),
+  deleteLocalCustomers: (codes) => ipcRenderer.invoke('customers:local-delete', codes),
   skillsList: () => ipcRenderer.invoke('skills:list'),
   skillsSave: (d) => ipcRenderer.invoke('skills:save', d),
   skillsRemove: (d) => ipcRenderer.invoke('skills:remove', d),
