@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell, nativeImage, dialog, safeStorage } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
-const { runClaude, findClaude } = require('./lib/claude');
+const { runClaude, findClaude, checkClaude } = require('./lib/claude');
 const { startOffice, writeHookSettings, testGate } = require('./lib/office');
 const { createApprovals, PUBLISHER_PROMPT, KINDS } = require('./lib/approvals');
 const { createAgents, TEMPLATES } = require('./lib/agents');
@@ -225,6 +225,13 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('office:url', () => office?.url || null);
   ipcMain.handle('cfg:get', () => ({ cfg: loadCfg(), claude: findClaude(loadCfg().claudePath) }));
+  ipcMain.handle('app:platform', () => process.platform);
+  ipcMain.handle('claude:select', async () => {
+    const filters = process.platform === 'win32' ? [{ name: 'Claude Code CLI', extensions: ['exe', 'cmd', 'bat'] }] : undefined;
+    const result = await dialog.showOpenDialog(win, { title: 'Chọn Claude Code CLI', properties: ['openFile'], filters });
+    return result.canceled ? '' : result.filePaths[0] || '';
+  });
+  ipcMain.handle('claude:check', (_, custom) => checkClaude(custom));
   ipcMain.handle('cfg:set', (_, c) => { fs.writeFileSync(cfgPath, JSON.stringify(c, null, 2)); win?.setTitle(loadCfg().shopName); writeStats(); return true; });
   ipcMain.handle('groups:import', async (_, url) => {
     try { return { ok: true, groups: await importGroups(url) }; }

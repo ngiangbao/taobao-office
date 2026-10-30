@@ -69,7 +69,7 @@ formA.addEventListener('submit', async (e) => {
 $('#btn-stop').onclick = () => api.stopAll();
 // ---------- Cửa sổ Cài đặt (kiểu Claude): mở từ nút bánh răng của văn phòng ----------
 const dlgS = $('#dlg-settings'), form = $('#cfgform');
-const FORM_SECS = ['shop', 'post', 'groups', 'cust', 'sync', 'conn']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
+const FORM_SECS = ['shop', 'post', 'groups', 'cust', 'sync', 'conn', 'claude']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
 let curSec = 'shop', histAgent = '';
 function renderGroupList(groups) {
   const box = $('#s-groups-list'); box.replaceChildren();
@@ -103,7 +103,13 @@ async function fillSettings() {
   $('#s-sync-status').textContent = syncStatus.error
     ? `Không đọc được thông tin bảo mật Google: ${syncStatus.error}`
     : syncStatus.connected ? `Đã kết nối Google${syncStatus.email ? `: ${syncStatus.email}` : ''}.` : 'Chưa kết nối Google.';
-  $('#claudeinfo').textContent = claude ? `Đã tìm thấy claude: ${claude}` : 'Chưa tìm thấy lệnh claude: cài Claude Code và đăng nhập (chạy `claude` một lần), hoặc nhập đường dẫn ở trên.';
+  const platform = await api.platform?.() || 'linux';
+  $('#s-claude-install').textContent = platform === 'win32'
+    ? 'PowerShell:\nirm https://claude.ai/install.ps1 | iex'
+    : 'Terminal:\ncurl -fsSL https://claude.ai/install.sh | bash';
+  const claudeStatus = $('#s-claude-status');
+  claudeStatus.classList.remove('err');
+  claudeStatus.textContent = claude ? `Đã tìm thấy Claude Code CLI: ${claude}` : 'Chưa tìm thấy Claude Code CLI. Cài đặt theo hướng dẫn phía trên hoặc chọn tệp CLI.';
 }
 async function openSettings(sec = curSec) { await fillSettings(); showSection(sec); if (!dlgS.open) dlgS.showModal(); }
 dlgS.querySelectorAll('.s-nav button').forEach((b) => (b.onclick = () => showSection(b.dataset.nav)));
@@ -167,6 +173,26 @@ $('#s-sync-disconnect').onclick = async () => {
   const result = await api.disconnectSync();
   const status = $('#s-sync-status'); status.classList.toggle('err', !result.ok);
   status.textContent = result.ok ? 'Đã ngắt kết nối Google trên thiết bị này. Dữ liệu trên Google Sheets không bị xóa.' : `Không ngắt được kết nối: ${result.error}`;
+};
+$('#s-claude-select').onclick = async () => {
+  const selected = await api.selectClaude();
+  if (selected) {
+    form.elements.claudePath.value = selected;
+    $('#s-claude-status').textContent = 'Đã chọn đường dẫn. Bấm “Lưu thay đổi” để lưu, sau đó kiểm tra CLI.';
+  }
+};
+$('#s-claude-check').onclick = async () => {
+  const button = $('#s-claude-check'), status = $('#s-claude-status');
+  button.disabled = true; status.classList.remove('err'); status.textContent = 'Đang kiểm tra Claude Code CLI…';
+  try {
+    const result = await api.checkClaude(form.elements.claudePath.value.trim());
+    status.classList.toggle('err', !result.ok);
+    status.textContent = result.ok
+      ? `CLI hoạt động: ${result.version} (${result.path}). Hãy bảo đảm đã đăng nhập Claude Code trên máy này.`
+      : `Không kiểm tra được Claude Code CLI: ${result.error}`;
+  } catch (error) {
+    status.classList.add('err'); status.textContent = `Không kiểm tra được Claude Code CLI: ${error.message}`;
+  } finally { button.disabled = false; }
 };
 $('#s-check-updates').onclick = async () => {
   const button = $('#s-check-updates'), status = $('#s-update-status');
@@ -294,7 +320,7 @@ api.onUpdate((u) => {
 });
 
 api.getCfg().then(({ cfg }) => { if (cfg.shopName) document.title = cfg.shopName; });
-api.getCfg().then(({ claude }) => { if (!claude) say('Chưa tìm thấy lệnh `claude`. Cài Claude Code và đăng nhập (chạy `claude` một lần), hoặc nhập đường dẫn trong Cài đặt.'); });
+api.getCfg().then(({ claude }) => { if (!claude) say('Chưa tìm thấy Claude Code CLI. Claude Desktop (cửa sổ chat) không thay thế CLI. Hãy cài Claude Code và đăng nhập, hoặc nhập đường dẫn claude.exe/claude.cmd trong Cài đặt.'); });
 api.officeUrl().then(showOffice); api.onOfficeReady(showOffice);
 api.onOfficeError?.((m) => { $('#btn-gear').hidden = false; wait.classList.remove('hide'); wait.style.whiteSpace = 'pre-wrap'; wait.style.padding = '24px'; wait.style.textAlign = 'center'; wait.style.color = '#f99'; wait.textContent = `Không mở được văn phòng.\n\n${m}\n\nHãy đóng app rồi mở lại; nếu vẫn lỗi, cài lại bản mới nhất.`; say('Văn phòng 3D không chạy, nhưng các agent và hộp thoại vẫn dùng được nếu agent cần nhóm chat thì phải mở lại app.'); });
 refresh();

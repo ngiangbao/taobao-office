@@ -2,6 +2,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   getCfg: () => ipcRenderer.invoke('cfg:get'),
   setCfg: (c) => ipcRenderer.invoke('cfg:set', c),
+  platform: () => ipcRenderer.invoke('app:platform'),
+  selectClaude: () => ipcRenderer.invoke('claude:select'),
+  checkClaude: (path) => ipcRenderer.invoke('claude:check', path),
   importGroups: (url) => ipcRenderer.invoke('groups:import', url),
   syncStatus: () => ipcRenderer.invoke('sync:status'),
   connectSync: (d) => ipcRenderer.invoke('sync:connect', d),

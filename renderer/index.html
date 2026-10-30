@@ -37,6 +37,7 @@
       <button type="button" data-nav="groups">Danh sách nhóm</button>
       <button type="button" data-nav="cust">Khách hàng</button>
       <button type="button" data-nav="sync">Đồng bộ thiết bị</button>
+      <button type="button" data-nav="claude">Claude Code CLI</button>
       <button type="button" data-nav="conn">Kết nối tài khoản</button>
       <button type="button" data-nav="hist">Lịch sử chat</button>
       <button type="button" data-nav="office">Văn phòng 3D</button>
@@ -100,8 +101,16 @@
           <h3>Kết nối tài khoản</h3>
           <p class="hint">Facebook và Taobao dùng chung một Chrome của app: bạn đăng nhập một lần, mọi agent dùng chung, mỗi agent một tab riêng. App không lưu mật khẩu của bạn.</p>
           <div class="row-btns"><button type="button" id="s-login">Đăng nhập Facebook và Taobao…</button><span id="s-loginmsg" class="hint"></span></div>
-          <label>Đường dẫn lệnh claude (để trống = tự tìm)<input name="claudePath" type="text"></label>
-          <p id="claudeinfo" class="hint"></p>
+        </section>
+        <section data-sec="claude" hidden>
+          <h3>Thiết lập Claude Code CLI</h3>
+          <p class="hint">Claude Code CLI là công cụ dòng lệnh mà agent sử dụng; ứng dụng Claude Desktop (cửa sổ chat) không thay thế CLI. Cài từ hướng dẫn chính thức, sau đó chạy lệnh `claude` trong Terminal/PowerShell một lần để đăng nhập.</p>
+          <p class="hint">Lệnh cài đặt chính thức cho hệ điều hành này:</p>
+          <pre id="s-claude-install" class="hint"></pre>
+          <p class="hint"><a href="https://docs.anthropic.com/en/docs/claude-code/setup" target="_blank" rel="noopener">Mở hướng dẫn cài đặt Claude Code chính thức</a></p>
+          <label>Đường dẫn Claude Code CLI (để trống = tự tìm)<input name="claudePath" type="text" placeholder="Ví dụ: C:\Users\Tên\AppData\Roaming\npm\claude.cmd"></label>
+          <div class="row-btns"><button type="button" id="s-claude-select" class="ghost">Chọn tệp CLI…</button><button type="button" id="s-claude-check">Kiểm tra CLI</button></div>
+          <p id="s-claude-status" class="hint" aria-live="polite"></p>
         </section>
         <div class="s-foot"><span id="s-saved" class="hint"></span><button type="submit" id="s-save">Lưu thay đổi</button></div>
       </form>
