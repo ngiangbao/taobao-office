@@ -220,6 +220,20 @@
         <textarea id="s-memory" rows="8" placeholder="Dán bộ nhớ ở đây…"></textarea>
         <div class="row"><button type="button" id="s-memory-add">Thêm vào bộ nhớ</button> <button type="button" id="s-memory-replace">Thay toàn bộ</button></div>
         <p id="s-memory-status" class="hint" aria-live="polite"></p>
+        <hr>
+        <h4>Kỹ năng của từng agent</h4>
+        <p class="hint">Trợ lý riêng xây bộ kỹ năng riêng cho mỗi agent từ những điều bạn dặn, và đưa lại cho đúng agent đó ở <b>mỗi lượt chạy</b>, nên hội thoại dài đến đâu agent cũng không quên. Gõ “@Trợ lý riêng” để dặn thêm; app cũng tự rà soát lời bạn gửi cho từng agent (chỉ đọc lời của chính bạn, không đọc tin khách) để cập nhật.</p>
+        <label>Tự rà soát và cập nhật kỹ năng<select id="sk-auto"><option value="1">Bật (mỗi agent tối đa 1 lần/6 giờ, khi có ít nhất 3 tin mới của bạn)</option><option value="0">Tắt (chỉ khi tôi bấm hoặc dặn Trợ lý riêng)</option></select></label>
+        <div class="row-btns"><button type="button" id="sk-review">Cập nhật kỹ năng ngay</button><button type="button" id="sk-export" class="ghost">Xuất tệp (tất cả agent)</button><button type="button" id="sk-import" class="ghost">Nạp từ tệp…</button></div>
+        <p id="sk-msg" class="hint" aria-live="polite"></p>
+        <div id="sk-list"><p class="hint">Đang tải…</p></div>
+        <details id="sk-addbox"><summary>Thêm hoặc sửa một kỹ năng bằng tay</summary>
+          <label>Agent<select id="sk-agent"></select></label>
+          <label>Tiêu đề (cùng tiêu đề thì thay nội dung cũ)<input id="sk-title" type="text" maxlength="60"></label>
+          <label>Nội dung (tối đa 600 ký tự)<textarea id="sk-text" rows="3" maxlength="600"></textarea></label>
+          <div class="row-btns"><button type="button" id="sk-save">Lưu kỹ năng</button></div>
+        </details>
+        <hr>
         <h4>Phong cách đã dạy cho agent</h4>
         <div id="s-style-list"><p class="hint">Chưa có mục nào.</p></div>
       </section>
@@ -244,7 +258,7 @@
 </dialog>
 
 <dialog id="dlg-cust" class="wide">
-  <div class="hist-head"><h3>Khách hàng</h3><input id="c-q" type="search" placeholder="Tìm theo tên hoặc mã…"><button id="c-orders" class="ghost">Đơn order…</button><button id="c-export" class="ghost">Xuất Excel</button><button id="c-close" class="ghost">Đóng</button></div>
+  <div class="hist-head"><h3>Khách hàng</h3><input id="c-q" type="search" placeholder="Tìm theo tên hoặc mã…"><button id="c-add" class="ghost" title="Tạo khách và agent riêng cho khách, chưa cần có tin nhắn">＋ Thêm khách</button><button id="c-orders" class="ghost">Đơn order…</button><button id="c-export" class="ghost">Xuất Excel</button><button id="c-close" class="ghost">Đóng</button></div>
   <p class="hint">Mỗi khách có <b>một agent riêng</b> và một <b>mã định danh</b> chỉ bạn và agent đó biết. Khách nhắn lại, agent của họ tự dậy với đầy đủ hồ sơ. Bấm “Xuất Excel” để lưu toàn bộ khách hàng; số điện thoại, địa chỉ và size lấy từ hồ sơ nếu đã có.</p>
   <p id="c-export-msg" class="hint" aria-live="polite"></p>
   <h4>Khách trong bảng Google Sheets</h4>

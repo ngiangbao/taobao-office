@@ -24,7 +24,7 @@ const api = window.api || (() => {
     listCustomers: async () => [{ code: 'KH-7F3K9', name: 'Lan', agentName: 'Khách Lan', state: 'awake', busy: false, lastInboundAt: Date.now() - 600000, followupDue: Date.now() + 240000, paused: false, followupCount: 0, ctx: 42000 }, { code: 'KH-2M8QX', name: 'Hương', agentName: 'Khách Hương', state: 'asleep', busy: false, lastInboundAt: Date.now() - 86400000 * 3, followupDue: 0, paused: false, followupCount: 1, ctx: 8000 }],
     ordersList: async () => ({ items: [], statuses: ['Đã đặt hàng', 'Đã về'], sync: {} }), ordersSave: async () => ({ ok: true, items: [] }), ordersDelete: async () => ({ ok: true, items: [] }), ordersImport: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersImportFile: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersExport: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersTsv: async () => '', ordersAssignIds: async () => ({ ok: true, assigned: 0, items: [] }), ordersScript: async () => '', ordersWebhookTest: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersOpenSheet: async () => false, openInventory: async () => ({ ok: false }),
     exportCustomers: async () => ({ ok: false, error: 'Xuất Excel chỉ có trong app desktop.' }),
-    renameCustomer: async () => true, renameAgent: async () => ({ ok: true }), agentBySid: async () => null, pauseCustomer: async () => true, refreshCustomer: async () => true, customerProfile: async () => '# Hồ sơ khách Lan\n- Xưng hô: chị Lan\n- Size: M\n- Thích: màu be, dáng ngắn',
+    renameCustomer: async () => true, renameAgent: async () => ({ ok: true }), skillsList: async () => [{ id: 'a1', name: 'Báo giá', role: 'quote', roleLabel: 'Báo giá', skills: [{ id: 's1', title: 'Báo giá bằng VNĐ', text: 'Luôn báo giá bằng VNĐ, không báo tệ.', at: Date.now(), source: 'owner', version: 2 }] }, { id: 'a2', name: 'Chăm sóc khách', role: 'cskh', roleLabel: 'Chăm sóc khách', skills: [] }], skillsSave: async () => ({ ok: true, agents: [] }), skillsRemove: async () => ({ ok: true, agents: [] }), skillsReviewNow: async () => ({ ok: true, reviewed: 0 }), skillsExportJson: async () => ({ canceled: true }), skillsImport: async () => ({ canceled: true }), onSkills: () => {}, addCustomer: async () => ({ ok: true }), agentBySid: async () => null, pauseCustomer: async () => true, refreshCustomer: async () => true, customerProfile: async () => '# Hồ sơ khách Lan\n- Xưng hô: chị Lan\n- Size: M\n- Thích: màu be, dáng ngắn',
     onCustomers: () => {}, listRevenue: async () => ({ total: 936800, items: [{ id: 'a1', t: new Date().toISOString(), amount: 436800, name: 'Lan', code: 'KH-7F3K9', note: 'cọc áo khoác be', source: 'agent' }] }),
     addRevenue: async () => ({ ok: true }), voidRevenue: async () => true, inboxManual: async () => ({ ok: true, code: 'KH-NEW01', created: true }), inboxPoll: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), onInbox: () => {},
     listApprovals: async () => ({ limit: 12, today: 3, items: [{ id: 'p1', num: 7, status: 'pending', agentName: 'Đăng bài', kind: 'bai_dang', target: 'https://www.facebook.com/groups/vi-du', text: 'Áo khoác lông cừu be về hàng, size S-M-L, ib shop nhé 💕', files: [], hash: 'h1', t: Date.now() }, { id: 'p2', num: 6, status: 'done', agentName: 'Tìm khách', kind: 'binh_luan', target: 'https://www.facebook.com/groups/vi-du/posts/1', text: 'Shop có mẫu này ạ, bạn ib shop nha', files: [], result: 'ĐÃ ĐĂNG: ok', t: Date.now() - 3600e3 }] }),
@@ -108,7 +108,7 @@ function showSection(id) {
   $('#s-saved').textContent = '';
   if (id === 'hist') { const ag = histAgent; histAgent = ''; initHist(ag); }
   if (id === 'office') askOffice();
-  if (id === 'assistant') loadAssistant();
+  if (id === 'assistant') { loadAssistant(); loadSkills(); }
 }
 const STYLE_KIND = { comment: 'Cách comment', van_phong: 'Văn phong', loi_nhan: 'Lời nhắn mẫu' };
 function renderStyle(list) {
@@ -285,7 +285,7 @@ function askRename(target, title = 'Đổi tên agent') { rnTarget = target; $('
 $('#rn-cancel').onclick = () => dlgRn.close();
 rnForm.onsubmit = async (e) => {
   e.preventDefault(); const name = $('#rn-input').value.trim(); if (!name || !rnTarget) return;
-  const r = rnTarget.code ? { ok: await api.renameCustomer({ code: rnTarget.code, name }) } : await api.renameAgent({ sid: rnTarget.sid, name });
+  const r = rnTarget.add ? await api.addCustomer({ name }) : rnTarget.code ? { ok: await api.renameCustomer({ code: rnTarget.code, name }) } : await api.renameAgent({ sid: rnTarget.sid, name });
   if (!r.ok) { $('#rn-err').textContent = r.error || 'Không đổi được tên.'; return; }
   dlgRn.close();
 };
@@ -409,7 +409,8 @@ async function fillOrdersSettings() {
   $('#o-url').value = cfg.ordersSheetUrl || ''; $('#o-hook').value = cfg.ordersWebhookUrl || ''; $('#o-token').value = cfg.ordersWebhookToken || '';
   $('#o-sheetname').value = cfg.ordersSheetName || 'khách order'; $('#o-auto').value = cfg.ordersAutoAppend === false ? '0' : '1'; $('#o-msg').textContent = '';
 }
-$('#c-orders').onclick = openOrders;
+$('#c-orders').onclick = () => openOrders();
+$('#c-add').onclick = () => askRename({ add: true, name: '' }, 'Thêm khách mới (tên hiển thị)');
 $('#o-close').onclick = () => dlgO.close();
 $('#o-q').oninput = renderOrders;
 $('#o-add').onclick = () => editOrder(null);
@@ -427,6 +428,42 @@ $('#o-hook-test').onclick = async () => {
   const r = await api.ordersWebhookTest({ url: $('#o-hook').value, token: $('#o-token').value, sheet: $('#o-sheetname').value, auto: $('#o-auto').value === '1' });
   m.classList.toggle('err', !r.ok); m.textContent = r.ok ? 'Kết nối được. Từ giờ khách mới sẽ tự thêm vào dòng cuối của bảng.' : `Chưa được: ${r.error}`;
 };
+
+// ---------- Kỹ năng của từng agent ----------
+let skData = [];
+const skSay = (t, err) => { const m = $('#sk-msg'); m.textContent = t; m.classList.toggle('err', !!err); };
+const SRC = { owner: 'Chủ shop dặn', review: 'Tự rà soát', import: 'Nạp từ tệp' };
+function renderSkills() {
+  const box = $('#sk-list'); box.replaceChildren();
+  const sel = $('#sk-agent'), keep = sel.value; sel.replaceChildren(...skData.map((a) => new Option(`${a.name} (${a.roleLabel || a.role})`, a.id))); if (keep) sel.value = keep;
+  if (!skData.length) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = 'Chưa có agent nào.'; box.append(p); return; }
+  for (const a of skData) {
+    const sec = document.createElement('div'); sec.className = 'sk-agent';
+    const h = document.createElement('div'); h.className = 'sk-head';
+    const t = document.createElement('b'); t.textContent = `${a.name}`; const m = document.createElement('span'); m.className = 'hint'; m.textContent = ` ${a.roleLabel || ''} · ${a.skills.length}/12 kỹ năng`;
+    const acts = document.createElement('span'); acts.className = 'sk-acts';
+    for (const [label, fn] of [['Xuất tệp', async () => { const r = await api.skillsExportJson({ agentId: a.id }); if (!r.canceled) skSay(r.ok ? `Đã xuất ${r.skills} kỹ năng: ${r.filePath}` : r.error, !r.ok); }], ['Nạp tệp vào agent này', async () => afterSkImport(await api.skillsImport({ agentId: a.id })) ]]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'ghost'; b.textContent = label; b.onclick = fn; acts.append(b); }
+    h.append(t, m, acts); sec.append(h);
+    if (!a.skills.length) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = 'Chưa có kỹ năng nào.'; sec.append(p); }
+    for (const s of a.skills) {
+      const row = document.createElement('div'); row.className = 'sk-row';
+      const body = document.createElement('div'); const tt = document.createElement('b'); tt.textContent = s.title; const tx = document.createElement('p'); tx.textContent = s.text;
+      const meta = document.createElement('small'); meta.className = 'hint'; meta.textContent = `${SRC[s.source] || ''} · ${new Date(s.at).toLocaleDateString('vi-VN')}${s.version > 1 ? ` · bản ${s.version}` : ''}`; body.append(tt, tx, meta);
+      const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'ghost'; ed.textContent = 'Sửa'; ed.onclick = () => { $('#sk-addbox').open = true; $('#sk-agent').value = a.id; $('#sk-title').value = s.title; $('#sk-text').value = s.text; $('#sk-text').focus(); };
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'ghost'; del.textContent = 'Xoá'; del.onclick = async () => { if (confirm(`Xoá kỹ năng “${s.title}” của ${a.name}?`)) { skData = (await api.skillsRemove({ agentId: a.id, id: s.id })).agents; renderSkills(); } };
+      row.append(body, ed, del); sec.append(row);
+    }
+    box.append(sec);
+  }
+}
+function afterSkImport(r) { if (r.canceled) return; if (!r.ok) return skSay(r.error, true); skData = r.agents; renderSkills(); skSay(`Đã nạp: thêm ${r.added}, cập nhật ${r.updated}, bỏ qua ${r.skipped}.${r.unmatched?.length ? ` Không có agent tên: ${r.unmatched.join(', ')} (dùng “Nạp tệp vào agent này” để chọn agent nhận).` : ''}`); }
+async function loadSkills() { skData = await api.skillsList(); renderSkills(); const { cfg } = await api.getCfg(); $('#sk-auto').value = cfg.skillsAuto === false ? '0' : '1'; }
+$('#sk-auto').onchange = async () => { const { cfg } = await api.getCfg(); cfg.skillsAuto = $('#sk-auto').value === '1'; await api.setCfg(cfg); };
+$('#sk-review').onclick = async () => { skSay('Trợ lý riêng đang rà soát lời bạn đã dặn các agent…'); const r = await api.skillsReviewNow(); if (!r.ok) return skSay(r.error, true); skSay(r.reviewed ? `Đã giao Trợ lý riêng rà soát ${r.reviewed} agent; kết quả hiện ở khung chat và danh sách bên dưới.` : 'Chưa có lời dặn mới nào để rà soát.'); setTimeout(loadSkills, 4000); };
+$('#sk-export').onclick = async () => { const r = await api.skillsExportJson({}); if (!r.canceled) skSay(r.ok ? `Đã xuất ${r.skills} kỹ năng của ${r.agents} agent: ${r.filePath}` : r.error, !r.ok); };
+$('#sk-import').onclick = async () => afterSkImport(await api.skillsImport({}));
+$('#sk-save').onclick = async () => { const r = await api.skillsSave({ agentId: $('#sk-agent').value, title: $('#sk-title').value, text: $('#sk-text').value }); if (!r.ok) return skSay(r.error, true); skData = r.agents; renderSkills(); $('#sk-title').value = ''; $('#sk-text').value = ''; skSay('Đã lưu kỹ năng.'); };
+api.onSkills(() => { if (dlgS.open && curSec === 'assistant') loadSkills(); });
 
 // Số phiên bản ở góc phải dưới + trạng thái tự cập nhật
 const ver = $('#ver'); let current = '';
