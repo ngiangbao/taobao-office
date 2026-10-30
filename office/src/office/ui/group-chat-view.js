@@ -351,16 +351,7 @@ async function send() {
   if (target && v.trim() && !hadImages) { sendTo(v.trim()); setReply(null); return; }
   if (v.trim()) chatSend(v, { replyTo: replyTo?.id });
   setReply(null);
-  // @ a conversation: give it this as work? (one tap opens the sheet with it filled in: its folder, photos, send)
-  const tagged = v.trim() && [...sessions.values()].sort((a, b) => dn(b).length - dn(a).length).find((s) => v.includes(`@${dn(s)}`));
-  if (tagged) setTimeout(() => {
-    const ask = el('div', 'zc-ask'), yes = el('button', 'zc-ask-yes', tr('chat.task.askYes')), no = el('button', 'zc-ask-no', tr('chat.task.askNo'));
-    yes.type = no.type = 'button';
-    yes.addEventListener('click', () => { ask.remove(); openTaskSheet(root, { to: { id: tagged.id }, text: v.replace(`@${dn(tagged)}`, '').trim() }); });
-    no.addEventListener('click', () => ask.remove());
-    ask.append(el('span', null, tr('chat.task.ask', { name: dn(tagged), folder: folderOf(tagged) })), no, yes);
-    body.append(ask); body.scrollTop = body.scrollHeight;
-  }, 300);
+  // (Taobao Office: gõ @ agent là đã giao việc cho agent đó; không hỏi lại "Giao việc này cho …?")
 }
 /* ---------- who gets what you write: the whole group (people chatting), or one conversation, Claude for real (it goes to
    that conversation as work on its own branch, and the answer comes back here from its person: server, POST /api/tasks
