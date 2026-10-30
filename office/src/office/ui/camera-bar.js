@@ -1,4 +1,5 @@
 // The camera toolbar.
+import { openInventory } from './inventory-link.js';
 import { state } from '../core/state.js';
 import { $, HQ, PRO } from '../core/env.js';
 import { BASE_ZOOM, camera, controls, fpCam } from '../scene/renderer.js';
@@ -47,6 +48,7 @@ export function setup() {
     if (fp.on) exitFp();
     if (state.selectedId) { state.selectedId = null; state.subView = null; drS.hidden = true; queueUi(); }
     goView(b.dataset.view);
+    if (b.dataset.view === 'server') openInventory();   // "Kho hàng": mở thêm bảng Google Sheets kho hàng
   });
   $('zoom-in').addEventListener('click', () => { if (fp.on) { fpCam.fov = Math.max(40, fpCam.fov - 8); fpCam.updateProjectionMatrix(); return; } state.zoomGoal = Math.min(controls.maxZoom, (state.zoomGoal ?? camera.zoom) * 1.2); });
   $('zoom-out').addEventListener('click', () => { if (fp.on) { fpCam.fov = Math.min(90, fpCam.fov + 8); fpCam.updateProjectionMatrix(); return; } state.zoomGoal = Math.max(controls.minZoom, (state.zoomGoal ?? camera.zoom) / 1.2); });

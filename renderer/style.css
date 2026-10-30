@@ -88,3 +88,7 @@ dialog.settings{max-width:94vw;max-height:92vh}.s-win>*{min-width:0}
 .o-switch[aria-checked="true"] i{background:var(--acc)}.o-switch[aria-checked="true"] i::after{left:16px}
 @media(max-width:900px){.o-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.o-grid{grid-template-columns:minmax(0,1fr)}}
+
+.o-import{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.o-import input{flex:1;min-width:220px;width:auto}.o-import select{width:auto}
+.o-table{width:100%;border-collapse:collapse;font-size:12px}.o-table th,.o-table td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:middle}.o-table img{border-radius:4px;display:block}
+#dlg-orders details{margin:8px 0}#dlg-orders summary{cursor:pointer;color:var(--mute)}

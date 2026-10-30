@@ -203,13 +203,54 @@
 </dialog>
 
 <dialog id="dlg-cust" class="wide">
-  <div class="hist-head"><h3>Khách hàng</h3><input id="c-q" type="search" placeholder="Tìm theo tên hoặc mã…"><button id="c-export" class="ghost">Xuất Excel</button><button id="c-close" class="ghost">Đóng</button></div>
+  <div class="hist-head"><h3>Khách hàng</h3><input id="c-q" type="search" placeholder="Tìm theo tên hoặc mã…"><button id="c-orders" class="ghost">Đơn order…</button><button id="c-export" class="ghost">Xuất Excel</button><button id="c-close" class="ghost">Đóng</button></div>
   <p class="hint">Mỗi khách có <b>một agent riêng</b> và một <b>mã định danh</b> chỉ bạn và agent đó biết. Khách nhắn lại, agent của họ tự dậy với đầy đủ hồ sơ. Bấm “Xuất Excel” để lưu toàn bộ khách hàng; số điện thoại, địa chỉ và size lấy từ hồ sơ nếu đã có.</p>
   <p id="c-export-msg" class="hint" aria-live="polite"></p>
   <div id="c-list" class="hist-list"></div>
   <pre id="c-profile" class="profile" hidden></pre>
 </dialog>
 
+<dialog id="dlg-orders" class="wide">
+  <div class="hist-head"><h3>Đơn khách order</h3><input id="o-q" type="search" placeholder="Tìm theo tên, mã khách, mã SP…"><button id="o-add">Thêm đơn</button><button id="o-export" class="ghost">Xuất Excel</button><button id="o-copy" class="ghost">Chép để dán vào Google Sheets</button><button id="o-close" class="ghost">Đóng</button></div>
+  <p class="hint">Mỗi dòng là một món khách đặt, cùng cột với trang “khách order” của bạn (thêm cột <b>ID khách</b> trước STT). Dữ liệu nằm trên máy này, <b>không đưa cho agent</b>. Khách mới tự thêm vào dòng cuối của bảng Google Sheets nếu bạn bật “Tự thêm vào Google Sheets” bên dưới.</p>
+  <div class="o-import">
+    <input id="o-url" type="url" placeholder="Link Google Sheets đơn khách (đặt “Bất kỳ ai có liên kết đều xem được”)">
+    <select id="o-mode"><option value="merge">Thêm đơn mới, bỏ dòng trùng</option><option value="replace">Thay toàn bộ danh sách</option></select>
+    <button id="o-import">Nhập từ link</button><button id="o-import-file" class="ghost">Nhập từ file Excel…</button><button id="o-open-sheet" class="ghost">Mở bảng online</button>
+  </div>
+  <p id="o-msg" class="hint" aria-live="polite"></p>
+  <details id="o-sync"><summary>Tự thêm vào Google Sheets online khi có khách mới</summary>
+    <p class="hint">Không cần Google Cloud hay đăng nhập: bạn dán một đoạn Apps Script ngắn vào chính bảng tính của mình. (1) Mở bảng → Tiện ích mở rộng → Apps Script, dán đoạn dưới, đổi <b>MAT_KHAU</b>. (2) Chạy hàm <b>caiDat</b> một lần (cấp quyền; hàm này thêm cột “ID khách” vào trước STT). (3) Triển khai → Triển khai mới → Ứng dụng web: Thực thi bằng <b>Tôi</b>, Ai có quyền truy cập <b>Bất kỳ ai</b>. (4) Dán địa chỉ kết thúc bằng /exec và mật khẩu vào đây.</p>
+    <label>Địa chỉ ứng dụng web (/exec)<input id="o-hook" type="url" placeholder="https://script.google.com/macros/s/…/exec"></label>
+    <label>Mật khẩu (MAT_KHAU)<input id="o-token" type="password" autocomplete="off"></label>
+    <label>Tên trang trong bảng<input id="o-sheetname" type="text" placeholder="khách order"></label>
+    <label><select id="o-auto"><option value="1">Bật: khách mới và đơn nhập tay tự thêm vào dòng cuối</option><option value="0">Tắt</option></select></label>
+    <div class="row"><button id="o-hook-test">Lưu và gửi thử</button><button id="o-script-copy" class="ghost">Chép đoạn Apps Script</button></div>
+    <p id="o-hook-msg" class="hint" aria-live="polite"></p>
+  </details>
+  <div id="o-list" class="hist-list"></div>
+</dialog>
+<dialog id="dlg-order-edit">
+  <form id="o-form" method="dialog">
+    <h3 id="o-form-title">Thêm đơn</h3>
+    <div class="grid">
+      <label>ID khách<input name="custId" maxlength="24" placeholder="KH-xxxxx"></label>
+      <label>Tên Facebook khách hàng<input name="fbName" maxlength="120"></label>
+      <label>Link Facebook khách hàng<input name="fbLink" type="url"></label>
+      <label>Mã SP khách đặt<input name="sku" maxlength="40"></label>
+      <label>Màu sắc<input name="color" maxlength="80"></label>
+      <label>Size<input name="size" maxlength="40"></label>
+      <label>Số lượng<input name="qty" type="number" min="0" step="1" value="1"></label>
+      <label>Giá bán (₫)<input name="price" type="number" min="0" step="1"></label>
+      <label>Tình trạng<select name="status"><option value="">(chưa có)</option></select></label>
+      <label>Link sản phẩm 1688<input name="link1688" type="url"></label>
+      <label>Link comment mua hàng<input name="cmtLink" type="url"></label>
+      <label>Ghi chú<input name="note" maxlength="400"></label>
+    </div>
+    <p id="o-form-err" class="hint err" aria-live="polite"></p>
+    <div class="row"><button type="submit" id="o-form-save">Lưu</button><button type="button" id="o-form-cancel" class="ghost">Huỷ</button></div>
+  </form>
+</dialog>
 <dialog id="dlg-inbound">
   <form method="dialog" id="inboundform">
     <h3>Tin của khách</h3>

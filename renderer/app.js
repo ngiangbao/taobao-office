@@ -22,6 +22,7 @@ const api = window.api || (() => {
     removeAgent: async (id) => { list = list.filter((a) => a.id !== id); }, resetAgent: async () => true, stopAll: async () => true,
     historyQuery: async () => ({ items: [{ t: new Date().toISOString(), kind: 'user', agent: 'Báo giá', text: 'Báo giá áo khoác này' }, { t: new Date().toISOString(), kind: 'agent', agent: 'Báo giá', text: 'Đã báo giá xong (bản giả lập).' }], more: false }), historyDelete: async () => 1, openHistoryDir: async () => {},
     listCustomers: async () => [{ code: 'KH-7F3K9', name: 'Lan', agentName: 'Khách Lan', state: 'awake', busy: false, lastInboundAt: Date.now() - 600000, followupDue: Date.now() + 240000, paused: false, followupCount: 0, ctx: 42000 }, { code: 'KH-2M8QX', name: 'Hương', agentName: 'Khách Hương', state: 'asleep', busy: false, lastInboundAt: Date.now() - 86400000 * 3, followupDue: 0, paused: false, followupCount: 1, ctx: 8000 }],
+    ordersList: async () => ({ items: [], statuses: ['Đã đặt hàng', 'Đã về'], sync: {} }), ordersSave: async () => ({ ok: true, items: [] }), ordersDelete: async () => ({ ok: true, items: [] }), ordersImport: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersImportFile: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersExport: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersTsv: async () => '', ordersScript: async () => '', ordersWebhookTest: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersOpenSheet: async () => false, openInventory: async () => ({ ok: false }),
     exportCustomers: async () => ({ ok: false, error: 'Xuất Excel chỉ có trong app desktop.' }),
     renameCustomer: async () => true, pauseCustomer: async () => true, refreshCustomer: async () => true, customerProfile: async () => '# Hồ sơ khách Lan\n- Xưng hô: chị Lan\n- Size: M\n- Thích: màu be, dáng ngắn',
     onCustomers: () => {}, listRevenue: async () => ({ total: 936800, items: [{ id: 'a1', t: new Date().toISOString(), amount: 436800, name: 'Lan', code: 'KH-7F3K9', note: 'cọc áo khoác be', source: 'agent' }] }),
@@ -271,6 +272,7 @@ window.addEventListener('message', (ev) => {
   if (ev.source !== frame.contentWindow) return;
   const d = ev.data || {};
   if (d.tbo === 'open-settings') openSettings();
+  else if (d.tbo === 'open-inventory') api.openInventory().then((r) => { if (!r?.ok) openSettings('inventory'); }); // chưa nhập link kho: mở thẳng mục Kho hàng
   else if (d.tbo === 'office-state') renderOfficeSettings(d.groups || []);
   else if (d.tbo === 'office-ready' && dlgS.open && curSec === 'office') askOffice(); // văn phòng vừa tải lại (ví dụ sau khi đổi ngôn ngữ)
 });
@@ -346,6 +348,69 @@ $('#h-agent').onchange = () => loadHist(true);
 $('#h-q').oninput = () => { clearTimeout(hTimer); hTimer = setTimeout(() => loadHist(true), 250); };
 hMore.onclick = () => loadHist(false);
 $('#h-dir').onclick = () => api.openHistoryDir();
+
+const fold = (t) => String(t || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/gi, 'd').toLowerCase();
+// ---------- Đơn khách order ----------
+const dlgO = $('#dlg-orders'), dlgOE = $('#dlg-order-edit'), oForm = $('#o-form');
+let oData = { items: [], statuses: [] }, oEditId = '';
+const money = (n) => (n == null ? '' : `${Number(n).toLocaleString('vi-VN')}₫`);
+function renderOrders() {
+  const q = fold($('#o-q').value), box = $('#o-list'); box.replaceChildren();
+  const rows = oData.items.filter((o) => !q || fold([o.custId, o.fbName, o.sku, o.color, o.status, o.note].join(' ')).includes(q));
+  if (!rows.length) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = oData.items.length ? 'Không có dòng nào khớp.' : 'Chưa có đơn nào. Nhập từ link Google Sheets, nhập file Excel hoặc bấm “Thêm đơn”.'; box.append(p); return; }
+  const tbl = document.createElement('table'); tbl.className = 'o-table';
+  const head = tbl.createTHead().insertRow(); for (const h of ['#', 'ID khách', 'Khách', 'Mã SP', 'Ảnh', 'Màu', 'Size', 'SL', 'Giá bán', 'Tình trạng', '']) head.insertCell().textContent = h;
+  const body = tbl.createTBody();
+  rows.forEach((o, i) => {
+    const r = body.insertRow();
+    r.insertCell().textContent = oData.items.indexOf(o) + 1;
+    r.insertCell().textContent = o.custId; r.insertCell().textContent = o.fbName; r.insertCell().textContent = o.sku;
+    const im = r.insertCell(); if (o.thumb) { const t = document.createElement('img'); t.src = o.thumb; t.alt = ''; t.height = 44; im.append(t); }
+    r.insertCell().textContent = o.color; r.insertCell().textContent = o.size; r.insertCell().textContent = o.qty; r.insertCell().textContent = money(o.price); r.insertCell().textContent = o.status;
+    const act = r.insertCell(); const ed = document.createElement('button'); ed.className = 'ghost'; ed.textContent = 'Sửa'; ed.onclick = () => editOrder(o);
+    const del = document.createElement('button'); del.className = 'ghost'; del.textContent = 'Xoá'; del.onclick = async () => { if (confirm('Xoá dòng đơn này?')) { oData = { ...oData, ...(await api.ordersDelete(o.id)) }; renderOrders(); } };
+    act.append(ed, del);
+  });
+  box.append(tbl);
+}
+function editOrder(o) {
+  oEditId = o?.id || ''; $('#o-form-title').textContent = o ? 'Sửa đơn' : 'Thêm đơn'; $('#o-form-err').textContent = '';
+  const st = oForm.elements.status; st.replaceChildren(new Option('(chưa có)', '')); for (const x of oData.statuses) st.append(new Option(x, x));
+  if (o?.status && !oData.statuses.includes(o.status)) st.append(new Option(o.status, o.status));
+  for (const el of oForm.elements) if (el.name) el.value = o ? (o[el.name] ?? '') : (el.name === 'qty' ? '1' : el.name === 'status' ? 'Đã đặt hàng' : '');
+  dlgOE.showModal();
+}
+oForm.onsubmit = async (e) => {
+  e.preventDefault();
+  const fields = {}; for (const el of oForm.elements) if (el.name) fields[el.name] = el.value;
+  const r = await api.ordersSave({ id: oEditId, fields });
+  if (!r.ok) { $('#o-form-err').textContent = r.error; return; }
+  oData = { ...oData, ...r }; dlgOE.close(); renderOrders();
+};
+$('#o-form-cancel').onclick = () => dlgOE.close();
+async function openOrders() {
+  oData = await api.ordersList(); const { cfg } = await api.getCfg();
+  $('#o-url').value = cfg.ordersSheetUrl || ''; $('#o-hook').value = cfg.ordersWebhookUrl || ''; $('#o-token').value = cfg.ordersWebhookToken || '';
+  $('#o-sheetname').value = cfg.ordersSheetName || 'khách order'; $('#o-auto').value = cfg.ordersAutoAppend === false ? '0' : '1';
+  $('#o-msg').textContent = ''; renderOrders(); if (!dlgO.open) dlgO.showModal();
+}
+$('#c-orders').onclick = openOrders;
+$('#o-close').onclick = () => dlgO.close();
+$('#o-q').oninput = renderOrders;
+$('#o-add').onclick = () => editOrder(null);
+const oSay = (t, err) => { const m = $('#o-msg'); m.textContent = t; m.classList.toggle('err', !!err); };
+const afterImport = (r) => { if (r.canceled) return oSay(''); if (!r.ok) return oSay(r.error, true); oData = r; renderOrders(); oSay(`Đọc ${r.read} dòng: thêm ${r.added}, bỏ ${r.skipped} dòng trùng hoặc thiếu thông tin. Tổng ${r.total} dòng.`); };
+$('#o-import').onclick = async () => { oSay('Đang tải bảng…'); afterImport(await api.ordersImport({ url: $('#o-url').value, mode: $('#o-mode').value })); };
+$('#o-import-file').onclick = async () => afterImport(await api.ordersImportFile({ mode: $('#o-mode').value }));
+$('#o-open-sheet').onclick = async () => { if (!(await api.ordersOpenSheet())) oSay('Hãy nhập link Google Sheets rồi bấm “Nhập từ link” trước.', true); };
+$('#o-export').onclick = async () => { const r = await api.ordersExport(); if (r.canceled) return; oSay(r.ok ? `Đã lưu ${r.count} dòng (có ảnh) vào ${r.filePath}. Mở Google Sheets → Tệp → Nhập để đưa lên online.` : r.error, !r.ok); };
+$('#o-copy').onclick = async () => { try { await navigator.clipboard.writeText(await api.ordersTsv()); oSay('Đã chép. Mở Google Sheets, chọn ô A1 rồi dán (Ctrl+V). Ảnh không đi kèm cách này; muốn có ảnh hãy dùng “Xuất Excel”.'); } catch (e) { oSay(`Không chép được: ${e.message}`, true); } };
+$('#o-script-copy').onclick = async () => { try { await navigator.clipboard.writeText(await api.ordersScript()); $('#o-hook-msg').textContent = 'Đã chép đoạn Apps Script. Dán vào Apps Script của bảng, đổi MAT_KHAU.'; } catch (e) { $('#o-hook-msg').textContent = `Không chép được: ${e.message}`; } };
+$('#o-hook-test').onclick = async () => {
+  const m = $('#o-hook-msg'); m.classList.remove('err'); m.textContent = 'Đang kiểm tra…';
+  const r = await api.ordersWebhookTest({ url: $('#o-hook').value, token: $('#o-token').value, sheet: $('#o-sheetname').value, auto: $('#o-auto').value === '1' });
+  m.classList.toggle('err', !r.ok); m.textContent = r.ok ? 'Kết nối được. Từ giờ khách mới sẽ tự thêm vào dòng cuối của bảng.' : `Chưa được: ${r.error}`;
+};
 
 // Số phiên bản ở góc phải dưới + trạng thái tự cập nhật
 const ver = $('#ver'); let current = '';

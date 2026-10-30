@@ -39,6 +39,7 @@ import { confetti, night, particles, puffGeo } from '../world/room-update.js';
 import { toast } from '../ui/activity.js';
 import { openSession } from '../ui/session-drawer.js';
 import { openMac } from '../ui/mac-drawer.js';
+import { openInventory } from '../ui/inventory-link.js';
 import { PLACES, placeMeshes } from './place-chips.js';
 import { openPlace } from './place-cards.js';
 import { ray } from '../ui/whiteboard.js';
@@ -142,8 +143,8 @@ export function buildProps() {
     : { window: [-1.6, 1.0, -6.1, 3.4, 3.7, -5.5], meeting: [3.7, 0, 0.85, 6.75, 1.3, 3.95] };
   prop('shelf', { name: tr('props.shelf.name'), hint: tr('props.shelf.hint'), place: 'library', meshes: meshesOf(shelf), bounce: shelf });
   prop('window', { name: tr('props.window.name'), hint: tr('props.window.hint'), place: 'window', meshes: [...meshesIn(REG.window), ...meshesOf(globeStand)], act: () => { globeBoost = 9; } });
-  prop('racks', { name: tr(PRO ? 'props.racks.namePro' : 'props.racks.name'), hint: tr('props.racks.hint'), meshes: meshesOf(rackG), act: () => { rackParty = state.sim + 1.2; openMac(); } });
-  prop('tv', { name: tr('props.tv.name'), hint: tr('props.tv.hint'), meshes: meshesOf(tvG), act: () => openMac() });
+  prop('racks', { name: tr(PRO ? 'props.racks.namePro' : 'props.racks.name'), hint: tr('props.racks.hint'), meshes: meshesOf(rackG), act: () => { rackParty = state.sim + 1.2; openInventory(); } });
+  prop('tv', { name: tr('props.tv.name'), hint: tr('props.tv.hint'), meshes: meshesOf(tvG), act: () => openInventory() });
   prop('rocket', { name: tr('props.rocket.name'), hint: tr('props.rocket.hint'), place: 'deploy', meshes: [...meshesOf(rocket), ...meshesIn([R.x - 0.65, 0, R.z - 0.65, R.x + 0.65, 0.2, R.z + 0.65])] });
   prop('board', { name: tr('props.board.name'), hint: tr('props.board.hint'), place: 'board', meshes: meshesOf(board), bounce: board });
   if (lift) prop('door', { name: tr('props.lift.name'), hint: tr('props.lift.hint'), place: 'door', meshes: meshesOf(lift.g), act: () => { liftCall(3); sfx.play('click'); } });

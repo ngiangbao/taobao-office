@@ -1,5 +1,16 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', {
+  ordersList: () => ipcRenderer.invoke('orders:list'),
+  ordersSave: (d) => ipcRenderer.invoke('orders:save', d),
+  ordersDelete: (id) => ipcRenderer.invoke('orders:delete', id),
+  ordersImport: (d) => ipcRenderer.invoke('orders:import', d),
+  ordersImportFile: (d) => ipcRenderer.invoke('orders:import-file', d),
+  ordersExport: () => ipcRenderer.invoke('orders:export'),
+  ordersTsv: () => ipcRenderer.invoke('orders:tsv'),
+  ordersScript: () => ipcRenderer.invoke('orders:script'),
+  ordersWebhookTest: (d) => ipcRenderer.invoke('orders:webhook-test', d),
+  ordersOpenSheet: () => ipcRenderer.invoke('orders:open-sheet'),
+  openInventory: () => ipcRenderer.invoke('inventory:open'),
   checkInventory: (settings) => ipcRenderer.invoke('inventory:check', settings),
   assistantGet: () => ipcRenderer.invoke('assistant:get'),
   assistantMemory: (d) => ipcRenderer.invoke('assistant:memory', d),

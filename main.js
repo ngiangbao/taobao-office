@@ -8,6 +8,9 @@ const { createAgents, TEMPLATES } = require('./lib/agents');
 const { createDispatcher } = require('./lib/dispatcher');
 const { createStyle } = require('./lib/style');
 const { greeting } = require('./lib/greet');
+const { createOrders, parseOrdersWorkbook, buildWorkbook, toTsv, STATUSES } = require('./lib/orders');
+const { createAppender, APPS_SCRIPT } = require('./lib/sheet-append');
+const { download: downloadSheet } = require('./lib/inventory');
 const { createScanner, autoPostGuard, SCAN_PROMPT } = require('./lib/commenter');
 const browser = require('./lib/browser');
 const { createHistory } = require('./lib/history');
@@ -33,6 +36,7 @@ const DEFAULT_CFG = {
   model: 'haiku', // model cho mọi agent: haiku tiết kiệm token nhất (mặc định), sonnet cân bằng, opus mạnh nhất, default = Claude Code tự chọn
   chromeMode: 'app', // app = Chrome riêng của app; mine = Chrome của bạn (qua tiện ích Playwright)
   autoOffMinutes: 60, // lâu không dùng app (không gõ, không giao việc) thì tạm dừng việc tự chạy nền (quét bảng tin, đọc hộp thư, nhắc khách) để khỏi tốn token; 0 = không tự nghỉ
+  ordersSheetUrl: '', ordersWebhookUrl: '', ordersWebhookToken: '', ordersSheetName: 'khách order', ordersAutoAppend: true, // bảng đơn khách trên Google Sheets: khách mới tự thêm vào dòng cuối
   chromeIdleMinutes: 15, // Chrome dùng chung được tắt hẳn sau bấy nhiêu phút không dùng (0 = không tự tắt)
   commentScan: false, commentMinutes: 15, commentFromHour: 8, commentToHour: 22, commentPerScan: 3, // Trả lời comment: quét bảng tin định kỳ (mặc định TẮT)
   commentAutoPost: false, commentAutoMax: 8, // tự đăng bình luận không cần duyệt từng cái (mặc định TẮT, có hạn mức mỗi ngày)
@@ -44,7 +48,7 @@ const DEFAULT_AGENTS = [
   { name: 'Chăm sóc khách', role: 'cskh' }, { name: 'Tìm hàng', role: 'search' }, { name: 'Báo giá', role: 'quote' },
   { name: 'Đăng bài', role: 'post' }, { name: 'Tìm khách', role: 'leads' },
 ];
-let lastActive = Date.now(), dormantNoted = false, chromeTimer, style, scanner, dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, promptUpdateAgain = null, agents, dispatcher, history, customers, revenue, inbox, approvals, googleSync, syncCloud, gateOk = false;
+let orders, appender, lastActive = Date.now(), dormantNoted = false, chromeTimer, style, scanner, dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, promptUpdateAgain = null, agents, dispatcher, history, customers, revenue, inbox, approvals, googleSync, syncCloud, gateOk = false;
 const children = new Map(); // agentId -> process đang chạy
 const introducingAgents = new Set();
 const ICON = path.join(__dirname, 'renderer', 'icon.png');
@@ -307,6 +311,8 @@ app.whenReady().then(async () => {
   customers = createCustomers(dataDir, agents);
   revenue = createRevenue(dataDir);
   approvals = createApprovals(dataDir);
+  orders = createOrders(dataDir);
+  appender = createAppender({ dataDir, getCfg: loadCfg, log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}) });
   style = createStyle(dataDir, Object.keys(TEMPLATES).filter((r) => !['inventory', 'assistant', 'custom'].includes(r)));
 
   ipcMain.handle('app:version', () => app.getVersion());
@@ -316,6 +322,57 @@ app.whenReady().then(async () => {
     catch (error) { send('update:status', { state: 'error', error: error.message }); return { ok: false, error: error.message }; }
   });
   ipcMain.handle('office:url', () => office?.url || null);
+  // ---------- Đơn khách order (danh sách khách + món đặt, theo trang "khách order" của shop) ----------
+  const thumbs = new Map();
+  const thumb = (img) => { if (!img) return ''; if (!thumbs.has(img)) { try { const n = nativeImage.createFromPath(path.join(orders.imgDir, img)); thumbs.set(img, n.isEmpty() ? '' : n.resize({ height: 44 }).toDataURL()); } catch { thumbs.set(img, ''); } } return thumbs.get(img); };
+  const ordersPub = () => ({ items: orders.all().map((o) => ({ ...o, thumb: thumb(o.image) })), statuses: STATUSES, sync: appender.status() });
+  const cleanImages = () => { try { const keep = new Set(orders.all().map((o) => o.image)); for (const f of fs.readdirSync(orders.imgDir)) if (!keep.has(f)) fs.rmSync(path.join(orders.imgDir, f), { force: true }); } catch { /* chưa có ảnh */ } };
+  const rowCells = (o) => ({ 'ID khách': o.custId, 'Tên Facebook khách hàng': o.fbName, 'Link Facebook khách hàng': o.fbLink, 'Mã SP khách đặt': o.sku, 'MÀU SẮC': o.color, SIZE: o.size, 'Số lượng': o.qty, 'Giá bán': o.price ?? '', 'Tình trạng': o.status, 'Link sản phẩm trên 1688': o.link1688, 'Ghi chú': o.note, 'LINK CMT MUA HÀNG': o.cmtLink });
+  ipcMain.handle('orders:list', () => ordersPub());
+  ipcMain.handle('orders:save', (_, d) => {
+    try {
+      if (d.id) orders.update(d.id, d.fields || {});
+      else { const o = orders.add(d.fields || {}); appender.enqueue(rowCells(o), { key: `ord:${o.id}` }); }
+      return { ok: true, ...ordersPub() };
+    } catch (e) { return { ok: false, error: e.message }; }
+  });
+  ipcMain.handle('orders:delete', (_, id) => { orders.remove(id); return { ok: true, ...ordersPub() }; });
+  const importBuffer = async (source, mode) => {
+    const items = await parseOrdersWorkbook(source, { imagesDir: orders.imgDir });
+    const r = orders.importItems(items, mode === 'replace' ? 'replace' : 'merge'); cleanImages(); thumbs.clear();
+    return { ok: true, read: items.length, ...r, ...ordersPub() };
+  };
+  ipcMain.handle('orders:import', async (_, d) => { // nhập từ link Google Sheets (xem công khai)
+    try { const url = String(d?.url || '').trim(); const cfg = loadCfg(); fs.writeFileSync(cfgPath, JSON.stringify({ ...cfg, ordersSheetUrl: url }, null, 2)); return await importBuffer(await downloadSheet(url), d?.mode); }
+    catch (e) { return { ok: false, error: e.message }; }
+  });
+  ipcMain.handle('orders:import-file', async (_, d) => {
+    try {
+      const r = await dialog.showOpenDialog(win, { title: 'Chọn file Excel đơn khách', properties: ['openFile'], filters: [{ name: 'Tệp Excel', extensions: ['xlsx'] }] });
+      if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
+      return await importBuffer(r.filePaths[0], d?.mode);
+    } catch (e) { return { ok: false, error: e.message }; }
+  });
+  ipcMain.handle('orders:export', async () => {
+    try {
+      const { canceled, filePath } = await dialog.showSaveDialog(win, { title: 'Xuất đơn khách order', defaultPath: path.join(app.getPath('documents'), `Don-khach-order-${new Date().toISOString().slice(0, 10)}.xlsx`), filters: [{ name: 'Tệp Excel', extensions: ['xlsx'] }] });
+      if (canceled || !filePath) return { ok: false, canceled: true };
+      fs.writeFileSync(filePath, await buildWorkbook(orders.all(), orders.imgDir)); shell.showItemInFolder(filePath);
+      return { ok: true, filePath, count: orders.all().length };
+    } catch (e) { return { ok: false, error: e.message }; }
+  });
+  ipcMain.handle('orders:tsv', () => toTsv(orders.all()));
+  ipcMain.handle('orders:script', () => APPS_SCRIPT);
+  ipcMain.handle('orders:webhook-test', async (_, d) => { // lưu cấu hình rồi gửi thử (không ghi dòng nào)
+    const cfg = loadCfg(); fs.writeFileSync(cfgPath, JSON.stringify({ ...cfg, ordersWebhookUrl: String(d?.url || '').trim(), ordersWebhookToken: String(d?.token || ''), ordersSheetName: String(d?.sheet || 'khách order').slice(0, 80), ordersAutoAppend: d?.auto !== false }, null, 2));
+    const r = await appender.test(); if (r.ok) appender.flush(); return r;
+  });
+  ipcMain.handle('orders:open-sheet', () => { try { const u = new URL(String(loadCfg().ordersSheetUrl || '')); if (u.protocol === 'https:' && u.hostname === 'docs.google.com') { shell.openExternal(u.href); return true; } } catch { /* chưa nhập */ } return false; });
+  ipcMain.handle('inventory:open', () => { // bấm "Kho hàng" trong văn phòng: mở bảng Google Sheets kho hàng của shop
+    const url = String(loadCfg().inventorySheetUrl || '').trim();
+    try { const u = new URL(url); if (u.protocol !== 'https:' || u.hostname !== 'docs.google.com') throw new Error('x'); shell.openExternal(u.href); return { ok: true }; }
+    catch { return { ok: false }; }
+  });
   ipcMain.handle('inventory:check', async (_, settings) => {
     const tmp = path.join(app.getPath('temp'), `tbo-kho-check-${process.pid}`);
     try {
@@ -497,7 +554,7 @@ app.whenReady().then(async () => {
     dispatcher = createDispatcher({
       officeUrl: () => office.url, agents, run: runAgent, uploadsDir: path.join(dataDir, 'uploads'), history,
       killAgent: (id) => children.get(id)?.kill(),
-      customers, revenue, approvals, style, onStyle: () => send('style:update', style.all()),
+      customers, revenue, approvals, style, onNewCustomer: (c) => appender.enqueue({ 'ID khách': c.code, 'Tên Facebook khách hàng': c.name }, { key: `cust:${c.code}`, once: true }), onStyle: () => send('style:update', style.all()),
       autoApprove: (agent, a) => { // tự đăng bình luận: chỉ khi chủ shop đã bật riêng và qua mọi giới hạn cứng
         const g = autoPostGuard(loadCfg(), approvals, a);
         if (!g.ok) return g;
@@ -516,7 +573,7 @@ app.whenReady().then(async () => {
         await dispatcher.runSystem(agent, SCAN_PROMPT(loadCfg(), gateOk), `Quét bảng tin (${reason}).`);
       },
     });
-    scanner.start();
+    scanner.start(); appender.start(); appender.flush();
     browser.touch(dataDir); // thời gian chờ tắt Chrome tính từ lúc mở app
     win?.on('focus', markActive); win?.webContents.on('before-input-event', () => { if (Date.now() - lastActive > 5000) markActive(); });
     setInterval(() => { if (isDormant() && !dormantNoted) { dormantNoted = true; dispatcher.sys(`😴 ${loadCfg().autoOffMinutes} phút không dùng app: các agent nghỉ, việc tự chạy nền (quét bảng tin, đọc hộp thư, nhắc khách) tạm dừng để tiết kiệm token. Gõ hoặc giao việc là tỉnh lại ngay.`); } }, 60e3).unref();
@@ -561,5 +618,5 @@ app.whenReady().then(async () => {
     pushAgents();
   } catch (e) { console.error('Không chạy được văn phòng:', e); send('office:error', String(e.message || e)); }
 });
-app.on('before-quit', () => { clearInterval(chromeTimer); scanner?.stop(); dispatcher?.stop(); inbox?.stop(); for (const c of children.values()) c.kill(); browser.stop(); office?.child.kill(); });
+app.on('before-quit', () => { appender?.stop(); clearInterval(chromeTimer); scanner?.stop(); dispatcher?.stop(); inbox?.stop(); for (const c of children.values()) c.kill(); browser.stop(); office?.child.kill(); });
 app.on('window-all-closed', () => app.quit());

@@ -1,8 +1,8 @@
 export default {
   shelf: { name: 'Phòng mẫu', hint: 'Xem hồ sơ agent vừa xem' },
   window: { name: 'Cửa sổ · tra web', hint: 'Xem agent vừa tra gì trên web' },
-  racks: { namePro: 'Kho hàng', name: 'Kho hàng', hint: 'Mở bảng {Mac}: RAM, CPU, dọn dẹp' },
-  tv: { name: 'Màn hình kho hàng', hint: 'Mở bảng {Mac}' },
+  racks: { namePro: 'Kho hàng', name: 'Kho hàng', hint: 'Mở bảng Google Sheets kho hàng' },
+  tv: { name: 'Màn hình kho hàng', hint: 'Mở bảng Google Sheets kho hàng' },
   rocket: { name: 'Bệ phóng ra mắt', hint: 'Xem các lần ra mắt, phóng thử tên lửa' },
   board: { name: 'Bảng kế hoạch', hint: 'Việc agent đang làm và việc của bạn' },
   lift: { name: 'Thang máy', hint: 'Bấm gọi thang · ai vào, ai ra hôm nay' },

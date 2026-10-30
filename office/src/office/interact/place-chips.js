@@ -14,6 +14,7 @@ import { lostObj } from '../world/props/dev-servers.js';
 import { leaving, npcs, sessions, subs, workers } from '../people/workers.js';
 import { director } from '../people/director.js';
 import { macSnap, openMac } from '../ui/mac-drawer.js';
+import { openInventory } from '../ui/inventory-link.js';
 import { PROPS, hoverProp, propDist, setOutline } from './props.js';
 import { openPlace } from './place-cards.js';
 import { fp } from './first-person.js';
@@ -148,7 +149,7 @@ export function setup() {
     coffee: { name: tr('places.chip.dining'), icon: 'coffee', at: [11.3, 1.4, -3.0], props: ['coffee'] },
     lounge: { name: tr('places.chip.lounge'), icon: 'sparkle', at: [11.2, 1.3, 6.2], props: ['gametv', 'billiards', 'sofa', 'foosball', 'arcade', 'aquarium'] },
     deploy: { name: tr('places.chip.deploy'), icon: 'rocket', at: [ROCKET_HOME.x, 0.16, ROCKET_HOME.z + 0.7], props: ['rocket'] },
-    server: { name: tr('places.chip.serverPro'), icon: 'server', at: [-5.8, 2.75, -1.0], props: ['racks', 'tv'], open: () => openMac() },
+    server: { name: tr('places.chip.serverPro'), icon: 'server', at: [-5.8, 2.75, -1.0], props: ['racks', 'tv'], open: () => openInventory() },
     door: { name: tr('places.chip.lobby'), icon: 'door', at: [-7.0, 3.2, DZ], props: ['door'] },
     wc: { name: tr('places.chip.wc'), icon: 'door', at: [-5.8, 2.1, 7.2], props: ['wc'] },
     board: { name: tr('places.chip.board'), icon: 'list', at: [-3.4, 3.15, LAY.board[2]], props: ['board'] },
@@ -157,7 +158,7 @@ export function setup() {
   } : {
     library: { name: tr('places.chip.library'), icon: 'book', at: [-5.2, 2.8, -5.3], props: ['shelf'] },
     window: { name: tr('places.chip.window'), icon: 'globe', at: [0.9, 3.66, -5.86], props: ['window'] },
-    server: { name: tr('places.chip.server'), icon: 'server', at: [5.5, 2.58, -5.08], props: ['racks', 'tv'], open: () => openMac() },
+    server: { name: tr('places.chip.server'), icon: 'server', at: [5.5, 2.58, -5.08], props: ['racks', 'tv'], open: () => openInventory() },
     deploy: { name: tr('places.chip.deploy'), icon: 'rocket', at: [7.25, 0.16, -2.9], props: ['rocket'] },
     board: { name: tr('places.chip.board'), icon: 'list', at: [-7.86, 3.4, -2.6], props: ['board'] },
     door: { name: tr('places.chip.door'), icon: 'door', at: [-7.86, 2.86, 1.5], props: ['door'] },
