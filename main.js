@@ -8,6 +8,7 @@ const { createAgents, TEMPLATES } = require('./lib/agents');
 const { createDispatcher } = require('./lib/dispatcher');
 const { createStyle } = require('./lib/style');
 const { greeting } = require('./lib/greet');
+const fold = (t) => String(t || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/gi, 'd').toLowerCase().replace(/\s+/g, ' ').trim();
 const { createOrders, parseOrdersWorkbook, buildWorkbook, toTsv, STATUSES } = require('./lib/orders');
 const { createAppender, APPS_SCRIPT } = require('./lib/sheet-append');
 const { download: downloadSheet } = require('./lib/inventory');
@@ -363,6 +364,12 @@ app.whenReady().then(async () => {
       fs.writeFileSync(filePath, await buildWorkbook(orders.all(), orders.imgDir)); shell.showItemInFolder(filePath);
       return { ok: true, filePath, count: orders.all().length };
     } catch (e) { return { ok: false, error: e.message }; }
+  });
+  ipcMain.handle('orders:assign-ids', () => { // gán ID cho khách chưa có ID và ghi lên bảng online (qua Apps Script)
+    const known = new Map(customers.all().map((c) => [fold(c.name), c.code]));
+    const made = orders.assignIds(known);
+    for (const m of made) appender.enqueue({ 'ID khách': m.id, 'Tên Facebook khách hàng': m.name }, { key: `fill:${m.id}`, fill: true });
+    return { ok: true, assigned: made.length, synced: !!loadCfg().ordersWebhookUrl, ...ordersPub() };
   });
   ipcMain.handle('orders:tsv', () => toTsv(orders.all()));
   ipcMain.handle('orders:script', () => APPS_SCRIPT);

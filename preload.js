@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   ordersImport: (d) => ipcRenderer.invoke('orders:import', d),
   ordersImportFile: (d) => ipcRenderer.invoke('orders:import-file', d),
   ordersExport: () => ipcRenderer.invoke('orders:export'),
+  ordersAssignIds: () => ipcRenderer.invoke('orders:assign-ids'),
   ordersTsv: () => ipcRenderer.invoke('orders:tsv'),
   ordersScript: () => ipcRenderer.invoke('orders:script'),
   ordersWebhookTest: (d) => ipcRenderer.invoke('orders:webhook-test', d),

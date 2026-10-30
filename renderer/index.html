@@ -124,7 +124,7 @@
             <select id="o-mode"><option value="merge">Thêm đơn mới, bỏ dòng trùng</option><option value="replace">Thay toàn bộ danh sách</option></select>
           </div>
           <label>Tự cập nhật từ link mỗi khi mở bảng Khách<select name="ordersAutoRefresh" data-bool><option value="1">Bật</option><option value="0">Tắt</option></select></label>
-          <div class="row-btns"><button type="button" id="o-import">Cập nhật từ link ngay</button><button type="button" id="o-import-file" class="ghost">Nhập từ file Excel…</button><button type="button" id="o-open-sheet" class="ghost">Mở bảng online</button></div>
+          <div class="row-btns"><button type="button" id="o-import">Cập nhật từ link ngay</button><button type="button" id="o-import-file" class="ghost">Nhập từ file Excel…</button><button type="button" id="o-open-sheet" class="ghost">Mở bảng online</button><button type="button" id="o-assign" class="ghost" title="Khách cùng tên Facebook dùng chung một ID; khách đã có agent dùng đúng mã của agent">Gán ID cho khách chưa có ID</button></div>
           <p id="o-msg" class="hint" aria-live="polite"></p>
           <details id="o-sync"><summary>Tự thêm khách mới vào bảng online (dòng cuối)</summary>
             <p class="hint">Không cần Google Cloud: dán một đoạn Apps Script ngắn vào chính bảng của bạn. (1) Mở bảng → Tiện ích mở rộng → Apps Script, dán đoạn script, đổi <b>MAT_KHAU</b>. (2) Chạy hàm <b>caiDat</b> một lần (cấp quyền; thêm cột “ID khách” vào trước STT). (3) Triển khai → Triển khai mới → Ứng dụng web: Thực thi bằng <b>Tôi</b>, Ai có quyền truy cập <b>Bất kỳ ai</b>. (4) Dán địa chỉ kết thúc bằng /exec và mật khẩu vào đây.</p>
@@ -175,7 +175,7 @@
             </select></label>
           <p class="hint">Chế độ “Chrome của tôi”: cài tiện ích <b>Playwright Extension</b> (Playwright MCP Bridge) vào Chrome đang dùng; lần đầu agent duyệt web, tiện ích sẽ hỏi bạn chọn tab cho phép điều khiển. App không mở thêm cửa sổ Chrome trắng và không tự tắt Chrome của bạn. Chrome phải đang mở khi agent cần duyệt web. Chế độ này cần Chrome hoặc Edge có tiện ích; nếu tiện ích chưa cài, agent sẽ báo lỗi kết nối.</p>
           <label>Tự tắt Chrome dùng chung sau (phút không dùng, 0 = không tự tắt)<input name="chromeIdleMinutes" type="number" min="0" max="1440" step="1"></label>
-          <p class="hint">Chrome chỉ mở khi agent thật sự cần duyệt web. Hết thời gian trên, và khi không có agent nào đang làm việc, app tắt hẳn Chrome để nhẹ máy; đăng nhập Facebook/Taobao/1688 vẫn được giữ.</p>
+          <p class="hint"><b>Lưu ý:</b> agent chỉ được <b>xem, mở trang, chụp ảnh và cuộn</b> trong Chrome; việc bấm chuột và gõ chữ bị khoá có chủ đích (để agent không thể tự đăng bài, nhắn tin hay sửa dữ liệu khi chưa có bạn duyệt), kể cả khi bạn đã đăng nhập và cài tiện ích đầy đủ. Muốn sửa bảng Google Sheets thì dùng “Tự thêm khách mới vào bảng online” và “Gán ID cho khách” ở Cài đặt → Khách hàng. Chrome chỉ mở khi agent thật sự cần duyệt web. Hết thời gian trên, và khi không có agent nào đang làm việc, app tắt hẳn Chrome để nhẹ máy; đăng nhập Facebook/Taobao/1688 vẫn được giữ.</p>
           <p class="hint">Facebook, Taobao và 1688 dùng chung một Chrome của app: bạn đăng nhập một lần, mọi agent dùng chung, mỗi agent một tab riêng. App không lưu mật khẩu của bạn.</p>
           <div class="row-btns"><button type="button" id="s-login">Đăng nhập Facebook, Taobao và 1688…</button><span id="s-loginmsg" class="hint"></span></div>
         </section>

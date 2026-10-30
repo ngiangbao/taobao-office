@@ -104,3 +104,17 @@ test('khách mới (lần đầu nhắn) gọi cập nhật bảng đúng một 
   d.deliverInbound({ key: 'thread-2', name: 'Mai', text: 'xin chào' });
   assert.equal(seen.length, 2); assert.match(seen[0], /^KH-/);
 });
+
+test('gán ID khách: cùng tên cùng ID, dùng mã agent có sẵn, không đổi ID đã có; script điền ID vào các dòng cũ chưa có ID', () => {
+  const dir = tmp(); const s = createOrders(dir);
+  s.add({ fbName: 'Lan Nguyễn', sku: 'A' }); s.add({ fbName: 'lan nguyen', sku: 'B' }); s.add({ fbName: 'Mai', sku: 'C' }); s.add({ fbName: 'Hoa', sku: 'D', custId: 'KH-OLD01' });
+  const made = s.assignIds(new Map([['mai', 'KH-MAI99']]));
+  assert.equal(made.length, 2);
+  const ids = Object.fromEntries(s.all().map((o) => [o.sku, o.custId]));
+  assert.equal(ids.A, ids.B); assert.match(ids.A, /^KH-[A-Z2-9]{5}$/); assert.equal(ids.C, 'KH-MAI99'); assert.equal(ids.D, 'KH-OLD01');
+  assert.equal(s.assignIds().length, 0, 'lần sau không còn gì để gán');
+  const grid = [['ID khách', 'STT', 'Tên Facebook khách hàng'], ['', 1, 'Lan Nguyễn'], ['KH-X', 2, 'Lan Nguyễn'], ['', 3, 'Mai']];
+  assert.deepEqual(runScript([{ fill: true, cells: { 'ID khách': 'KH-LAN11', 'Tên Facebook khách hàng': 'Lan Nguyễn' } }], grid), { ok: true, added: 1 });
+  assert.equal(grid[1][0], 'KH-LAN11'); assert.equal(grid[2][0], 'KH-X', 'không đè ID đã có'); assert.equal(grid[3][0], '', 'khách khác không bị đụng');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
