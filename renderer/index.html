@@ -40,6 +40,7 @@
       <button type="button" data-nav="conn">Kết nối tài khoản</button>
       <button type="button" data-nav="hist">Lịch sử chat</button>
       <button type="button" data-nav="office">Văn phòng 3D</button>
+      <button type="button" data-nav="updates">Cập nhật ứng dụng</button>
       <button type="button" data-nav="about">Giới thiệu</button>
     </nav>
     <div class="s-main">
@@ -115,6 +116,13 @@
         <h3>Văn phòng 3D</h3>
         <p class="hint">Kiểu văn phòng, cảnh, thời gian, nhân vật, đồ họa, ngôn ngữ và âm thanh. Bấm là áp dụng ngay vào văn phòng.</p>
         <div id="s-office-groups" class="o-groups"><p class="hint">Đang đọc tùy chọn của văn phòng…</p></div>
+      </section>
+      <section data-sec="updates" hidden>
+        <h3>Cập nhật ứng dụng</h3>
+        <p class="hint">Phiên bản đang dùng: <b id="s-update-version">đang kiểm tra…</b></p>
+        <p class="hint">Ứng dụng cũng tự kiểm tra cập nhật định kỳ khi đang mở.</p>
+        <button type="button" id="s-check-updates">Kiểm tra cập nhật</button>
+        <p id="s-update-status" class="hint" aria-live="polite"></p>
       </section>
       <section data-sec="about" hidden>
         <h3>Giới thiệu</h3>

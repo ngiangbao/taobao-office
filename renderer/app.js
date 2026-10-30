@@ -28,6 +28,7 @@ const api = window.api || (() => {
     listApprovals: async () => ({ limit: 12, today: 3, items: [{ id: 'p1', num: 7, status: 'pending', agentName: 'Đăng bài', kind: 'bai_dang', target: 'https://www.facebook.com/groups/vi-du', text: 'Áo khoác lông cừu be về hàng, size S-M-L, ib shop nhé 💕', files: [], hash: 'h1', t: Date.now() }, { id: 'p2', num: 6, status: 'done', agentName: 'Tìm khách', kind: 'binh_luan', target: 'https://www.facebook.com/groups/vi-du/posts/1', text: 'Shop có mẫu này ạ, bạn ib shop nha', files: [], result: 'ĐÃ ĐĂNG: ok', t: Date.now() - 3600e3 }] }),
     editApproval: async () => true, decideApproval: async () => ({ ok: true }), onApprovals: () => {},
     onAgents: () => {}, officeUrl: async () => new URLSearchParams(location.search).get('office') || 'http://localhost:4310/', onOfficeReady: () => {}, onOfficeError: () => {}, version: async () => 'dev', onUpdate: () => {},  // bản xem thử trong trình duyệt: thêm ?office=<địa chỉ> để chọn văn phòng
+    checkUpdates: async () => ({ ok: false, error: 'Kiểm tra cập nhật chỉ có trong app desktop.' }),
   };
 })();
 
@@ -167,6 +168,16 @@ $('#s-sync-disconnect').onclick = async () => {
   const status = $('#s-sync-status'); status.classList.toggle('err', !result.ok);
   status.textContent = result.ok ? 'Đã ngắt kết nối Google trên thiết bị này. Dữ liệu trên Google Sheets không bị xóa.' : `Không ngắt được kết nối: ${result.error}`;
 };
+$('#s-check-updates').onclick = async () => {
+  const button = $('#s-check-updates'), status = $('#s-update-status');
+  button.disabled = true; status.classList.remove('err'); status.textContent = 'Đang kiểm tra cập nhật…';
+  try {
+    const result = await api.checkUpdates();
+    if (!result.ok) { status.classList.add('err'); status.textContent = `Không kiểm tra được cập nhật: ${result.error}`; }
+  } catch (error) {
+    status.classList.add('err'); status.textContent = `Không kiểm tra được cập nhật: ${error.message}`;
+  } finally { button.disabled = false; }
+};
 api.onSync((result) => {
   const status = $('#s-sync-status');
   if (!status || !dlgS.open || curSec !== 'sync') return;
@@ -260,11 +271,26 @@ $('#h-dir').onclick = () => api.openHistoryDir();
 
 // Số phiên bản ở góc phải dưới + trạng thái tự cập nhật
 const ver = $('#ver'); let current = '';
-api.version().then((v) => { current = 'v' + v; ver.textContent = current; });
+api.version().then((v) => {
+  current = 'v' + v; ver.textContent = current; $('#s-update-version').textContent = current;
+  $('#s-update-status').textContent = 'Phiên bản hiện tại.';
+});
+function updateSettingsStatus(u) {
+  const status = $('#s-update-status');
+  if (!status) return;
+  status.classList.toggle('err', u.state === 'error');
+  status.textContent = u.state === 'checking' ? 'Đang kiểm tra cập nhật…'
+    : u.state === 'current' ? 'Bạn đang dùng phiên bản mới nhất.'
+      : u.state === 'available' ? `Đang tải bản v${u.version}…`
+        : u.state === 'downloading' ? `Đang tải bản mới${u.percent != null ? `: ${u.percent}%` : '…'}`
+          : u.state === 'ready' ? `Đã tải bản v${u.version}. Ứng dụng sẽ cài sau khi các agent hoàn tất.`
+            : u.state === 'error' ? `Kiểm tra cập nhật thất bại: ${u.error}` : status.textContent;
+}
 api.onUpdate((u) => {
-  ver.classList.toggle('up', u.state !== 'none');
-  ver.textContent = u.state === 'downloading' ? `${current} · đang tải bản mới${u.percent != null ? ' ' + u.percent + '%' : ''}`
+  ver.classList.toggle('up', !['none', 'current', 'checking'].includes(u.state));
+  ver.textContent = u.state === 'downloading' || u.state === 'available' ? `${current} · đang tải bản mới${u.percent != null ? ' ' + u.percent + '%' : ''}`
     : u.state === 'ready' ? `${current} · đã tải v${u.version}, tự khởi động lại sau giây lát…` : current;
+  updateSettingsStatus(u);
 });
 
 api.getCfg().then(({ cfg }) => { if (cfg.shopName) document.title = cfg.shopName; });

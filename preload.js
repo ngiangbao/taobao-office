@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('api', {
   onAgents: (cb) => ipcRenderer.on('agents:update', (_, a) => cb(a)),
   openLogin: () => ipcRenderer.invoke('login:open'),
   version: () => ipcRenderer.invoke('app:version'),
+  checkUpdates: () => ipcRenderer.invoke('app:updates:check'),
   onUpdate: (cb) => ipcRenderer.on('update:status', (_, u) => cb(u)),
   officeUrl: () => ipcRenderer.invoke('office:url'),
   onOfficeError: (cb) => ipcRenderer.on('office:error', (_, m) => cb(m)),

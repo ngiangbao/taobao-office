@@ -46,14 +46,14 @@ export default async function SettingsPanel() {
           <p className="pop-note">{t('settings.layoutNote')}</p>
 
           <h3>{t('ui.topBar.scenery')}</h3>
-          <div className="st-cards st-cards--3">
+          <div className="st-cards st-cards--compact">
             {SCENES.map(([k, art]) => (
               <button key={k} type="button" className="scene" data-scene={k} aria-pressed="false"><span className={`sc-art ${art}`}></span><b>{t(`ui.topBar.scenes.${k}`)}</b><small>{t(`ui.topBar.scenes.${k}Sub`)}</small></button>
             ))}
           </div>
 
           <h3>{t('ui.topBar.time')}</h3>
-          <div className="st-cards st-cards--3">
+          <div className="st-cards st-cards--compact">
             {TIMES.map((k) => (
               <button key={k} type="button" className="scene" data-time={k} aria-pressed={k === 'auto' ? 'true' : 'false'}>
                 <span className={`sc-art st-time st-time--${k}`}><span data-icon={TIME_ICON[k]}></span></span>
@@ -86,7 +86,7 @@ export default async function SettingsPanel() {
 
         <section className="st-panel" id="st-panel-display" role="tabpanel" aria-labelledby="st-tab-display" data-st-panel="display" hidden>
           <h3>{t('settings.graphics')}</h3>
-          <div className="st-cards st-cards--4">
+          <div className="st-cards st-cards--compact">
             {QUALITY.map(([q, bars]) => (
               <button key={q} type="button" className="scene" data-quality={q} aria-pressed={q === 'auto' ? 'true' : 'false'}>
                 <span className="sc-art st-q">{bars ? <span className="q-bars" data-n={bars}><i></i><i></i><i></i></span> : <span data-icon="sparkle"></span>}</span>
@@ -97,7 +97,7 @@ export default async function SettingsPanel() {
           <p className="pop-note" id="q-note"></p>
 
           <h3>{t('settings.language')}</h3>
-          <div className="st-cards st-cards--2">
+          <div className="st-cards st-cards--compact">
             {Object.entries(LANGS).map(([code, l]) => (
               <button key={code} type="button" className="scene st-lang" lang={code} data-lang={code} aria-pressed={code === t.lang ? 'true' : 'false'}>
                 <span className="st-code">{code.toUpperCase()}</span><b>{l.name}</b>

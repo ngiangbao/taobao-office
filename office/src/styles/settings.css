@@ -21,11 +21,15 @@
 .st-cards--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .st-cards--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .st-cards--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.st-cards--compact { grid-template-columns: repeat(auto-fill, minmax(min(100%, 78px), 1fr)); gap: 5px; }
 .st-cards .scene { transition: border-color .15s, background .15s, transform .15s; }
 .st-cards .scene:hover { transform: translateY(-1px); }
 .st-cards .scene { min-width: 0; }
 .st-cards .scene b, .st-cards .scene small { min-width: 0; overflow-wrap: anywhere; }
 .st-cards .scene small { line-height: 1.3; }
+.st-cards--compact .scene { min-height: 26px; align-content: center; padding: 5px 6px; border-radius: 999px; }
+.st-cards--compact .scene .sc-art, .st-cards--compact .scene small, .st-cards--compact .scene .st-code { display: none; }
+.st-cards--compact .scene b { overflow: hidden; font-size: .68rem; font-weight: 600; line-height: 1.25; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 
 /* floor plans: a real picture of each */
 .st-shot { display: block; width: 100%; height: 64px; object-fit: cover; background: var(--card-2); }

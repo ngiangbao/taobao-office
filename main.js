@@ -186,10 +186,12 @@ function setupUpdater() {
   if (app.getVersion().includes('-')) autoUpdater.allowPrerelease = true;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('update-available', (i) => send('update:status', { state: 'downloading', version: i.version }));
+  autoUpdater.on('checking-for-update', () => send('update:status', { state: 'checking' }));
+  autoUpdater.on('update-available', (i) => send('update:status', { state: 'available', version: i.version }));
+  autoUpdater.on('update-not-available', () => send('update:status', { state: 'current' }));
   autoUpdater.on('download-progress', (p) => send('update:status', { state: 'downloading', percent: Math.round(p.percent) }));
   autoUpdater.on('update-downloaded', (i) => { send('update:status', { state: 'ready', version: i.version }); pending = true; maybeInstall(); });
-  autoUpdater.on('error', (e) => console.error('updater', e?.message));
+  autoUpdater.on('error', (e) => { console.error('updater', e?.message); send('update:status', { state: 'error', error: e?.message || 'Lỗi cập nhật không xác định.' }); });
   setInterval(maybeInstall, 15000);
   const check = () => autoUpdater.checkForUpdates().catch(() => {});
   check(); setInterval(check, 4 * 3600 * 1000);
@@ -216,6 +218,11 @@ app.whenReady().then(async () => {
   approvals = createApprovals(dataDir);
 
   ipcMain.handle('app:version', () => app.getVersion());
+  ipcMain.handle('app:updates:check', async () => {
+    if (!autoUpdater) return { ok: false, error: 'Kiểm tra cập nhật chỉ có trong bản cài desktop.' };
+    try { await autoUpdater.checkForUpdates(); return { ok: true }; }
+    catch (error) { send('update:status', { state: 'error', error: error.message }); return { ok: false, error: error.message }; }
+  });
   ipcMain.handle('office:url', () => office?.url || null);
   ipcMain.handle('cfg:get', () => ({ cfg: loadCfg(), claude: findClaude(loadCfg().claudePath) }));
   ipcMain.handle('cfg:set', (_, c) => { fs.writeFileSync(cfgPath, JSON.stringify(c, null, 2)); win?.setTitle(loadCfg().shopName); writeStats(); return true; });
