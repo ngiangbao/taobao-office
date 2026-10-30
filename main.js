@@ -20,6 +20,7 @@ const { createHistory } = require('./lib/history');
 const { isPackagedApp } = require('./lib/runtime');
 const { weekStats } = require('./lib/stats');
 const { createCustomers, mergeLocalOrderCustomers, linkOrderCustomers } = require('./lib/customers');
+const { isGroupPost, withinGroupPostWindow, nextGroupPostTime } = require('./lib/post-schedule');
 const { createRevenue, parseVnd } = require('./lib/revenue');
 const { createInbox, READER_PROMPT } = require('./lib/inbox');
 const { readInventory, forAgent } = require('./lib/inventory');
@@ -41,7 +42,8 @@ const DEFAULT_CFG = {
   autoOffMinutes: 60, // lâu không dùng app (không gõ, không giao việc) thì tạm dừng việc tự chạy nền (quét bảng tin, đọc hộp thư, nhắc khách) để khỏi tốn token; 0 = không tự nghỉ
   browserFull: true, // agent thường được điều khiển Chrome đầy đủ (bấm, gõ); tắt thì chỉ xem và cuộn. Đăng/nhắn vẫn dặn phải qua đề xuất chờ duyệt
   skillsAuto: true, // Trợ lý riêng tự rà soát lời chủ shop và cập nhật kỹ năng cho từng agent (mỗi agent tối đa 1 lần/6 giờ, chỉ khi có ít nhất 3 tin mới)
-  followupEnabled: true, ordersAutoRefresh: true, fanpageUrl: '', postAutoPost: false, postAutoDelayMinutes: 5, // tự đăng bài sau thời gian chờ (chỉ khi chủ shop bật)
+  followupEnabled: true, ordersAutoRefresh: true, fanpageUrl: '', postAutoPost: false, postAutoDelayMinutes: 5, // tự đăng fanpage sau thời gian chờ (chỉ khi chủ shop bật)
+  groupPostDelayMinutes: 5, groupPostGapMinutes: 5, groupPostFromHour: 8, groupPostToHour: 22,
   ordersSheetUrl: '', ordersWebhookUrl: '', ordersWebhookToken: '', ordersSheetName: 'khách order', ordersAutoAppend: true, // bảng đơn khách trên Google Sheets: khách mới tự thêm vào dòng cuối
   chromeIdleMinutes: 15, // Chrome dùng chung được tắt hẳn sau bấy nhiêu phút không dùng (0 = không tự tắt)
   commentScan: false, commentMinutes: 15, commentFromHour: 8, commentToHour: 22, commentPerScan: 3, // Trả lời comment: quét bảng tin định kỳ (mặc định TẮT)
@@ -674,7 +676,7 @@ app.whenReady().then(async () => {
         const cfg = loadCfg();
         if (agent.role === 'post') {
           if (!cfg.postAutoPost) return { ok: false, reason: 'chưa bật tự đăng bài' };
-          const delay = Math.max(1, Math.floor(Number(cfg.postAutoDelayMinutes) || 5));
+          const delay = Math.max(1, Math.floor(Number(isGroupPost(cfg, a) ? cfg.groupPostDelayMinutes : cfg.postAutoDelayMinutes) || 5));
           if (!approvals.scheduleAutoPost(a.id, Date.now() + delay * 60e3)) return { ok: false, reason: 'không đặt được lịch tự đăng' };
           pushApprovals();
           return { ok: true, scheduled: true, delayMinutes: delay };
@@ -699,6 +701,13 @@ app.whenReady().then(async () => {
           return;
         }
         for (const approval of approvals.pendingAutoPosts()) {
+          if (isGroupPost(cfg, approval) && !withinGroupPostWindow(cfg)) {
+            const at = nextGroupPostTime(cfg);
+            approvals.scheduleAutoPost(approval.id, at);
+            pushApprovals();
+            dispatcher.sys(`🕒 Đề xuất #${approval.num} ngoài giờ đăng nhóm; sẽ đăng từ ${new Date(at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}.`);
+            continue;
+          }
           const guard = autoPostGuard(cfg, approvals, approval);
           if (!guard.ok) {
             approvals.clearAutoPost(approval.id);
@@ -710,7 +719,8 @@ app.whenReady().then(async () => {
             const item = approvals.approve(approval.id, approval.hash, true);
             pushApprovals();
             dispatcher.publishApproved(item);
-            dispatcher.sys(`🤖 Tự đăng đề xuất #${approval.num} sau ${Math.max(1, Math.floor(Number(cfg.postAutoDelayMinutes) || 5))} phút chờ.`);
+            const delay = Math.max(1, Math.floor(Number(isGroupPost(cfg, approval) ? cfg.groupPostDelayMinutes : cfg.postAutoDelayMinutes) || 5));
+            dispatcher.sys(`🤖 Tự đăng đề xuất #${approval.num} sau ${delay} phút chờ.`);
           } catch (error) {
             approvals.clearAutoPost(approval.id);
             pushApprovals();
@@ -722,6 +732,7 @@ app.whenReady().then(async () => {
     const autoPostTimer = setInterval(processDueAutoPosts, 1000);
     autoPostTimer.unref();
     processDueAutoPosts();
+    for (const approval of approvals.all().filter((item) => item.status === 'approved')) dispatcher.publishApproved(approval);
     scanner = createScanner({
       getCfg: () => { const c = loadCfg(); return isDormant() ? { ...c, commentScan: false } : c; }, busy: () => dispatcher.anyBusy(), log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
       run: async (reason) => {

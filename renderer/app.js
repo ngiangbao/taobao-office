@@ -106,7 +106,7 @@ function showSection(id) {
   dlgS.querySelectorAll('section[data-sec]').forEach((sec) => { sec.hidden = sec.dataset.sec !== id; });
   form.hidden = !FORM_SECS.includes(id);
   $('#s-save').hidden = id === 'sync';
-  $('#s-save').textContent = id === 'groups' ? 'Đọc danh sách và lưu' : 'Lưu thay đổi';
+  $('#s-save').textContent = id === 'groups' ? 'Lưu cài đặt & đọc nhóm' : 'Lưu thay đổi';
   $('#s-saved').textContent = '';
   if (id === 'hist') { const ag = histAgent; histAgent = ''; initHist(ag); }
   if (id === 'office') askOffice();
@@ -188,6 +188,38 @@ form.addEventListener('submit', async (e) => {
   }
   if (curSec === 'groups') {
     const sheetUrl = form.elements.groupsSheetUrl.value.trim();
+    const groupSettings = [
+      ['groupPostDelayMinutes', 1, 1440],
+      ['groupPostGapMinutes', 0, 1440],
+      ['groupPostFromHour', 0, 23],
+      ['groupPostToHour', 0, 24],
+    ];
+    for (const [name, min, max] of groupSettings) {
+      const input = form.elements[name], value = Number(input.value);
+      if (!Number.isInteger(value) || value < min || value > max) {
+        $('#s-groups-msg').classList.add('err'); $('#s-groups-msg').textContent = `Giá trị “${input.closest('label').firstChild.textContent.trim()}” phải là số nguyên từ ${min} đến ${max}.`;
+        input.focus();
+        return;
+      }
+      cfg[name] = value;
+    }
+    if (cfg.groupPostFromHour === cfg.groupPostToHour) {
+      $('#s-groups-msg').classList.add('err'); $('#s-groups-msg').textContent = 'Giờ bắt đầu và giờ kết thúc phải khác nhau.';
+      form.elements.groupPostToHour.focus();
+      return;
+    }
+    cfg.groupsSheetUrl = sheetUrl;
+    try { await api.setCfg(cfg); }
+    catch (error) {
+      $('#s-groups-msg').classList.add('err'); $('#s-groups-msg').textContent = `Không lưu được cài đặt đăng nhóm: ${error.message}`;
+      return;
+    }
+    if (!sheetUrl) {
+      $('#s-groups-msg').classList.remove('err');
+      $('#s-groups-msg').textContent = 'Đã lưu cài đặt đăng nhóm. Thêm link Google Sheets để nhập danh sách nhóm.';
+      $('#s-saved').textContent = 'Đã lưu ✓'; setTimeout(() => ($('#s-saved').textContent = ''), 3000);
+      return;
+    }
     let result;
     try { result = await api.importGroups(sheetUrl); }
     catch (error) {

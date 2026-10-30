@@ -67,10 +67,10 @@
           <h4>Duyệt hay tự đăng</h4>
           <label>Khi agent soạn bài đăng<select name="postAutoPost" data-bool><option value="0">Chờ tôi duyệt từng bài (khuyên dùng)</option><option value="1">Agent tự đăng sau thời gian chờ</option></select></label>
           <div class="grid">
-            <label>Đăng bài sau (phút)<input name="postAutoDelayMinutes" type="number" min="1" step="1"></label>
-            <label>Giãn cách giữa hai lần đăng (giây)<input name="publishGapSeconds" type="number" min="0"></label>
+            <label>Fanpage: đăng sau (phút)<input name="postAutoDelayMinutes" type="number" min="1" step="1"></label>
+            <label>Giãn cách chung giữa hai lần đăng (giây)<input name="publishGapSeconds" type="number" min="0"></label>
           </div>
-          <p class="hint">Khi bật “Agent tự đăng”, bài sẽ chờ đủ số phút trên rồi tự đăng nếu vẫn đạt các giới hạn an toàn. Cấu hình duyệt, thời gian chờ và giãn cách này áp dụng cho bài đăng fanpage và bài đăng nhóm.</p>
+          <p class="hint">Công tắc tự đăng áp dụng cho cả fanpage và nhóm. Thời gian chờ riêng cho bài đăng nhóm và giờ đăng được đặt trong mục “Đăng nhóm”. Bài vẫn phải đạt các giới hạn an toàn.</p>
           <hr>
           <h4>Fanpage của tôi</h4>
           <label>Link fanpage (để đăng bài lên Trang của chính bạn)<input name="fanpageUrl" type="url" placeholder="https://www.facebook.com/ten-trang-cua-ban"></label>
@@ -106,7 +106,14 @@
         </section>
         <section data-sec="groups" hidden>
           <h3>Đăng nhóm</h3>
-          <p class="hint">Agent “Đăng bài” dùng danh sách nhóm này để soạn đề xuất. Cấu hình duyệt, thời gian chờ và giãn cách đăng nằm trong mục “Đăng fanpage” và áp dụng chung cho bài đăng nhóm.</p>
+          <p class="hint">Agent “Đăng bài” dùng danh sách nhóm này để soạn đề xuất. Khi bật tự đăng trong mục “Đăng fanpage”, các lịch dưới đây chỉ áp dụng cho bài đăng nhóm; bài đã duyệt cũng chờ đúng khung giờ và khoảng cách.</p>
+          <div class="grid">
+            <label>Tự đăng bài sau (phút)<input name="groupPostDelayMinutes" type="number" min="1" max="1440" step="1"></label>
+            <label>Khoảng cách giữa các lần đăng nhóm (phút)<input name="groupPostGapMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Bắt đầu đăng từ giờ (0–23)<input name="groupPostFromHour" type="number" min="0" max="23" step="1"></label>
+            <label>Dừng đăng lúc giờ (0–24)<input name="groupPostToHour" type="number" min="0" max="24" step="1"></label>
+          </div>
+          <p class="hint">Khung giờ dùng giờ địa phương của máy, áp dụng mỗi ngày. Có thể đặt giờ qua đêm, ví dụ 22 đến 6. Nếu ngoài khung giờ, bài sẽ chờ đến đầu khung giờ tiếp theo; hai mốc giờ không được trùng nhau.</p>
           <h4>Danh sách nhóm được phép đăng</h4>
           <p class="hint">Dán liên kết Google Sheets công khai có cột tên nhóm và link nhóm Facebook. Bảng cần cho phép “Bất kỳ ai có liên kết đều có thể xem”; có thể đặt tiêu đề cột ở dòng đầu.</p>
           <label>Địa chỉ Google Sheets<input name="groupsSheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit?usp=sharing"></label>
