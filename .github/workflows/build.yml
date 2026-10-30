@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npm install
-      - name: Đồng bộ phiên bản từ tag (tag có dấu "-", ví dụ v0.4.0-beta.2, là bản thử: phát hành dạng prerelease, kênh beta)
+      - name: Đồng bộ phiên bản từ tag (tag có dấu gạch, như v1.0.0-beta.1, là bản thử và được phát hành dạng prerelease)
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         shell: bash
         run: |
