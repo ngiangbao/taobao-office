@@ -78,7 +78,7 @@ export function createChatEngine(ctx) {
     while (queue.length && queue[0].at <= now) {
       const { p, text, opts } = queue.shift();
       const kind = opts.poll ? 'poll' : opts.remind ? 'remind' : opts.photo ? 'photo' : opts.sticker != null ? 'sticker' : 'text';
-      const m = add({ from: p.key, name: p.name, kind, text, sticker: opts.sticker ?? null, photo: opts.photo || null, poll: opts.poll || null, remind: opts.remind || null, reply: opts.reply || null, ...(opts.tag && { tag: opts.tag }) });
+      const m = add({ from: p.key, name: p.name, kind, text, sticker: opts.sticker ?? null, photo: opts.photo || null, poll: opts.poll || null, remind: opts.remind || null, reply: opts.reply || null, ...(opts.tag && { tag: opts.tag }), ...(opts.typed && { typed: true }) });
       if (opts.pin) pin(m.id, p.name);
       if (opts.react?.length) autoReact(m, opts.react, opts.reacts ?? 2);
       for (const a of opts.answer || []) answer(m, a.key, a.chance ?? 1, a.vars);
@@ -178,7 +178,7 @@ export function createChatEngine(ctx) {
     text = String(text || '').trim().slice(0, 600);
     if (!text && sticker == null) return;
     const r = replyTo && byId(replyTo), reply = r && !r.recalled ? { id: r.id, name: r.name || tr('chat.you'), text: short(r.kind === 'text' ? r.text : r.kind === 'poll' ? r.poll.q : tr(r.kind === 'photo' ? 'chat.photo' : 'chat.sticker'), 90) } : null;
-    say('me', text, { now: true, sticker, reply });
+    say('me', text, { now: true, sticker, reply, typed: true });
     const mine = st.msgs.at(-1);
     if (!text) { const id = anyone(); if (id) say(id, '', { sticker: Math.floor(Math.random() * tr('chat.stickers', null, 'list').length), delay: rand(2000, 6000) }); return; }
     const quote = mine ? { id: mine.id, name: tr('chat.boss'), text: short(text, 90) } : null;
@@ -195,7 +195,7 @@ export function createChatEngine(ctx) {
     else if (!named.length && !r && ok('me:any', 45e3)) reply2('any');   // (a plain line: one answer now and then, not one to every message)
     if (mine && Math.random() < 0.6) autoReact(mine, ['❤️', '👍'], Math.random() < 0.5 ? 1 : 2);
   }
-  function photo(dataUrl) { say('me', '', { now: true, photo: dataUrl }); const m = st.msgs.at(-1); if (m?.from === 'me') autoReact(m, ['❤️', '😆', '😮'], 3); }
+  function photo(dataUrl) { say('me', '', { now: true, photo: dataUrl, typed: true }); const m = st.msgs.at(-1); if (m?.from === 'me') autoReact(m, ['❤️', '😆', '😮'], 3); }
 
   /* ---------- by the clock: the morning hello, the lunch poll, reminders for the stand-up and the Friday tea ---------- */
   const hm = (d) => d.getHours() * 100 + d.getMinutes();

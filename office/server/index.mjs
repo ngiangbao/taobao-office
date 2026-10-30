@@ -511,6 +511,10 @@ chat = createChatEngine({
   act: (what) => broadcast({ k: 'chatact', what }),
 });
 setInterval(() => chat.clock(), 30_000).unref();
+// `from` của op 'say' có thể là mã phiên Claude (sid): đổi sang mã người trong văn phòng
+const fromId = (f) => [...sessions.values()].find((x) => x.sid === f)?.id || f;
+// tên agent do app Taobao Office đặt: { [sid]: tên }, đọc từ agent-names.json trong thư mục dữ liệu
+const agentName = (sid) => { try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'agent-names.json'), 'utf8'))[sid] || ''; } catch { return ''; } };
 const chatOut = () => ({ ok: true, msgs: chat.state.msgs, pinned: chat.state.pinned, typing: chat.state.typing });
 
 /* ---------- "Giao việc" (server/tasks.mjs): Claude Code runs started from the office ---------- */
@@ -701,6 +705,7 @@ async function onHook(p) {
     const key = 's' + sid;
     s = newSession(key);
     s.sid = sid; s.cwd = p.cwd || ''; s.name = `${base(p.cwd) || 'claude'}-${sid.slice(0, 2)}`; noteDir(s.cwd);
+    { const an = agentName(sid); if (an) { s.customTitle = an; s.title = an; } }
     sessions.set(key, s); sidToKey.set(sid, key);
     broadcast({ k: 'sess', s: pub(s) });
   }
@@ -1852,7 +1857,7 @@ const server = http.createServer((req, res) => {
       else if (op === 'photo' && mac && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(String(b.data || '')) && b.data.length < 500_000) chat.photo(b.data);
       else if (op === 'say' && mac) {
         const photo = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(String(b.photo || '')) && b.photo.length < 500_000 ? b.photo : null;
-        chat.say(str(b.from, 60), str(b.text, 600), { key: str(b.key, 120) || undefined, sticker: Number.isInteger(b.sticker) ? b.sticker : undefined, photo, pin: !!b.pin, delay: Number.isFinite(b.delay) ? Math.min(60_000, Math.max(0, b.delay)) : undefined,
+        chat.say(fromId(str(b.from, 60)), str(b.text, b.long ? 4000 : 600), { long: !!b.long, tag: b.tag === 'claude' ? 'claude' : undefined, now: !!b.now, key: str(b.key, 120) || undefined, sticker: Number.isInteger(b.sticker) ? b.sticker : undefined, photo, pin: !!b.pin, delay: Number.isFinite(b.delay) ? Math.min(60_000, Math.max(0, b.delay)) : undefined,
           react: (Array.isArray(b.react) ? b.react : []).filter((e) => REACTIONS.includes(e)), reacts: Math.min(6, Number(b.reacts) || 2),
           answer: (Array.isArray(b.answer) ? b.answer : []).slice(0, 4).map((a) => ({ key: str(a?.key, 30).replace(/[^\w]/g, ''), chance: Math.min(1, Math.max(0, Number(a?.chance ?? 1))) })).filter((a) => a.key) });
       } else { json(res, 400, { ok: false }); return; }

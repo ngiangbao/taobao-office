@@ -2,47 +2,61 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; frame-src http://127.0.0.1:* http://localhost:*; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-src http://127.0.0.1:* http://localhost:*">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Taobao Office</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app">
-  <section class="office">
+  <header class="bar">
+    <b class="brand">Taobao Office</b>
+    <div id="agents" class="agents"></div>
+    <button id="btn-add" class="add" title="Thêm một agent mới vào luồng làm việc">＋ Thêm agent</button>
+    <span class="spacer"></span>
+    <button id="btn-stop" class="danger" hidden>Dừng tất cả</button>
+    <a class="credit" href="https://github.com/khanh020905/my-office" target="_blank" rel="noopener">Văn phòng: My Office · khanh020905 (MIT)</a>
+    <button id="btn-login" class="ghost" title="Mở Chrome của app để tự đăng nhập Facebook/Taobao">Đăng nhập FB/Taobao</button>
+    <button id="btn-hist" class="ghost" title="Toàn bộ lịch sử chat với các agent">Lịch sử</button>
+    <button id="btn-data" class="ghost">Nhật ký</button>
+    <button id="btn-cfg" class="ghost">Cài đặt</button>
+  </header>
+  <div id="toast" class="toast" hidden></div>
+  <main class="stage">
     <iframe id="office" title="Văn phòng" allow="autoplay; fullscreen"></iframe>
     <div id="office-wait" class="office-wait">Đang mở văn phòng…</div>
-    <div class="hud"><span id="status" class="pill">Đang rảnh</span><span id="where" class="where"></span></div>
-  </section>
-  <section class="chat">
-    <header>
-      <b>Taobao Office</b>
-      <span class="spacer"></span>
-      <a class="credit" href="https://github.com/khanh020905/my-office" target="_blank" rel="noopener">Văn phòng: My Office · khanh020905 (MIT)</a>
-      <button id="btn-login" class="ghost" title="Mở Chrome của app để tự đăng nhập Facebook/Taobao">Đăng nhập FB/Taobao</button>
-      <button id="btn-new" class="ghost">Cuộc mới</button>
-      <button id="btn-data" class="ghost">Nhật ký</button>
-      <button id="btn-cfg" class="ghost">Cài đặt</button>
-    </header>
-    <div id="log" class="log"></div>
-    <div class="quick">
-      <button data-q="Báo giá món trong ảnh tôi vừa gửi: tìm trên Taobao và tính giá theo công thức.">Báo giá từ ảnh</button>
-      <button data-q="Tìm trong các nhóm đã lưu những bài khách đang cần mua (cần mua, ai order, tìm mẫu này...), soạn comment nháp cho từng bài, chưa comment.">Tìm khách</button>
-      <button data-q="Soạn bài đăng cho ảnh đính kèm, mỗi nhóm một bản hơi khác nhau, rồi chờ tôi duyệt.">Soạn bài đăng nhóm</button>
-      <button data-q="Duyệt. Hãy đăng/comment đúng như bản nháp ở trên.">✔ Duyệt</button>
-    </div>
-    <div id="chips" class="chips"></div>
-    <form id="form" class="composer">
-      <input id="file" type="file" accept="image/*" multiple hidden>
-      <button type="button" id="btn-attach" class="ghost" title="Đính kèm ảnh">📎</button>
-      <textarea id="input" rows="2" placeholder="Nhập yêu cầu... (Enter để gửi, Shift+Enter xuống dòng)"></textarea>
-      <button id="btn-send" type="submit">Gửi</button>
-      <button id="btn-stop" type="button" class="danger" hidden>Dừng</button>
-    </form>
-  </section>
+  </main>
 </div>
-
 <div id="ver" class="ver"></div>
+
+<dialog id="dlg-hist" class="wide">
+  <div class="hist-head">
+    <h3>Lịch sử chat với agent</h3>
+    <select id="h-agent"></select>
+    <input id="h-q" type="search" placeholder="Tìm trong lịch sử…">
+    <button id="h-dir" class="ghost" title="Mở thư mục lưu lịch sử trên máy">Mở thư mục</button>
+    <button id="h-close" class="ghost">Đóng</button>
+  </div>
+  <p class="hint">Lưu mãi mãi trên máy bạn, không bao giờ bị xóa tự động. Tin mới nhất nằm trên cùng.</p>
+  <div id="h-list" class="hist-list"></div>
+  <div class="hist-foot"><button id="h-more" class="ghost" hidden>Xem thêm tin cũ hơn</button></div>
+</dialog>
+
+<dialog id="dlg-agent">
+  <form method="dialog" id="agentform">
+    <h3>Thêm agent mới</h3>
+    <p class="hint">Mỗi agent là một "người" riêng: hội thoại riêng, ngữ cảnh riêng. Gọi tên nó trong nhóm chat bằng <b>@Tên</b> để giao việc.</p>
+    <label>Tên agent (để gọi sau này)<input name="name" type="text" maxlength="24" placeholder="Ví dụ: Lan báo giá" required></label>
+    <label>Vai trò
+      <select name="role"></select>
+    </label>
+    <label>Hướng dẫn riêng (tùy chọn)<textarea name="instructions" rows="4" placeholder="Ví dụ: Chỉ làm đồ nữ. Luôn báo giá kèm 3 mẫu."></textarea></label>
+    <p id="roledesc" class="hint"></p>
+    <p id="agenterr" class="err"></p>
+    <menu><button value="cancel" class="ghost">Hủy</button><button id="agent-ok" value="ok">Thêm vào đội</button></menu>
+  </form>
+</dialog>
+
 <dialog id="dlg">
   <form method="dialog" id="cfgform">
     <h3>Cài đặt shop</h3>

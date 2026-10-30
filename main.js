@@ -1,27 +1,27 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn } = require('node:child_process');
 const { runClaude, findClaude } = require('./lib/claude');
 const { startOffice, writeHookSettings } = require('./lib/office');
-
-function findChrome() {
-  const c = process.platform === 'win32'
-    ? [process.env.PROGRAMFILES + '\\Google\\Chrome\\Application\\chrome.exe', process.env['PROGRAMFILES(X86)'] + '\\Google\\Chrome\\Application\\chrome.exe', process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe']
-    : process.platform === 'darwin' ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
-    : ['/usr/bin/google-chrome-stable', '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
-  return c.find((p) => p && fs.existsSync(p)) || null;
-}
+const { createAgents, TEMPLATES } = require('./lib/agents');
+const { createDispatcher } = require('./lib/dispatcher');
+const browser = require('./lib/browser');
+const { createHistory } = require('./lib/history');
 
 const DEFAULT_CFG = {
   rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12,
-  tone: 'thân thiện, xưng "shop", gọi khách là "bạn"', browser: 'playwright', claudePath: '',
-  groups: [],
+  tone: 'thân thiện, xưng "shop", gọi khách là "bạn"', browser: 'playwright', claudePath: '', groups: [],
 };
-let autoUpdater = null;
-let dataDir, cfgPath, sessionId = null, running = null, win, office = null, hooksFile = null;
+const DEFAULT_AGENTS = [
+  { name: 'Chăm sóc khách', role: 'cskh' }, { name: 'Tìm hàng', role: 'search' }, { name: 'Báo giá', role: 'quote' },
+  { name: 'Đăng bài', role: 'post' }, { name: 'Tìm khách', role: 'leads' },
+];
+let dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, agents, dispatcher, history;
+const children = new Map(); // agentId -> process đang chạy
 
 const loadCfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(fs.readFileSync(cfgPath, 'utf8')) }; } catch { return { ...DEFAULT_CFG }; } };
+const send = (ch, v) => win?.webContents.send(ch, v);
+const pushAgents = () => send('agents:update', agents.list().map((a) => ({ ...a, busy: dispatcher?.isBusy(a.id) || false })));
 
 function createWindow() {
   win = new BrowserWindow({
@@ -33,74 +33,89 @@ function createWindow() {
   win.loadFile('renderer/index.html');
 }
 
+// Chạy một việc cho một agent; trả { text, error }
+async function runAgent(agent, text, opts = {}) {
+  const cfg = loadCfg();
+  let mcpFile = null;
+  if (cfg.browser !== 'chrome' && !opts.light) mcpFile = await browser.ensure(app, dataDir); // lượt chào nhẹ: không cần mở trình duyệt
+  let result = '', error = '';
+  const { child, done } = runClaude({
+    text, cfg, dataDir, hooksFile, mcpFile,
+    agent: { ...agent, rolePrompt: TEMPLATES[agent.role]?.prompt || '', team: agents.list().filter((x) => x.id !== agent.id).map((x) => ({ name: x.name, roleLabel: x.roleLabel })) },
+    onEvent: (ev) => {
+      if (ev.type === 'system' && ev.subtype === 'init') agents.markStarted(agent.id);
+      if (ev.type === 'result') { result = String(ev.result || ''); if (ev.is_error) error = result || 'lỗi'; }
+    },
+  });
+  children.set(agent.id, child);
+  const r = await done;
+  children.delete(agent.id);
+  if (r.code !== 0 && !result) error = r.err.trim().slice(-400) || `claude thoát với mã ${r.code}`;
+  return { text: result, error };
+}
+
+async function introduce(agent) {
+  const r = await dispatcher.enqueue(agent, 'Xin chào! Bạn vừa vào đội. Hãy chào bằng tiếng Việt, ngắn gọn (1-2 câu) và nói rõ bạn phụ trách việc gì. Không dùng công cụ nào.', [], undefined, { light: true }).catch(() => {});
+  return r;
+}
+
+function setupUpdater() {
+  if (!app.isPackaged) return;
+  try { ({ autoUpdater } = require('electron-updater')); } catch (e) { return console.error('updater', e); }
+  let pending = false;
+  const maybeInstall = () => { if (pending && !dispatcher.anyBusy()) { pending = false; setTimeout(() => autoUpdater.quitAndInstall(true, true), 8000); } };
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-available', (i) => send('update:status', { state: 'downloading', version: i.version }));
+  autoUpdater.on('download-progress', (p) => send('update:status', { state: 'downloading', percent: Math.round(p.percent) }));
+  autoUpdater.on('update-downloaded', (i) => { send('update:status', { state: 'ready', version: i.version }); pending = true; maybeInstall(); });
+  autoUpdater.on('error', (e) => console.error('updater', e?.message));
+  setInterval(maybeInstall, 15000);
+  const check = () => autoUpdater.checkForUpdates().catch(() => {});
+  check(); setInterval(check, 4 * 3600 * 1000);
+}
+
 app.whenReady().then(async () => {
   dataDir = path.join(app.getPath('userData'), 'workspace');
   fs.mkdirSync(path.join(dataDir, 'uploads'), { recursive: true });
   cfgPath = path.join(dataDir, 'config.json');
-  try { sessionId = fs.readFileSync(path.join(dataDir, 'session.txt'), 'utf8').trim() || null; } catch {}
+  const firstRun = !fs.existsSync(path.join(dataDir, 'agents.json'));
+  agents = createAgents(dataDir);
+  history = createHistory(dataDir);
 
   ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('office:url', () => office?.url || null);
   ipcMain.handle('cfg:get', () => ({ cfg: loadCfg(), claude: findClaude(loadCfg().claudePath) }));
   ipcMain.handle('cfg:set', (_, c) => { fs.writeFileSync(cfgPath, JSON.stringify(c, null, 2)); return true; });
-  ipcMain.handle('login:open', () => {
-    if (running) return { ok: false, error: 'Claude đang làm việc, hãy chờ xong rồi đăng nhập.' };
-    const chrome = findChrome();
-    if (!chrome) return { ok: false, error: 'Không tìm thấy Google Chrome. Hãy cài Chrome.' };
-    spawn(chrome, ['--user-data-dir=' + path.join(dataDir, 'chrome-profile'), '--no-first-run', '--no-default-browser-check', 'https://www.facebook.com/', 'https://www.taobao.com/'], { detached: true, stdio: 'ignore' }).unref();
-    return { ok: true };
-  });
+  ipcMain.handle('history:query', (_, o) => history.query(o || {}));
+  ipcMain.handle('history:open', () => shell.openPath(history.dir));
   ipcMain.handle('log:open', () => shell.openPath(dataDir));
-  ipcMain.handle('chat:reset', () => { sessionId = null; try { fs.unlinkSync(path.join(dataDir, 'session.txt')); } catch {} return true; });
-  ipcMain.handle('file:save', (_, { name, data }) => {
-    const p = path.join(dataDir, 'uploads', `${Date.now()}-${path.basename(name).replace(/[^\w.-]/g, '_')}`);
-    fs.writeFileSync(p, Buffer.from(data)); return p;
+  ipcMain.handle('agents:list', () => ({ agents: agents.list().map((a) => ({ ...a, busy: dispatcher?.isBusy(a.id) || false })), templates: Object.fromEntries(Object.entries(TEMPLATES).map(([k, v]) => [k, { label: v.label, prompt: v.prompt }])) }));
+  ipcMain.handle('agents:add', async (_, d) => {
+    try { const a = agents.add(d); pushAgents(); introduce(a); return { ok: true }; } catch (e) { return { ok: false, error: e.message }; }
   });
-  ipcMain.handle('chat:stop', () => { running?.child.kill(); return true; });
-  ipcMain.handle('chat:send', async (_, { text, files }) => {
-    if (running) return { ok: false, error: 'Claude đang làm việc, hãy chờ hoặc bấm Dừng.' };
-    const full = files?.length ? `${text}\n\n[Ảnh đính kèm: ${files.join(', ')}]` : text;
-    try {
-      running = runClaude({
-        text: full, cfg: loadCfg(), dataDir, sessionId, hooksFile,
-        onEvent: (ev) => {
-          if (ev.session_id && ev.type === 'system') { sessionId = ev.session_id; fs.writeFileSync(path.join(dataDir, 'session.txt'), sessionId); }
-          win?.webContents.send('claude:event', ev);
-        },
-      });
-      const { code, err } = await running.done;
-      running = null; maybeInstall();
-      if (code !== 0) return { ok: false, error: err.trim().slice(-600) || `claude thoát với mã ${code}` };
-      return { ok: true };
-    } catch (e) { running = null; return { ok: false, error: e.message }; }
-  });
+  ipcMain.handle('agents:remove', (_, id) => { children.get(id)?.kill(); agents.remove(id); pushAgents(); return true; });
+  ipcMain.handle('agents:reset', (_, id) => { if (dispatcher.isBusy(id)) return false; const a = agents.reset(id); pushAgents(); if (a) introduce(a); return true; });
+  ipcMain.handle('agents:stop', () => { for (const c of children.values()) c.kill(); return true; });
+  ipcMain.handle('login:open', async () => browser.open(dataDir, ['https://www.facebook.com/', 'https://www.taobao.com/']));
+
   createWindow();
   setupUpdater();
   try {
     office = await startOffice(app, dataDir);
     hooksFile = writeHookSettings(office.dir, office.port, dataDir);
-    win?.webContents.send('office:ready', office.url);
+    dispatcher = createDispatcher({
+      officeUrl: () => office.url, agents, run: runAgent, uploadsDir: path.join(dataDir, 'uploads'), history,
+      onStatus: pushAgents, log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
+    });
+    dispatcher.start();
+    send('office:ready', office.url);
+    if (firstRun && findClaude(loadCfg().claudePath)) {
+      const made = DEFAULT_AGENTS.map((d) => agents.add(d));
+      (async () => { for (const a of made) await introduce(a); })(); // chào lần lượt, không chạy 5 tiến trình cùng lúc
+    }
+    pushAgents();
   } catch (e) { console.error('Không chạy được văn phòng:', e); }
 });
-// Tự cập nhật: tải ngầm bản mới từ GitHub Releases, rồi tự khởi động lại khi app đang rảnh. Người dùng không phải làm gì.
-let pendingInstall = false;
-function maybeInstall() {
-  if (!pendingInstall || running) return;
-  pendingInstall = false;
-  setTimeout(() => autoUpdater.quitAndInstall(true, true), 8000); // cho người dùng kịp thấy thông báo
-}
-function setupUpdater() {
-  if (!app.isPackaged) return;
-  try { ({ autoUpdater } = require('electron-updater')); } catch (e) { return console.error('updater', e); }
-  const tell = (o) => win?.webContents.send('update:status', o);
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('update-available', (i) => tell({ state: 'downloading', version: i.version }));
-  autoUpdater.on('download-progress', (p) => tell({ state: 'downloading', percent: Math.round(p.percent) }));
-  autoUpdater.on('update-downloaded', (i) => { tell({ state: 'ready', version: i.version }); pendingInstall = true; maybeInstall(); });
-  autoUpdater.on('error', (e) => console.error('updater', e?.message));
-  const check = () => autoUpdater.checkForUpdates().catch(() => {});
-  check(); setInterval(check, 4 * 3600 * 1000);
-}
-app.on('before-quit', () => { office?.child.kill(); });
+app.on('before-quit', () => { dispatcher?.stop(); for (const c of children.values()) c.kill(); browser.stop(); office?.child.kill(); });
 app.on('window-all-closed', () => app.quit());

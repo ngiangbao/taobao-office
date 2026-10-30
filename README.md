@@ -4,17 +4,21 @@
 để báo giá, soạn bài đăng nhóm và tìm khách cần mua. Bên cạnh khung chat là văn phòng 3D (của dự án My Office) cho thấy Claude đang làm gì.
 
 ## Cách hoạt động
-- Mỗi tin nhắn được gửi vào **Claude Code chạy nền** (`claude -p`, nối tiếp phiên bằng `--resume`) bằng bản `claude`
-  đã đăng nhập sẵn trên máy bạn. App không giữ mật khẩu hay token nào.
-- Trình duyệt: Chrome riêng của app (Playwright MCP, hồ sơ lưu trong thư mục dữ liệu, đăng nhập Facebook/Taobao một lần)
-  hoặc tiện ích Claude in Chrome (chọn trong Cài đặt).
-- Claude **chỉ soạn nháp**; đăng/comment khi bạn bấm "Duyệt" (bằng lời nhắc hệ thống, không phải khóa kỹ thuật).
-- Nhật ký đăng bài: `nhat-ky.md` trong thư mục dữ liệu (nút "Nhật ký").
+- **Chỉ một khung chat: nhóm chat của văn phòng.** Bạn gõ vào đó (hoặc gửi ảnh), app đọc tin và giao cho đúng agent. Gọi đích danh bằng `@Tên`.
+- **Mỗi agent là một "người" riêng**: một phiên Claude Code riêng (`claude -p`, nối tiếp bằng `--resume`) với hội thoại, ngữ cảnh và tên riêng.
+  Bấm "＋ Thêm agent" để đặt tên và chọn vai trò. Có sẵn: Chăm sóc khách, Tìm hàng, Báo giá, Đăng bài, Tìm khách.
+- **Agent giao việc cho nhau**: ví dụ Chăm sóc khách → Tìm hàng (kèm ảnh khách) → Báo giá → quay lại Chăm sóc khách với giá cuối.
+  Agent ghi khối `[[GIAO @Tên]] … [[/GIAO]]` cuối câu trả lời, app chuyển việc (tối đa 8 bước mỗi chuỗi để không lặp vô hạn).
+- **Dùng bản `claude` đã đăng nhập sẵn trên máy bạn**; app không giữ mật khẩu hay token nào. Mọi câu trả lời đều bằng tiếng Việt.
+- **Trình duyệt dùng chung**: một cửa sổ Chrome (đăng nhập Facebook/Taobao một lần bằng nút "Đăng nhập FB/Taobao"), mỗi agent mở tab riêng.
+- **Duyệt trước khi đăng**: agent chỉ soạn nháp; đăng/comment khi bạn trả lời "duyệt" (bằng lời nhắc hệ thống, chưa phải khóa kỹ thuật).
+- **Lịch sử chat lưu mãi mãi** trên máy (`history/YYYY-MM.jsonl`), xem và tìm kiếm bằng nút "Lịch sử".
+- **Tự cập nhật** từ GitHub Releases (Windows, Linux AppImage). macOS chưa ký nên phải cập nhật tay.
 
 ## Chạy
 ```bash
 npm install
-(cd office && npm ci && npx next build)   # dựng văn phòng một lần
+npm run prepare:office   # dựng văn phòng một lần
 npm start
 ```
 Đóng gói: `npm run dist:linux` / `dist:win` (chạy trên Windows) / `dist:mac` (chạy trên macOS).

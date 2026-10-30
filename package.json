@@ -1,6 +1,6 @@
 {
   "name": "taobao-office",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Trợ lý order Taobao: chat với Claude, văn phòng 3D hiển thị việc đang làm",
   "main": "main.js",
   "author": "Taobao Office <noreply@example.com>",
@@ -58,6 +58,11 @@
         "repo": "taobao-office",
         "releaseType": "release"
       }
+    ],
+    "asarUnpack": [
+      "node_modules/@playwright/**",
+      "node_modules/playwright/**",
+      "node_modules/playwright-core/**"
     ]
   },
   "devDependencies": {
@@ -66,6 +71,7 @@
     "three": "^0.187.0"
   },
   "dependencies": {
+    "@playwright/mcp": "^0.0.83",
     "electron-updater": "^6.8.11"
   }
 }
