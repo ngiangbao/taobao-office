@@ -18,7 +18,7 @@ import { dn, sessions } from '../people/workers.js';
 import { openTaskSheet, dictate } from './task-sheet.js';
 import { toast } from './activity.js';
 import { TOKEN } from '../net/live.js';
-import { REACTIONS, byId, chat, chatPoll, chatSend, chatSendPhoto, onChat, people, react, recall, rsvp, setOpen, vote, who } from './group-chat.js';
+import { REACTIONS, byId, chat, chatPoll, chatSend, chatSendImage, onChat, people, react, recall, rsvp, setOpen, vote, who } from './group-chat.js';
 import { t as tr, locale } from '../../i18n/index.js';
 
 let root, body, typingEl, pinEl, newBtn, input, bar, stickersEl, membersEl, mentionEl, moreEl, replyEl, headSub, headAv, toEl, pickEl;
@@ -265,9 +265,58 @@ function setReply(m) {
     input.focus();
   }
 }
+/* ---------- images from this computer: picked, dragged in or pasted; kept here (not sent) until a command is typed and sent ---------- */
+const pending = [];   // JPEG data URLs waiting for the command
+let thumbsEl = null;
+function toJpeg(file) {   // → JPEG data URL under the server's limit, or null
+  return new Promise((resolve) => {
+    if (!file || !/^image\//.test(file.type)) return resolve(null);
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      for (const max of [1280, 1000, 800, 600, 450]) {
+        const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        for (const q of [0.85, 0.7, 0.55]) { const d = c.toDataURL('image/jpeg', q); if (d.length < 480_000) return resolve(d); }
+      }
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+function drawThumbs() {
+  if (!thumbsEl) return;
+  thumbsEl.replaceChildren(); thumbsEl.hidden = !pending.length; root.classList.toggle('has-pending', !!pending.length);
+  if (!pending.length) return;
+  const row = el('div', 'zc-thumbs-row');
+  pending.forEach((d, i) => {
+    const box = el('span', 'zc-thumb'), im = el('img'), x = el('button', 'zc-thumb-x'); im.src = d; im.alt = '';
+    x.type = 'button'; x.title = tr('chat.imgRemove'); x.textContent = '×'; x.addEventListener('click', () => { pending.splice(i, 1); drawThumbs(); });
+    box.append(im, x); row.append(box);
+  });
+  thumbsEl.append(row, el('span', 'zc-thumbs-hint', tr('chat.pendHint')));
+}
+async function stageFiles(files) {
+  for (const f of [...files].filter((x) => /^image\//.test(x.type)).slice(0, 6)) {
+    const d = await toJpeg(f);
+    if (!d) { toast(tr('chat.imgBad')); continue; }
+    if (pending.length < 6) pending.push(d);
+  }
+  drawThumbs(); input.focus();
+}
+function pickImages() {
+  const f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*'; f.multiple = true;
+  f.addEventListener('change', () => { stageFiles(f.files); });
+  f.click();
+}
 function send() {
+  if (pending.length && !input.value.trim()) { toast(tr('chat.pendNeedText')); input.focus(); return; }
+  const hadImages = pending.length > 0;
+  if (hadImages) { for (const d of pending.splice(0)) chatSendImage(d); drawThumbs(); }   // the images go first, then the command that says who gets them
   const v = input.value; input.value = ''; syncBar(); mentionEl.hidden = true; input.style.height = '';
-  if (target && v.trim()) { sendTo(v.trim()); setReply(null); return; }
+  if (target && v.trim() && !hadImages) { sendTo(v.trim()); setReply(null); return; }
   if (v.trim()) chatSend(v, { replyTo: replyTo?.id });
   setReply(null);
   // @ a conversation: give it this as work? (one tap opens the sheet with it filled in: its folder, photos, send)
@@ -439,7 +488,7 @@ function build() {
   const replyText = el('span', 'zc-reply-q'); replyText.append(el('b'), el('span', 'zc-reply-t'));
   replyEl.append(icon('reply'), replyText, replyX);
   // a computer's toolbar over the input: stickers, a photo of the office, a file, a card, a poll, @, more
-  const photoBtn = (cls) => { const b = ib('image', tr('chat.sendPhoto'), () => chatSendPhoto(), cls); b.hidden = !state.isLocal; return b; };   // (a photo of the office as it is now: taken on the Mac)
+  const photoBtn = (cls) => ib('image', tr('chat.sendPhoto'), pickImages, cls);   // an image file from this computer, kept until the command is sent   // (a photo of the office as it is now: taken on the Mac)
   const atBtn = () => { moreEl.hidden = true; input.focus(); input.setRangeText(input.value && !/\s$/.test(input.value) ? ' @' : '@', input.selectionStart, input.selectionEnd, 'end'); mentions(); };
   const toolbar = el('div', 'zc-toolbar zc-pc');
   toolbar.append(ib('smile', tr('chat.stickerTab'), () => openStickers('sticker')), photoBtn(''), ib('clip', ''), ib('card', ''), ib('chart', tr('chat.newPoll'), openMore), ib('at', tr('chat.mention'), atBtn),
@@ -465,7 +514,12 @@ function build() {
   try { hint.hidden = localStorage.getItem('office-chat-hint') === 'seen'; } catch { /* storage blocked */ }
   hintX.addEventListener('click', () => { hint.hidden = true; try { localStorage.setItem('office-chat-hint', 'seen'); } catch { /* storage blocked */ } });
   toEl = el('div', 'zc-to'); toEl.hidden = DEMO_CHAT; pickEl = el('div', 'zc-to-pick'); pickEl.hidden = true;
-  root.append(head, pinEl, body, newBtn, typingEl, mentionEl, replyEl, hint, stickersEl, moreEl, toolbar, pickEl, toEl, bar, membersEl);
+  thumbsEl = el('div', 'zc-thumbs'); thumbsEl.hidden = true;
+  root.addEventListener('dragover', (e) => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { e.preventDefault(); root.classList.add('is-drop'); } });
+  root.addEventListener('dragleave', (e) => { if (!root.contains(e.relatedTarget)) root.classList.remove('is-drop'); });
+  root.addEventListener('drop', (e) => { if (!e.dataTransfer?.files?.length) return; e.preventDefault(); root.classList.remove('is-drop'); stageFiles(e.dataTransfer.files); });
+  input.addEventListener('paste', (e) => { const fs = [...(e.clipboardData?.files || [])].filter((x) => /^image\//.test(x.type)); if (fs.length) { e.preventDefault(); stageFiles(fs); } });
+  root.append(head, pinEl, body, newBtn, typingEl, mentionEl, replyEl, hint, thumbsEl, stickersEl, moreEl, toolbar, pickEl, toEl, bar, membersEl);
   drawTarget();
   $('app').append(root);
 }

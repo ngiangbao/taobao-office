@@ -1,6 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   checkInventory: (settings) => ipcRenderer.invoke('inventory:check', settings),
+  assistantGet: () => ipcRenderer.invoke('assistant:get'),
+  assistantMemory: (d) => ipcRenderer.invoke('assistant:memory', d),
+  styleRemove: (id) => ipcRenderer.invoke('style:remove', id),
+  commenterScan: () => ipcRenderer.invoke('commenter:scan'),
   getCfg: () => ipcRenderer.invoke('cfg:get'),
   setCfg: (c) => ipcRenderer.invoke('cfg:set', c),
   platform: () => ipcRenderer.invoke('app:platform'),

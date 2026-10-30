@@ -36,6 +36,8 @@
       <button type="button" data-nav="shop" class="on">Cửa hàng</button>
       <button type="button" data-nav="post">Đăng bài và ảnh</button>
       <button type="button" data-nav="inventory">Kho hàng</button>
+      <button type="button" data-nav="assistant">Trợ lý riêng</button>
+      <button type="button" data-nav="comment">Trả lời comment</button>
       <button type="button" data-nav="groups">Danh sách nhóm</button>
       <button type="button" data-nav="cust">Khách hàng</button>
       <button type="button" data-nav="sync">Đồng bộ thiết bị</button>
@@ -79,6 +81,20 @@
           <button type="button" id="s-inventory-check">Kiểm tra kết nối kho</button>
           <p id="s-inventory-status" class="hint" aria-live="polite"></p>
           <p class="hint">Lưu thay đổi rồi thử: “@Kho hàng gửi ảnh mã AC001”, “@Kho hàng nón len màu kem giá bao nhiêu?”, hoặc gửi một ảnh sản phẩm để đối chiếu.</p>
+        </section>
+        <section data-sec="comment" hidden>
+          <h3>Trả lời comment</h3>
+          <p class="hint">Agent “Trả lời comment” lướt bảng tin Facebook theo chu kỳ, thấy khách đang tìm món shop có thì soạn bình luận báo khách. Mặc định TẮT. Bình luận chờ bạn duyệt trong “Chờ duyệt”, trừ khi bạn bật thêm “tự đăng” bên dưới. Cần đã đăng nhập Facebook trong Chrome của app.</p>
+          <label>Tự quét bảng tin<select name="commentScan" data-bool><option value="0">Tắt</option><option value="1">Bật</option></select></label>
+          <label>Quét mỗi (phút, tối thiểu 5)<input name="commentMinutes" type="number" min="5" step="1"></label>
+          <label>Chỉ quét từ giờ<input name="commentFromHour" type="number" min="0" max="23" step="1"></label>
+          <label>đến giờ<input name="commentToHour" type="number" min="0" max="24" step="1"></label>
+          <label>Tối đa số bình luận đề xuất mỗi lượt<input name="commentPerScan" type="number" min="1" max="5" step="1"></label>
+          <label>Tự đăng bình luận không cần duyệt từng cái<select name="commentAutoPost" data-bool><option value="0">Tắt (khuyên dùng: tôi duyệt từng bình luận)</option><option value="1">Bật (có giới hạn bên dưới)</option></select></label>
+          <label>Hạn mức tự đăng mỗi ngày<input name="commentAutoMax" type="number" min="0" max="50" step="1"></label>
+          <p class="hint">Giới hạn cứng khi tự đăng: dưới 300 ký tự, không link, không số điện thoại, không @tên, không bình luận hai lần vào một bài, chỉ trong khung giờ trên, và không vượt “Tối đa bài/ngày”. Nút “Dừng tất cả” sẽ tắt luôn tự quét. Bình luận có an toàn đến đâu cũng nên xem lại vài ngày đầu trước khi bật tự đăng.</p>
+          <button type="button" id="s-comment-scan">Quét ngay một lượt</button>
+          <p id="s-comment-status" class="hint" aria-live="polite"></p>
         </section>
         <section data-sec="groups" hidden>
           <h3>Danh sách nhóm</h3>
@@ -138,6 +154,15 @@
         <h3>Văn phòng 3D</h3>
         <p class="hint">Kiểu văn phòng, cảnh, thời gian, nhân vật, đồ họa, ngôn ngữ và âm thanh. Bấm là áp dụng ngay vào văn phòng.</p>
         <div id="s-office-groups" class="o-groups"><p class="hint">Đang đọc tùy chọn của văn phòng…</p></div>
+      </section>
+      <section data-sec="assistant" hidden>
+        <h3>Trợ lý riêng</h3>
+        <p class="hint">Dán ký ức từ khung chat Claude khác (thói quen, khách quen, cách làm việc, điều cần tránh). Trợ lý riêng dùng nó để phân việc đúng agent và “dạy” các agent về cách comment, văn phong, lời nhắn của bạn. Gõ “@Trợ lý riêng …” trong khung chat để giao việc hoặc đưa mẫu comment cho nó học. Đừng dán mật khẩu hay số thẻ.</p>
+        <textarea id="s-memory" rows="8" placeholder="Dán bộ nhớ ở đây…"></textarea>
+        <div class="row"><button type="button" id="s-memory-add">Thêm vào bộ nhớ</button> <button type="button" id="s-memory-replace">Thay toàn bộ</button></div>
+        <p id="s-memory-status" class="hint" aria-live="polite"></p>
+        <h4>Phong cách đã dạy cho agent</h4>
+        <div id="s-style-list"><p class="hint">Chưa có mục nào.</p></div>
       </section>
       <section data-sec="about" hidden>
         <h3>Giới thiệu và cập nhật</h3>

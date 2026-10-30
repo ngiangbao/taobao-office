@@ -85,7 +85,7 @@ formA.addEventListener('submit', async (e) => {
 $('#btn-stop').onclick = () => api.stopAll();
 // ---------- Cửa sổ Cài đặt (kiểu Claude): mở từ nút bánh răng của văn phòng ----------
 const dlgS = $('#dlg-settings'), form = $('#cfgform');
-const FORM_SECS = ['shop', 'post', 'inventory', 'groups', 'cust', 'sync', 'conn', 'claude']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
+const FORM_SECS = ['shop', 'post', 'inventory', 'comment', 'groups', 'cust', 'sync', 'conn', 'claude']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
 let curSec = 'shop', histAgent = '';
 function renderGroupList(groups) {
   const box = $('#s-groups-list'); box.replaceChildren();
@@ -107,7 +107,36 @@ function showSection(id) {
   $('#s-saved').textContent = '';
   if (id === 'hist') { const ag = histAgent; histAgent = ''; initHist(ag); }
   if (id === 'office') askOffice();
+  if (id === 'assistant') loadAssistant();
 }
+const STYLE_KIND = { comment: 'Cách comment', van_phong: 'Văn phong', loi_nhan: 'Lời nhắn mẫu' };
+function renderStyle(list) {
+  const box = $('#s-style-list'); box.replaceChildren();
+  if (!list.length) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = 'Chưa có mục nào. Gõ “@Trợ lý riêng” kèm mẫu comment hoặc văn phong của bạn để dạy các agent.'; box.append(p); return; }
+  for (const e of list) {
+    const row = document.createElement('div'); row.className = 'group-item';
+    const b = document.createElement('b'); b.textContent = `${STYLE_KIND[e.kind] || e.kind} → ${e.roles.join(', ')}`;
+    const t = document.createElement('span'); t.textContent = e.text;
+    const del = document.createElement('button'); del.type = 'button'; del.textContent = 'Xoá';
+    del.onclick = async () => { await api.styleRemove(e.id); loadAssistant(); };
+    row.append(b, t, del); box.append(row);
+  }
+}
+async function loadAssistant() {
+  const r = await api.assistantGet(); $('#s-memory').value = ''; renderStyle(r.style);
+  $('#s-memory-status').textContent = r.memory ? `Bộ nhớ hiện có ${r.memory.length.toLocaleString('vi-VN')} ký tự.` : 'Chưa có bộ nhớ.';
+}
+for (const [id, mode] of [['#s-memory-add', 'append'], ['#s-memory-replace', 'replace']]) {
+  $(id).onclick = async () => {
+    const text = $('#s-memory').value.trim(); if (!text && mode === 'append') return;
+    const r = await api.assistantMemory({ text, mode }); await loadAssistant();
+    $('#s-memory-status').textContent = r.ok ? `Đã lưu bộ nhớ (${r.size.toLocaleString('vi-VN')} ký tự).` : r.error;
+  };
+}
+$('#s-comment-scan').onclick = async () => {
+  const st = $('#s-comment-status'); st.textContent = 'Đang giao việc cho Trả lời comment…';
+  const r = await api.commenterScan(); st.textContent = r.ok ? 'Đã quét xong; xem kết quả ở khung chat và mục Chờ duyệt.' : r.error;
+};
 $('#s-inventory-check').onclick = async () => {
   const status = $('#s-inventory-status'); status.textContent = 'Đang đọc kho…';
   try {
@@ -117,7 +146,7 @@ $('#s-inventory-check').onclick = async () => {
 };
 async function fillSettings() {
   const { cfg, claude } = await api.getCfg();
-  for (const el of form.elements) if (el.name) el.value = cfg[el.name] ?? '';
+  for (const el of form.elements) if (el.name) el.value = el.hasAttribute('data-bool') ? (cfg[el.name] ? '1' : '0') : (cfg[el.name] ?? '');
   renderGroupList(cfg.groups || []);
   $('#s-groups-msg').textContent = '';
   form.elements.syncClientSecret.value = '';
@@ -177,8 +206,9 @@ form.addEventListener('submit', async (e) => {
     $('#s-groups-msg').textContent = `Đã lưu ${cfg.groups.length} nhóm. Agent sẽ dùng danh sách này khi soạn đề xuất đăng bài.`;
     return;
   }
-  for (const k of ['rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
+  for (const k of ['commentMinutes', 'commentFromHour', 'commentToHour', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
   for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
+  for (const k of ['commentScan', 'commentAutoPost']) cfg[k] = form.elements[k].value === '1';
   cfg.shopName = form.elements.shopName.value.trim().slice(0, 40) || 'Cửa hàng của tôi';
   document.title = cfg.shopName;
   await api.setCfg(cfg);
