@@ -106,14 +106,13 @@ function showSection(id) {
   $('#s-save').textContent = id === 'groups' ? 'Đọc danh sách và lưu' : 'Lưu thay đổi';
   $('#s-saved').textContent = '';
   if (id === 'hist') { const ag = histAgent; histAgent = ''; initHist(ag); }
-  if (id === 'about') api.version().then((v) => ($('#s-ver').textContent = v));
   if (id === 'office') askOffice();
 }
 $('#s-inventory-check').onclick = async () => {
   const status = $('#s-inventory-status'); status.textContent = 'Đang đọc kho…';
   try {
-    const result = await api.checkInventory({ inventorySheetUrl: form.elements.inventorySheetUrl.value, inventoryTab: form.elements.inventoryTab.value, inventoryLowStock: Number(form.elements.inventoryLowStock.value) });
-    status.textContent = result.ok ? `Đọc được ${result.variants} biến thể, tổng tồn ${result.total}. Bấm Lưu thay đổi để dùng với @Kho hàng.` : result.error;
+    const result = await api.checkInventory({ inventorySheetUrl: form.elements.inventorySheetUrl.value, inventoryTab: form.elements.inventoryTab.value });
+    status.textContent = result.ok ? `Đọc được ${result.items} mã sản phẩm (${result.images} có ảnh) ở trang “${result.sheet}”, ${result.types} loại.${result.stale ? ' Lưu ý: chưa tải mới được, đang dùng bản đã lưu.' : ''} Bấm Lưu thay đổi để dùng với @Kho hàng.` : result.error;
   } catch (error) { status.textContent = `Chưa đọc được kho: ${error.message}`; }
 };
 async function fillSettings() {
@@ -178,8 +177,8 @@ form.addEventListener('submit', async (e) => {
     $('#s-groups-msg').textContent = `Đã lưu ${cfg.groups.length} nhóm. Agent sẽ dùng danh sách này khi soạn đề xuất đăng bài.`;
     return;
   }
-  for (const k of ['inventoryLowStock', 'rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
-  for (const k of ['inventorySheetUrl', 'inventoryTab', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
+  for (const k of ['rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
+  for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
   cfg.shopName = form.elements.shopName.value.trim().slice(0, 40) || 'Cửa hàng của tôi';
   document.title = cfg.shopName;
   await api.setCfg(cfg);

@@ -43,8 +43,7 @@
       <button type="button" data-nav="conn">Kết nối tài khoản</button>
       <button type="button" data-nav="hist">Lịch sử chat</button>
       <button type="button" data-nav="office">Văn phòng 3D</button>
-      <button type="button" data-nav="updates">Cập nhật ứng dụng</button>
-      <button type="button" data-nav="about">Giới thiệu</button>
+      <button type="button" data-nav="about">Giới thiệu và cập nhật</button>
     </nav>
     <div class="s-main">
       <button type="button" id="s-close" class="s-x" aria-label="Đóng">✕</button>
@@ -70,15 +69,16 @@
           </div>
         </section>
         <section data-sec="inventory" hidden>
-          <h3>Kho hàng Google Sheets</h3>
-          <p class="hint">Kết nối Google ở mục Đồng bộ trước, sau đó nhập bảng kho mà tài khoản đó có quyền xem. App chỉ đọc kho, không thay đổi bảng tính. Dữ liệu được lấy mới mỗi lần gọi @Kho hàng.</p>
+          <h3>Kho hàng</h3>
+          <p class="hint">Dán link Google Sheets danh mục hàng của shop (đặt quyền “Bất kỳ ai có liên kết đều có thể xem”). App chỉ đọc, không sửa bảng tính, và chỉ lấy trang tính có cột Mã SP và Tên sản phẩm; trang danh sách khách order không bao giờ được đọc. Dữ liệu và ảnh được tải mới mỗi lần gọi @Kho hàng.</p>
           <label>Link Google Sheets kho hàng<input name="inventorySheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit"></label>
-          <label>Tên trang tính<input name="inventoryTab" type="text" placeholder="Kho hàng"></label>
-          <label>Ngưỡng sắp hết (số lượng)<input name="inventoryLowStock" type="number" min="0" step="1"></label>
-          <p class="hint">Dòng đầu gồm: Mã hàng | Tên hàng | Size | Màu | Tồn kho. Mỗi dòng là một biến thể, số tồn là số nguyên không âm. Tối đa 1.000 dòng hàng.</p>
+          <label>Tên trang tính (để trống: tự tìm trang có cột Mã SP)<input name="inventoryTab" type="text" placeholder="DS Nón"></label>
+          <label>Khi tôi gửi ảnh sản phẩm vào khung chat
+            <select name="photoTarget"><option value="kho">Đối chiếu với kho trước (Kho hàng trả mã và ảnh)</option><option value="taobao">Tìm trên Taobao/1688 (Tìm hàng)</option></select></label>
+          <p class="hint">Các cột nhận diện: STT | Ảnh | Mã SP | Tên sản phẩm | Loại | Phân loại màu | Số màu | Phân loại size | Giá (tệ) | Giá bán | Link 1688. Ảnh chèn trong ô “Ảnh” được đọc theo từng dòng. Dòng không có Mã SP bị bỏ qua.</p>
           <button type="button" id="s-inventory-check">Kiểm tra kết nối kho</button>
           <p id="s-inventory-status" class="hint" aria-live="polite"></p>
-          <p class="hint">Lưu thay đổi rồi gõ “@Kho hàng báo cáo tồn kho” hoặc “@Kho hàng còn áo mã A01 size M không?” trong khung chat.</p>
+          <p class="hint">Lưu thay đổi rồi thử: “@Kho hàng gửi ảnh mã AC001”, “@Kho hàng nón len màu kem giá bao nhiêu?”, hoặc gửi một ảnh sản phẩm để đối chiếu.</p>
         </section>
         <section data-sec="groups" hidden>
           <h3>Danh sách nhóm</h3>
@@ -139,17 +139,12 @@
         <p class="hint">Kiểu văn phòng, cảnh, thời gian, nhân vật, đồ họa, ngôn ngữ và âm thanh. Bấm là áp dụng ngay vào văn phòng.</p>
         <div id="s-office-groups" class="o-groups"><p class="hint">Đang đọc tùy chọn của văn phòng…</p></div>
       </section>
-      <section data-sec="updates" hidden>
-        <h3>Cập nhật ứng dụng</h3>
-        <p class="hint">Phiên bản đang dùng: <b id="s-update-version">đang kiểm tra…</b></p>
-        <p class="hint">Ứng dụng cũng tự kiểm tra cập nhật định kỳ khi đang mở.</p>
+      <section data-sec="about" hidden>
+        <h3>Giới thiệu và cập nhật</h3>
+        <p>Trợ lý order Taobao cho cửa hàng thời trang: đội agent Claude chăm khách, tìm hàng, báo giá và đăng bài, có văn phòng 3D để theo dõi.</p>
+        <p class="hint">Phiên bản đang dùng: <b id="s-update-version">đang kiểm tra…</b>. Ứng dụng cũng tự kiểm tra cập nhật định kỳ khi đang mở.</p>
         <button type="button" id="s-check-updates">Kiểm tra cập nhật</button>
         <p id="s-update-status" class="hint" aria-live="polite"></p>
-      </section>
-      <section data-sec="about" hidden>
-        <h3>Giới thiệu</h3>
-        <p>Trợ lý order Taobao cho cửa hàng thời trang: đội agent Claude chăm khách, tìm hàng, báo giá và đăng bài, có văn phòng 3D để theo dõi.</p>
-        <p class="hint">Phiên bản <b id="s-ver"></b></p>
         <h4>Ghi công</h4>
         <p>Văn phòng 3D là dự án <b>My Office</b> của <a href="https://github.com/khanh020905/my-office" target="_blank" rel="noopener">khanh020905</a>, theo giấy phép MIT. My Office là dự án cộng đồng, không do Anthropic tạo ra hay chứng nhận.</p>
       </section>
