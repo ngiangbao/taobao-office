@@ -57,6 +57,7 @@ const introducingAgents = new Set();
 const ICON = path.join(__dirname, 'renderer', 'icon.png');
 
 const loadCfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(fs.readFileSync(cfgPath, 'utf8')) }; } catch { return { ...DEFAULT_CFG }; } };
+const extMode = () => ['claude', 'mine'].includes(loadCfg().chromeMode); // dùng extension Claude in Chrome (Chrome thật của chủ shop)
 const send = (ch, v) => win?.webContents.send(ch, v);
 // Nghỉ khi lâu không dùng: agent (tiến trình claude) vốn tắt ngay sau mỗi việc; phần có thể tự chạy nền là quét bảng tin, đọc hộp thư, nhắc khách
 const isDormant = () => { const m = Number(loadCfg().autoOffMinutes ?? 60); return m > 0 && Date.now() - lastActive > m * 60e3; };
@@ -126,7 +127,7 @@ async function runAgent(agent, text, opts = {}) {
   const cust = agent.kind === 'customer' ? customers.byAgent(agent.id) : null;
   let mcpFile = null;
   // agent chăm khách không dùng trình duyệt (giao việc cho agent chuyên môn); lượt chào/làm mới cũng nhẹ
-  if (!opts.light && !cust && !['inventory', 'assistant'].includes(agent.role)) mcpFile = browser.mcpConfig(app, dataDir, loadCfg().chromeMode) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
+  if (!opts.light && !cust && !['inventory', 'assistant'].includes(agent.role) && (!extMode() || agent.role === 'commenter')) mcpFile = browser.mcpConfig(app, dataDir, 'app') /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
   if (agent.role === 'inventory' && !opts.light) {
     try {
       const kho = path.join(agent.dir, 'kho');
@@ -186,7 +187,7 @@ async function runAgent(agent, text, opts = {}) {
 // Người đăng: chạy SAU KHI chủ shop duyệt; là lượt DUY NHẤT có quyền bấm/gõ trên trình duyệt, và chỉ nhận đúng nội dung đã duyệt
 async function runPublisher(item) {
   const cfg = loadCfg();
-  const mcpFile = browser.mcpConfig(app, dataDir, loadCfg().chromeMode) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
+  const mcpFile = extMode() ? null : browser.mcpConfig(app, dataDir, 'app') /* Chrome chỉ mở khi agent gọi công cụ trình duyệt; chế độ extension Claude thì dùng Chrome thật của chủ shop */;
   const dir = path.join(dataDir, 'agents', '_publisher'); fs.mkdirSync(dir, { recursive: true });
   const fan = String(loadCfg().fanpageUrl || '').trim().replace(/\/+$/, '').toLowerCase();
   const isFanpage = (t) => !!fan && String(t).toLowerCase().replace(/\/+$/, '').startsWith(fan);
@@ -216,7 +217,7 @@ async function toJpeg(file) {
 // Người đọc hộp thư Messenger: chỉ đọc, chỉ dùng trình duyệt, mỗi lần một phiên mới
 async function runReader(text) {
   const cfg = loadCfg();
-  const mcpFile = browser.mcpConfig(app, dataDir, loadCfg().chromeMode) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
+  const mcpFile = browser.mcpConfig(app, dataDir, 'app') /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
   const dir = path.join(dataDir, 'agents', '_inbox'); fs.mkdirSync(dir, { recursive: true });
   let result = '', error = '';
   const { child, done } = runClaude({

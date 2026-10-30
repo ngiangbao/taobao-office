@@ -221,3 +221,25 @@ test('điều khiển Chrome đầy đủ: bật thì agent thường bấm/gõ 
   const claudeSrc = fs.readFileSync(path.join(__dirname, '..', 'lib', 'claude.js'), 'utf8');
   assert.match(claudeSrc, /cfg\.browserFull !== false/);
 });
+
+test('chế độ extension Claude in Chrome: agent thường và người đăng dùng công cụ claude-in-chrome; không chạy mã tuỳ ý; chưa bật đầy đủ thì không có công cụ bấm/gõ', () => {
+  const C = 'mcp__claude-in-chrome__';
+  const ro = policy('team', { ext: true }), fullp = policy('team', { ext: true, full: true }), pub = policy('publisher', { ext: true });
+  for (const n of ['navigate', 'read_page', 'get_page_text']) assert.ok(ro.allowed.includes(C + n), n);
+  for (const n of ['computer', 'form_input', 'file_upload']) assert.ok(!ro.allowed.includes(C + n) && ro.denied.includes(C + n), 'chỉ đọc: ' + n);
+  for (const n of ['computer', 'form_input', 'file_upload']) assert.ok(fullp.allowed.includes(C + n) && pub.allowed.includes(C + n), 'đầy đủ/người đăng: ' + n);
+  for (const p of [ro, fullp, pub]) for (const n of ['javascript_tool', 'read_network_requests', 'shortcuts_execute']) assert.ok(p.denied.includes(C + n) && !p.allowed.includes(C + n), n);
+  for (const kind of ['scanner', 'reader', 'customer', 'inventory']) assert.deepEqual(policy(kind, { scroll: true, ext: true }), policy(kind, { scroll: true }), kind + ' không đổi');
+  const fs2 = require('node:fs'), os2 = require('node:os');
+  const dir = fs2.mkdtempSync(path.join(os2.tmpdir(), 'tbo-x-')), fake = path.join(dir, 'claude'); fs2.writeFileSync(fake, '#!/bin/sh\nprintf "%s\\n" "$@" > "$ARGS_OUT"\n', { mode: 0o755 });
+  const { runClaude } = require('../lib/claude');
+  return (async () => {
+    try {
+      await new Promise((r) => setTimeout(r, 150));
+      const run = async (cfg) => { process.env.ARGS_OUT = path.join(dir, 'a.txt'); for (let i = 0; i < 4; i++) { await runClaude({ text: 'x', cfg: { claudePath: fake, ...cfg }, dataDir: dir, agent: { name: 'A', sid: 's', dir, started: false, rolePrompt: '', team: [] }, onEvent: () => {} }).done; if (fs2.existsSync(process.env.ARGS_OUT)) return fs2.readFileSync(process.env.ARGS_OUT, 'utf8').split('\n'); await new Promise((r) => setTimeout(r, 100)); } throw new Error('claude giả không chạy'); };
+      assert.ok((await run({ chromeMode: 'claude' })).includes('--chrome'));
+      fs2.rmSync(path.join(dir, 'a.txt'), { force: true });
+      assert.ok(!(await run({ chromeMode: 'app' })).includes('--chrome'));
+    } finally { fs2.rmSync(dir, { recursive: true, force: true }); }
+  })();
+});
