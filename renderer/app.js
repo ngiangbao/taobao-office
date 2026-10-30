@@ -88,7 +88,7 @@ formA.addEventListener('submit', async (e) => {
 $('#btn-stop').onclick = () => api.stopAll();
 // ---------- Cửa sổ Cài đặt (kiểu Claude): mở từ nút bánh răng của văn phòng ----------
 const dlgS = $('#dlg-settings'), form = $('#cfgform');
-const FORM_SECS = ['shop', 'post', 'inventory', 'groups', 'cust', 'sync', 'conn', 'claude']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
+const FORM_SECS = ['shop', 'fanpage', 'groups', 'newsfeed', 'inventory', 'cust', 'sync', 'conn', 'claude']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
 let curSec = 'shop', histAgent = '';
 function renderGroupList(groups) {
   const box = $('#s-groups-list'); box.replaceChildren();

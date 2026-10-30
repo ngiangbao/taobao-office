@@ -34,8 +34,9 @@
       <button type="button" data-nav="inventory">Kho hàng</button>
       <button type="button" data-nav="cust">Khách hàng</button>
       <hr class="s-sep">
-      <button type="button" data-nav="post">Đăng bài và ảnh</button>
-      <button type="button" data-nav="groups">Danh sách nhóm</button>
+      <button type="button" data-nav="fanpage">Đăng fanpage</button>
+      <button type="button" data-nav="groups">Đăng nhóm</button>
+      <button type="button" data-nav="newsfeed">Bình luận newsfeed</button>
       <hr class="s-sep">
       <button type="button" data-nav="assistant">Trợ lý riêng</button>
       <button type="button" data-nav="claude">Claude Code CLI</button>
@@ -61,25 +62,23 @@
           </div>
           <label>Giọng văn của shop<input name="tone" type="text"></label>
         </section>
-        <section data-sec="post" hidden>
-          <h3>Đăng bài và ảnh</h3>
+        <section data-sec="fanpage" hidden>
+          <h3>Đăng fanpage</h3>
           <h4>Duyệt hay tự đăng</h4>
           <label>Khi agent soạn bài đăng<select name="postAutoPost" data-bool><option value="0">Chờ tôi duyệt từng bài (khuyên dùng)</option><option value="1">Agent tự đăng sau thời gian chờ</option></select></label>
           <div class="grid">
             <label>Đăng bài sau (phút)<input name="postAutoDelayMinutes" type="number" min="1" step="1"></label>
             <label>Giãn cách giữa hai lần đăng (giây)<input name="publishGapSeconds" type="number" min="0"></label>
           </div>
-          <p class="hint">Khi bật “Agent tự đăng”, bài sẽ chờ đủ số phút trên rồi tự đăng nếu vẫn đạt giới hạn an toàn: chỉ fanpage của bạn hoặc nhóm trong danh sách, dưới 2.000 ký tự, trong khung giờ cho phép, không trùng nội dung trong 24 giờ và không vượt hạn mức chung của app. Sửa hoặc duyệt đề xuất trước giờ đó sẽ hủy lịch tự đăng. Các agent khác luôn phải chờ bạn duyệt.</p>
+          <p class="hint">Khi bật “Agent tự đăng”, bài sẽ chờ đủ số phút trên rồi tự đăng nếu vẫn đạt các giới hạn an toàn. Cấu hình duyệt, thời gian chờ và giãn cách này áp dụng cho bài đăng fanpage và bài đăng nhóm.</p>
           <hr>
           <h4>Fanpage của tôi</h4>
           <label>Link fanpage (để đăng bài lên Trang của chính bạn)<input name="fanpageUrl" type="url" placeholder="https://www.facebook.com/ten-trang-cua-ban"></label>
           <p class="hint">Agent “Đăng bài” được đề xuất bài cho fanpage này; khi đăng, người đăng sẽ đăng <b>với tư cách Trang</b> (không phải trang cá nhân). Tài khoản Facebook trong Chrome phải là quản trị viên của Trang. Chưa thử trên Facebook thật nên hãy duyệt tay vài bài đầu.</p>
-          <hr>
-          <h4>Ảnh sản phẩm</h4>
-          <label>Gửi ảnh sản phẩm: chờ bao nhiêu giây rồi tự tìm hàng (0 = tắt)<input name="photoSearchSeconds" type="number" min="0"></label>
-          <hr>
-          <h4>Trả lời comment (quét bảng tin)</h4>
-          <p class="hint">Agent “Trả lời comment” lướt bảng tin Facebook theo chu kỳ, thấy khách đang tìm món shop có thì soạn bình luận báo khách. Mặc định TẮT. Bình luận chờ bạn duyệt trong “Chờ duyệt”, trừ khi bạn bật thêm “tự đăng” bên dưới. Cần đã đăng nhập Facebook trong Chrome của app.</p>
+        </section>
+        <section data-sec="newsfeed" hidden>
+          <h3>Bình luận newsfeed</h3>
+          <p class="hint">Agent “Trả lời comment” lướt bảng tin Facebook theo chu kỳ, thấy khách đang tìm món shop có thì soạn bình luận báo khách. Mặc định TẮT. Bình luận chờ bạn duyệt, trừ khi bạn bật riêng chế độ tự đăng bình luận. Cần đã đăng nhập Facebook trong Chrome của app.</p>
           <label>Tự quét bảng tin<select name="commentScan" data-bool><option value="0">Tắt</option><option value="1">Bật</option></select></label>
           <label>Quét mỗi (phút, tối thiểu 5)<input name="commentMinutes" type="number" min="5" step="1"></label>
           <label>Chỉ quét từ giờ<input name="commentFromHour" type="number" min="0" max="23" step="1"></label>
@@ -99,13 +98,16 @@
           <label>Tên trang tính (để trống: tự tìm trang có cột Mã SP)<input name="inventoryTab" type="text" placeholder="DS Nón"></label>
           <label>Khi tôi gửi ảnh sản phẩm vào khung chat
             <select name="photoTarget"><option value="kho">Đối chiếu với kho trước (Kho hàng trả mã và ảnh)</option><option value="taobao">Tìm trên Taobao/1688 (Tìm hàng)</option></select></label>
+          <label>Gửi ảnh sản phẩm: chờ bao nhiêu giây rồi tự tìm hàng (0 = tắt)<input name="photoSearchSeconds" type="number" min="0"></label>
           <p class="hint">Các cột nhận diện: STT | Ảnh | Mã SP | Tên sản phẩm | Loại | Phân loại màu | Số màu | Phân loại size | Giá (tệ) | Giá bán | Link 1688. Ảnh chèn trong ô “Ảnh” được đọc theo từng dòng. Dòng không có Mã SP bị bỏ qua.</p>
           <button type="button" id="s-inventory-check">Kiểm tra kết nối kho</button>
           <p id="s-inventory-status" class="hint" aria-live="polite"></p>
           <p class="hint">Lưu thay đổi rồi thử: “@Kho hàng gửi ảnh mã AC001”, “@Kho hàng nón len màu kem giá bao nhiêu?”, hoặc gửi một ảnh sản phẩm để đối chiếu.</p>
         </section>
         <section data-sec="groups" hidden>
-          <h3>Danh sách nhóm</h3>
+          <h3>Đăng nhóm</h3>
+          <p class="hint">Agent “Đăng bài” dùng danh sách nhóm này để soạn đề xuất. Cấu hình duyệt, thời gian chờ và giãn cách đăng nằm trong mục “Đăng fanpage” và áp dụng chung cho bài đăng nhóm.</p>
+          <h4>Danh sách nhóm được phép đăng</h4>
           <p class="hint">Dán liên kết Google Sheets công khai có cột tên nhóm và link nhóm Facebook. Bảng cần cho phép “Bất kỳ ai có liên kết đều có thể xem”; có thể đặt tiêu đề cột ở dòng đầu.</p>
           <label>Địa chỉ Google Sheets<input name="groupsSheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit?usp=sharing"></label>
           <p id="s-groups-msg" class="hint" aria-live="polite"></p>
