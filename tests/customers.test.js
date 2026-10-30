@@ -6,7 +6,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createAgents } = require('../lib/agents');
-const { createCustomers, mergeLocalOrderCustomers } = require('../lib/customers');
+const { createCustomers, mergeLocalOrderCustomers, linkOrderCustomers } = require('../lib/customers');
+const { createOrders } = require('../lib/orders');
 const { createRevenue, parseVnd } = require('../lib/revenue');
 const { createDispatcher } = require('../lib/dispatcher');
 const { createHistory } = require('../lib/history');
@@ -72,6 +73,30 @@ test('danh sách khách trên máy gồm hồ sơ khách và khách chỉ xuất
     { name: 'Lan', orderCount: 1, deletable: true },
   ]);
   assert.equal(rows.find((row) => row.name === 'Lan').phone, '0900');
+});
+
+test('liên kết từng khách trong đơn hàng với đúng một agent, tái sử dụng hồ sơ theo tên và ID', async () => {
+  const t = await setup(async () => ({ text: 'Nháp.' }));
+  const existing = t.customers.ensure({ key: 'thread-lan', name: 'Lan' }).customer;
+  const orders = createOrders(t.dir);
+  orders.importItems([
+    { fbName: 'Lan', sku: 'A' },
+    { fbName: 'lan', sku: 'B' },
+    { custId: 'KH-MAI01', fbName: 'Mai', sku: 'C' },
+    { custId: 'KH-MAI01', fbName: 'Mai', sku: 'D' },
+  ]);
+  const first = linkOrderCustomers(orders, t.customers);
+  assert.equal(first.linked.length, 2);
+  assert.equal(first.created, 1);
+  assert.equal(first.assigned.length, 1);
+  assert.ok(orders.all().slice(0, 2).every((order) => order.custId === existing.code));
+  assert.equal(orders.all()[2].custId, 'KH-MAI01');
+  assert.equal(t.customers.all().length, 2);
+  assert.ok(t.customers.all().every((customer) => t.agents.get(customer.agentId)?.kind === 'customer'));
+  const second = linkOrderCustomers(orders, t.customers);
+  assert.equal(second.created, 0);
+  assert.equal(t.customers.all().length, 2, 'chạy liên kết lại không tạo agent trùng');
+  t.close();
 });
 
 test('khi giao việc cho agent chuyên môn: che tên, số điện thoại bằng mã; agent chuyên môn chỉ thấy mã', async () => {

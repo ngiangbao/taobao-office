@@ -19,7 +19,7 @@ const browser = require('./lib/browser');
 const { createHistory } = require('./lib/history');
 const { isPackagedApp } = require('./lib/runtime');
 const { weekStats } = require('./lib/stats');
-const { createCustomers, mergeLocalOrderCustomers } = require('./lib/customers');
+const { createCustomers, mergeLocalOrderCustomers, linkOrderCustomers } = require('./lib/customers');
 const { createRevenue, parseVnd } = require('./lib/revenue');
 const { createInbox, READER_PROMPT } = require('./lib/inbox');
 const { readInventory, forAgent } = require('./lib/inventory');
@@ -355,8 +355,11 @@ app.whenReady().then(async () => {
   ipcMain.handle('orders:delete', (_, id) => { orders.remove(id); return { ok: true, ...ordersPub() }; });
   const importBuffer = async (source, mode) => {
     const items = await parseOrdersWorkbook(source, { imagesDir: orders.imgDir });
-    const r = orders.importItems(items, mode === 'replace' ? 'replace' : 'merge'); cleanImages(); thumbs.clear();
-    return { ok: true, read: items.length, ...r, ...ordersPub() };
+    const r = orders.importItems(items, mode === 'replace' ? 'replace' : 'merge');
+    const linked = linkOrderCustomers(orders, customers);
+    for (const customer of linked.assigned) appender.enqueue({ 'ID khách': customer.id, 'Tên Facebook khách hàng': customer.name }, { key: `fill:${customer.id}`, fill: true });
+    cleanImages(); thumbs.clear(); pushCustomers();
+    return { ok: true, read: items.length, added: r.added, skipped: r.skipped, removedDuplicates: r.removedDuplicates, total: r.total, linkedCustomers: linked.linked.length, createdAgents: linked.created, ...ordersPub() };
   };
   ipcMain.handle('orders:import', async (_, d) => { // nhập từ link Google Sheets (xem công khai)
     try { const url = String(d?.url || '').trim(); const cfg = loadCfg(); fs.writeFileSync(cfgPath, JSON.stringify({ ...cfg, ordersSheetUrl: url }, null, 2)); return await importBuffer(await downloadSheet(url), d?.mode); }
@@ -377,11 +380,11 @@ app.whenReady().then(async () => {
       return { ok: true, filePath, count: orders.all().length };
     } catch (e) { return { ok: false, error: e.message }; }
   });
-  ipcMain.handle('orders:assign-ids', () => { // gán ID cho khách chưa có ID và ghi lên bảng online (qua Apps Script)
-    const known = new Map(customers.all().map((c) => [fold(c.name), c.code]));
-    const made = orders.assignIds(known);
-    for (const m of made) appender.enqueue({ 'ID khách': m.id, 'Tên Facebook khách hàng': m.name }, { key: `fill:${m.id}`, fill: true });
-    return { ok: true, assigned: made.length, synced: !!loadCfg().ordersWebhookUrl, ...ordersPub() };
+  ipcMain.handle('orders:assign-ids', () => { // gán mã còn thiếu và nối mỗi khách với agent chăm sóc
+    const result = linkOrderCustomers(orders, customers);
+    for (const customer of result.assigned) appender.enqueue({ 'ID khách': customer.id, 'Tên Facebook khách hàng': customer.name }, { key: `fill:${customer.id}`, fill: true });
+    pushCustomers();
+    return { ok: true, assigned: result.assigned.length, linkedCustomers: result.linked.length, createdAgents: result.created, synced: !!loadCfg().ordersWebhookUrl, ...ordersPub() };
   });
   ipcMain.handle('orders:tsv', () => toTsv(orders.all()));
   ipcMain.handle('orders:script', () => APPS_SCRIPT);

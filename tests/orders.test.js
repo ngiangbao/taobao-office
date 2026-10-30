@@ -29,11 +29,35 @@ test('nhập trang "khách order": đúng cột, ghi chú ở cột trống, ả
   assert.equal(items.length, 2);
   assert.equal(items[0].note, 'FREESHIP'); assert.equal(items[0].color, 'Nâu'); assert.ok(items[0].image && fs.existsSync(path.join(store.imgDir, items[0].image)));
   assert.equal(items[1].image, undefined);
-  assert.deepEqual(store.importItems(items), { added: 2, skipped: 0, total: 2 });
+  assert.deepEqual(store.importItems(items), { added: 2, skipped: 0, removedDuplicates: 0, total: 2 });
   assert.equal(store.all()[1].price, 111350, '111.350 là 111350');
-  assert.deepEqual(store.importItems(items), { added: 0, skipped: 2, total: 2 });
+  assert.deepEqual(store.importItems(items), { added: 0, skipped: 2, removedDuplicates: 0, total: 2 });
   assert.equal(createOrders(dir).all().length, 2, 'lưu vào đĩa');
   assert.equal(store.importItems(items.slice(0, 1), 'replace').total, 1);
+});
+
+test('nhập lại không nhân đôi khi bảng online vừa được gán ID khách', (t) => {
+  const dir = tmp(); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const store = createOrders(dir);
+  const original = [
+    { fbName: 'Lan Nguyễn', sku: 'A', qty: 1, price: 100000 },
+    { fbName: 'Lan Nguyễn', sku: 'B', qty: 2, price: 200000 },
+  ];
+  assert.deepEqual(store.importItems(original), { added: 2, skipped: 0, removedDuplicates: 0, total: 2 });
+  const onlineAfterAssigningIds = [
+    { ...original[0], custId: 'KH-LAN01', fbName: 'lan nguyễn' },
+    { ...original[1], custId: 'KH-LAN01', fbName: 'lan nguyễn' },
+  ];
+  assert.deepEqual(store.importItems(onlineAfterAssigningIds), { added: 0, skipped: 2, removedDuplicates: 0, total: 2 });
+  assert.equal(store.all().length, 2);
+});
+
+test('dọn các bản sao đã bị nhân đôi từ lần nhập trước', (t) => {
+  const dir = tmp(); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const store = createOrders(dir);
+  const row = { fbName: 'Lan', sku: 'A', qty: 1, price: 100000 };
+  store.add(row); store.add({ ...row, custId: 'KH-LAN01' });
+  assert.deepEqual(store.importItems([]), { added: 0, skipped: 0, removedDuplicates: 1, total: 1 });
 });
 
 test('cột ID khách đứng trước STT khi xuất; xuất rồi nhập lại giữ nguyên; TSV dán được vào Google Sheets', async (t) => {
