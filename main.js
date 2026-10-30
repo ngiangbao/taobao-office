@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
@@ -15,7 +15,7 @@ function findChrome() {
 
 const DEFAULT_CFG = {
   rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12,
-  display: 3, tone: 'thân thiện, xưng "shop", gọi khách là "bạn"', browser: 'playwright', claudePath: '',
+  tone: 'thân thiện, xưng "shop", gọi khách là "bạn"', browser: 'playwright', claudePath: '',
   groups: [],
 };
 let autoUpdater = null;
@@ -24,12 +24,8 @@ let dataDir, cfgPath, sessionId = null, running = null, win, office = null, hook
 const loadCfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(fs.readFileSync(cfgPath, 'utf8')) }; } catch { return { ...DEFAULT_CFG }; } };
 
 function createWindow() {
-  // mở ở màn hình thứ N (mặc định 3); ít màn hình hơn thì dùng màn hình cuối
-  const ds = screen.getAllDisplays();
-  const wa = (ds[Math.max(0, (loadCfg().display || 3) - 1)] || ds[ds.length - 1]).workArea;
   win = new BrowserWindow({
-    x: wa.x + Math.round((wa.width - Math.min(1280, wa.width)) / 2), y: wa.y + Math.round((wa.height - Math.min(800, wa.height)) / 2),
-    width: Math.min(1280, wa.width), height: Math.min(800, wa.height), backgroundColor: '#14161c', title: 'Taobao Office',
+    width: 1280, height: 800, backgroundColor: '#14161c', title: 'Taobao Office',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   win.setMenuBarVisibility(false);

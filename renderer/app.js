@@ -91,7 +91,7 @@ $('#btn-cfg').onclick = async () => {
 form.addEventListener('submit', async (e) => {
   if (e.submitter?.value !== 'ok') return;
   const { cfg } = await api.getCfg();
-  for (const k of ['rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'display']) cfg[k] = Number(form.elements[k].value) || 0;
+  for (const k of ['rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay']) cfg[k] = Number(form.elements[k].value) || 0;
   for (const k of ['tone', 'browser', 'claudePath']) cfg[k] = form.elements[k].value;
   cfg.groups = form.elements.groups.value.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map(([name, url, note]) => ({ name, url, note }));
   await api.setCfg(cfg);
