@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('api', {
   onUpdate: (cb) => ipcRenderer.on('update:status', (_, u) => cb(u)),
   officeUrl: () => ipcRenderer.invoke('office:url'),
   onOfficeReady: (cb) => ipcRenderer.on('office:ready', (_, u) => cb(u)),
+  onOfficeError: (cb) => ipcRenderer.on('office:error', (_, t) => cb(t)),
   historyQuery: (o) => ipcRenderer.invoke('history:query', o),
   openHistoryDir: () => ipcRenderer.invoke('history:open'),
   openData: () => ipcRenderer.invoke('log:open'),

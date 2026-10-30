@@ -1,5 +1,6 @@
 {
   "name": "taobao-office",
+  "desktopName": "taobao-office.desktop",
   "version": "0.3.0",
   "description": "Trợ lý order Taobao: chat với Claude, văn phòng 3D hiển thị việc đang làm",
   "main": "main.js",
@@ -8,14 +9,19 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
+    "prestart": "node scripts/sync-icons.mjs",
+    "icons": "node scripts/sync-icons.mjs",
     "prepare:office": "node scripts/prepare-office.mjs",
-    "dist:linux": "npm run prepare:office && electron-builder --linux AppImage deb --publish never",
-    "dist:win": "npm run prepare:office && electron-builder --win nsis --publish never",
-    "dist:mac": "npm run prepare:office && electron-builder --mac dmg --publish never"
+    "dist:linux": "npm run icons && npm run prepare:office && electron-builder --linux AppImage deb --publish never",
+    "dist:win": "npm run icons && npm run prepare:office && electron-builder --win nsis --publish never",
+    "dist:mac": "npm run icons && npm run prepare:office && electron-builder --mac dmg --publish never"
   },
   "build": {
     "appId": "vn.taobaooffice.app",
     "productName": "Taobao Office",
+    "directories": {
+      "buildResources": "build"
+    },
     "files": [
       "main.js",
       "preload.js",
@@ -25,13 +31,17 @@
     ],
     "linux": {
       "category": "Office",
+      "icon": "build/icon.png",
+      "syncDesktopName": true,
       "maintainer": "Taobao Office <noreply@example.com>"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "mac": {
       "category": "public.app-category.business",
+      "icon": "build/icon.png",
       "target": [
         "dmg",
         "zip"

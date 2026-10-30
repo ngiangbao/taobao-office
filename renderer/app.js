@@ -14,7 +14,7 @@ const api = window.api || (() => {
     addAgent: async (d) => { list = [...list, { id: String(Math.random()), name: d.name, roleLabel: d.role, busy: false }]; return { ok: true }; },
     removeAgent: async (id) => { list = list.filter((a) => a.id !== id); }, resetAgent: async () => true, stopAll: async () => true,
     historyQuery: async () => ({ items: [{ t: new Date().toISOString(), kind: 'user', agent: 'Báo giá', text: 'Báo giá áo khoác này' }, { t: new Date().toISOString(), kind: 'agent', agent: 'Báo giá', text: 'Đã báo giá xong (bản giả lập).' }], more: false }), openHistoryDir: async () => {},
-    onAgents: () => {}, officeUrl: async () => 'http://localhost:4310/', onOfficeReady: () => {}, version: async () => 'dev', onUpdate: () => {},
+    onAgents: () => {}, officeUrl: async () => 'http://localhost:4310/', onOfficeReady: () => {}, onOfficeError: () => {}, version: async () => 'dev', onUpdate: () => {},
   };
 })();
 
@@ -122,4 +122,5 @@ api.onUpdate((u) => {
 
 api.getCfg().then(({ claude }) => { if (!claude) say('Chưa tìm thấy lệnh `claude`. Cài Claude Code và đăng nhập (chạy `claude` một lần), hoặc nhập đường dẫn trong Cài đặt.'); });
 api.officeUrl().then(showOffice); api.onOfficeReady(showOffice);
+api.onOfficeError((t) => { wait.classList.remove('hide'); wait.textContent = t; });
 refresh();

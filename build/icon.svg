@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1b1e27"/>
+      <stop offset="1" stop-color="#0e1015"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(300 210) rotate(44) scale(780)">
+      <stop offset="0" stop-color="#ff6a3d" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#ff6a3d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bubble" x1="200" y1="190" x2="830" y2="690" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff9159"/>
+      <stop offset="0.55" stop-color="#ff6a3d"/>
+      <stop offset="1" stop-color="#f04a1f"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="230" fill="url(#glow)"/>
+  <rect x="3" y="3" width="1018" height="1018" rx="228" stroke="#2a2e3a" stroke-width="6"/>
+
+  <!-- bong bóng chat: chat với Claude -->
+  <path d="M308 190H716C781.2 190 834 242.8 834 308V562C834 627.2 781.2 680 716 680H452L300 806V680H308C242.8 680 190 627.2 190 562V308C190 242.8 242.8 190 308 190Z" fill="url(#bubble)"/>
+
+  <!-- dấu yên: báo giá Taobao -->
+  <g stroke="#14161c" stroke-width="46" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M378 280L512 414"/>
+    <path d="M646 280L512 414"/>
+    <path d="M512 414V582"/>
+    <path d="M414 452H610"/>
+    <path d="M414 540H610"/>
+  </g>
+</svg>

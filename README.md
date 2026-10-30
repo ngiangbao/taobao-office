@@ -25,6 +25,20 @@ npm start
 
 Yêu cầu: Node 20+, Claude Code đã cài và đăng nhập, Chrome/Chromium cho Playwright.
 
+## Phát triển
+- Sau `npm install`, nếu `npm start` báo không tìm thấy Electron thì chạy `node node_modules/electron/install.js`
+  (npm 11 chặn script cài đặt của gói nên binary Electron chưa được tải).
+- Sửa giao diện văn phòng: `cd office && npm run dev`, rồi `npx next build` lại trước khi đóng gói.
+- Ảnh biểu tượng có một nguồn duy nhất: `build/icon.svg` → `build/icon.png` (1024×1024) → `build/icon.ico` (Windows).
+  `npm start` và `npm run dist:*` tự chép `build/icon.png` sang `renderer/icon.png` cho biểu tượng cửa sổ lúc chạy.
+  Khi sửa biểu tượng:
+  ```bash
+  rsvg-convert -w 1024 -h 1024 build/icon.svg -o build/icon.png
+  magick build/icon.png -define icon:auto-resize=256,128,64,48,32,16 build/icon.ico
+  npm run icons
+  ```
+- Màn hình chào nằm ở `renderer/splash.html` (hiện ~0,9 giây đầu, tự đóng khi cửa sổ chính vẽ xong).
+
 ## Ghi công tác giả giao diện
 
 Văn phòng 3D là dự án **[My Office](https://github.com/khanh020905/my-office)** của **[khanh020905](https://github.com/khanh020905)**

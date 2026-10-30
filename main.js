@@ -18,18 +18,43 @@ const DEFAULT_AGENTS = [
 ];
 let dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, agents, dispatcher, history;
 const children = new Map(); // agentId -> process đang chạy
+const ICON = path.join(__dirname, 'renderer', 'icon.png');
 
 const loadCfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(fs.readFileSync(cfgPath, 'utf8')) }; } catch { return { ...DEFAULT_CFG }; } };
 const send = (ch, v) => win?.webContents.send(ch, v);
 const pushAgents = () => send('agents:update', agents.list().map((a) => ({ ...a, busy: dispatcher?.isBusy(a.id) || false })));
 
+// Màn hình chào: hiện ngay khi mở app, tự đóng khi cửa sổ chính vẽ xong (giữ tối thiểu ~0,9 s để kịp đọc).
+let splash = null, splashAt = 0;
+function createSplash() {
+  splashAt = Date.now();
+  splash = new BrowserWindow({
+    width: 440, height: 320, frame: false, resizable: false, maximizable: false, minimizable: false,
+    show: false, backgroundColor: '#14161c', title: 'Taobao Office', icon: ICON,
+    webPreferences: {
+      preload: path.join(__dirname, 'renderer', 'splash-preload.js'),
+      contextIsolation: true, nodeIntegration: false, sandbox: true,
+    },
+  });
+  splash.on('closed', () => { splash = null; });
+  splash.loadFile('renderer/splash.html');
+  splash.once('ready-to-show', () => splash?.show());
+}
+const splashSay = (t) => splash?.webContents.send('splash:msg', t);
+function closeSplash() {
+  const wait = Math.max(0, 900 - (Date.now() - splashAt));
+  setTimeout(() => { splash?.destroy(); splash = null; }, wait);
+}
+
 function createWindow() {
   win = new BrowserWindow({
-    width: 1280, height: 800, backgroundColor: '#14161c', title: 'Taobao Office',
+    width: 1280, height: 800, backgroundColor: '#14161c', title: 'Taobao Office', icon: ICON, show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   win.setMenuBarVisibility(false);
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+  win.once('ready-to-show', () => { win.show(); closeSplash(); });
+  win.on('closed', () => { win = null; });
   win.loadFile('renderer/index.html');
 }
 
@@ -75,7 +100,10 @@ function setupUpdater() {
   check(); setInterval(check, 4 * 3600 * 1000);
 }
 
+app.setAppUserModelId('vn.taobaooffice.app');
+
 app.whenReady().then(async () => {
+  createSplash();
   dataDir = path.join(app.getPath('userData'), 'workspace');
   fs.mkdirSync(path.join(dataDir, 'uploads'), { recursive: true });
   cfgPath = path.join(dataDir, 'config.json');
@@ -101,6 +129,7 @@ app.whenReady().then(async () => {
 
   createWindow();
   setupUpdater();
+  splashSay('Đang mở văn phòng 3D…');
   try {
     office = await startOffice(app, dataDir);
     hooksFile = writeHookSettings(office.dir, office.port, dataDir);
@@ -115,7 +144,10 @@ app.whenReady().then(async () => {
       (async () => { for (const a of made) await introduce(a); })(); // chào lần lượt, không chạy 5 tiến trình cùng lúc
     }
     pushAgents();
-  } catch (e) { console.error('Không chạy được văn phòng:', e); }
+  } catch (e) {
+    console.error('Không chạy được văn phòng:', e);
+    send('office:error', 'Không mở được văn phòng 3D. Xem chi tiết trong tệp office.log (nút Nhật ký).');
+  }
 });
 app.on('before-quit', () => { dispatcher?.stop(); for (const c of children.values()) c.kill(); browser.stop(); office?.child.kill(); });
 app.on('window-all-closed', () => app.quit());
