@@ -121,7 +121,7 @@ test('đề xuất sai (đích không phải Facebook) bị chặn ngay và báo
   assert.ok(t.posts.some((p) => p.op === 'sys' && /không hợp lệ/.test(p.text)));
   t.d.deliverInbound({ name: 'Lan', text: 'Chào shop' }); await t.idle();
   assert.equal(t.approvals.all().length, 0, 'tin của khách không thể kéo agent chăm khách đăng bài');
-  assert.ok(t.posts.some((p) => p.op === 'sys' && /không có quyền này/.test(p.text)));
+  assert.ok(t.posts.some((p) => p.op === 'sys' && /không có quyền đăng/.test(p.text)));
   t.close();
 });
 

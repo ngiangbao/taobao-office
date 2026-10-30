@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+process.env.TBO_OFFICE_PORT_BASE = '4440';
 const { startOffice } = require('../lib/office');
 
 test('phiên lạ bị bỏ qua, phiên của agent hiện ra', async () => {

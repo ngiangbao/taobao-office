@@ -104,7 +104,7 @@ async function runAgent(agent, text, opts = {}) {
   const cust = agent.kind === 'customer' ? customers.byAgent(agent.id) : null;
   let mcpFile = null;
   // agent chăm khách không dùng trình duyệt (giao việc cho agent chuyên môn); lượt chào/làm mới cũng nhẹ
-  if (!opts.light && !cust && agent.role !== 'inventory') mcpFile = await browser.ensure(app, dataDir);
+  if (!opts.light && !cust && agent.role !== 'inventory') mcpFile = browser.mcpConfig(app, dataDir) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
   if (agent.role === 'inventory' && !opts.light) {
     try {
       const stock = await readInventory(googleSync, cfg);
@@ -140,7 +140,7 @@ async function runAgent(agent, text, opts = {}) {
 // Người đăng: chạy SAU KHI chủ shop duyệt; là lượt DUY NHẤT có quyền bấm/gõ trên trình duyệt, và chỉ nhận đúng nội dung đã duyệt
 async function runPublisher(item) {
   const cfg = loadCfg();
-  const mcpFile = await browser.ensure(app, dataDir);
+  const mcpFile = browser.mcpConfig(app, dataDir) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
   const dir = path.join(dataDir, 'agents', '_publisher'); fs.mkdirSync(dir, { recursive: true });
   const text = `ĐỀ XUẤT #${item.num} ĐÃ ĐƯỢC CHỦ SHOP DUYỆT.\nLoại: ${KINDS[item.kind]}\nĐích (mở đúng link này): ${item.target}\nNội dung cần đăng, NGUYÊN VĂN (không sửa, không thêm):\n\"\"\"\n${item.text}\n\"\"\"\n${item.files?.length ? `Ảnh cần đính kèm (tải lên bằng browser_file_upload): ${item.files.join(', ')}` : 'Không có ảnh.'}`;
   let result = '', error = '';
@@ -168,7 +168,7 @@ async function toJpeg(file) {
 // Người đọc hộp thư Messenger: chỉ đọc, chỉ dùng trình duyệt, mỗi lần một phiên mới
 async function runReader(text) {
   const cfg = loadCfg();
-  const mcpFile = await browser.ensure(app, dataDir);
+  const mcpFile = browser.mcpConfig(app, dataDir) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
   const dir = path.join(dataDir, 'agents', '_inbox'); fs.mkdirSync(dir, { recursive: true });
   let result = '', error = '';
   const { child, done } = runClaude({

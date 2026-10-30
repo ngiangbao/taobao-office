@@ -10,6 +10,7 @@ const { isPackagedApp } = require('../lib/runtime');
 const { createAgents } = require('../lib/agents');
 const { createDispatcher } = require('../lib/dispatcher');
 
+process.env.TBO_OFFICE_PORT_BASE = '4420'; // mỗi tệp kiểm thử một dải cổng riêng
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'tbo-r-'));
 
 test('văn phòng chết ngay khi khởi động: báo lỗi trong vài giây, kèm nội dung lỗi, không treo 30 giây', async () => {
