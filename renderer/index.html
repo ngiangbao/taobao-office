@@ -135,9 +135,9 @@
             </select></label>
           <p class="hint">Chế độ “Chrome của tôi”: cài tiện ích <b>Playwright Extension</b> (Playwright MCP Bridge) vào Chrome đang dùng; lần đầu agent duyệt web, tiện ích sẽ hỏi bạn chọn tab cho phép điều khiển. App không mở thêm cửa sổ Chrome trắng và không tự tắt Chrome của bạn. Chrome phải đang mở khi agent cần duyệt web. Chế độ này cần Chrome hoặc Edge có tiện ích; nếu tiện ích chưa cài, agent sẽ báo lỗi kết nối.</p>
           <label>Tự tắt Chrome dùng chung sau (phút không dùng, 0 = không tự tắt)<input name="chromeIdleMinutes" type="number" min="0" max="1440" step="1"></label>
-          <p class="hint">Chrome chỉ mở khi agent thật sự cần duyệt web. Hết thời gian trên, và khi không có agent nào đang làm việc, app tắt hẳn Chrome để nhẹ máy; đăng nhập Facebook/Taobao vẫn được giữ.</p>
-          <p class="hint">Facebook và Taobao dùng chung một Chrome của app: bạn đăng nhập một lần, mọi agent dùng chung, mỗi agent một tab riêng. App không lưu mật khẩu của bạn.</p>
-          <div class="row-btns"><button type="button" id="s-login">Đăng nhập Facebook và Taobao…</button><span id="s-loginmsg" class="hint"></span></div>
+          <p class="hint">Chrome chỉ mở khi agent thật sự cần duyệt web. Hết thời gian trên, và khi không có agent nào đang làm việc, app tắt hẳn Chrome để nhẹ máy; đăng nhập Facebook/Taobao/1688 vẫn được giữ.</p>
+          <p class="hint">Facebook, Taobao và 1688 dùng chung một Chrome của app: bạn đăng nhập một lần, mọi agent dùng chung, mỗi agent một tab riêng. App không lưu mật khẩu của bạn.</p>
+          <div class="row-btns"><button type="button" id="s-login">Đăng nhập Facebook, Taobao và 1688…</button><span id="s-loginmsg" class="hint"></span></div>
         </section>
         <section data-sec="claude" hidden>
           <h3>Thiết lập Claude Code CLI</h3>
@@ -184,7 +184,7 @@
       </section>
       <section data-sec="about" hidden>
         <h3>Giới thiệu và cập nhật</h3>
-        <p>Trợ lý order Taobao cho cửa hàng thời trang: đội agent Claude chăm khách, tìm hàng, báo giá và đăng bài, có văn phòng 3D để theo dõi.</p>
+        <p>Trợ lý order Taobao và 1688 cho cửa hàng thời trang: đội agent Claude chăm khách, tìm hàng, báo giá và đăng bài, có văn phòng 3D để theo dõi.</p>
         <p class="hint">Phiên bản đang dùng: <b id="s-update-version">đang kiểm tra…</b>. Ứng dụng cũng tự kiểm tra cập nhật định kỳ khi đang mở.</p>
         <button type="button" id="s-check-updates">Kiểm tra cập nhật</button>
         <p id="s-update-status" class="hint" aria-live="polite"></p>

@@ -156,3 +156,12 @@ test('app nghỉ vì lâu không dùng: không nhắc khách tự động; tỉn
   d.followupTick(); assert.equal(asked, 0);
   asleep = false; d.followupTick(); assert.equal(asked, 1);
 });
+
+test('1688 là nền tảng chính thức: agent tìm hàng và báo giá hiểu giá theo số lượng, nút đăng nhập mở cả 1688', () => {
+  assert.match(TEMPLATES.search.prompt, /1688/); assert.match(TEMPLATES.search.prompt, /起批量/); assert.match(TEMPLATES.quote.prompt, /阶梯价/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8'), /login:open[^\n]*1688\.com/);
+  const dir = tmp(); const agents = createAgents(dir); agents.add({ name: 'Tìm hàng', role: 'search' }); agents.add({ name: 'Báo giá', role: 'quote' }); agents.add({ name: 'CSKH', role: 'cskh' });
+  assert.equal(agents.route('tìm trên 1688 áo khoác').agent.role, 'search');
+  assert.equal(agents.route('báo giá link https://detail.1688.com/offer/1.html').agent.role, 'quote', 'link 1688 không làm lệch việc báo giá');
+  fs.rmSync(dir, { recursive: true, force: true });
+});

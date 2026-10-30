@@ -265,7 +265,7 @@ api.onSync((result) => {
 });
 $('#s-login').onclick = async () => {
   const r = await api.openLogin();
-  $('#s-loginmsg').textContent = r.ok ? 'Đã mở Chrome của app. Hãy tự đăng nhập Facebook và Taobao trong cửa sổ đó (tự giải CAPTCHA nếu có), và cứ để nguyên cửa sổ.' : r.error;
+  $('#s-loginmsg').textContent = r.ok ? 'Đã mở Chrome của app. Hãy tự đăng nhập Facebook, Taobao và 1688 trong cửa sổ đó (tự giải CAPTCHA nếu có), và cứ để nguyên cửa sổ.' : r.error;
 };
 // Nút bánh răng của văn phòng (cạnh nút Xem lại) mở cửa sổ này; mục "Văn phòng 3D" mở lại bảng tùy chọn gốc của văn phòng
 window.addEventListener('message', (ev) => {
