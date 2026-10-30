@@ -1,7 +1,7 @@
 {
   "name": "taobao-office",
   "desktopName": "taobao-office.desktop",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Trợ lý order Taobao: chat với Claude, văn phòng 3D hiển thị việc đang làm",
   "main": "main.js",
   "author": "Taobao Office <noreply@example.com>",

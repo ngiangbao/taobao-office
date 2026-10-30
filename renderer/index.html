@@ -35,6 +35,7 @@
       <h2>Cài đặt</h2>
       <button type="button" data-nav="shop" class="on">Cửa hàng</button>
       <button type="button" data-nav="post">Đăng bài và ảnh</button>
+      <button type="button" data-nav="inventory">Kho hàng</button>
       <button type="button" data-nav="groups">Danh sách nhóm</button>
       <button type="button" data-nav="cust">Khách hàng</button>
       <button type="button" data-nav="sync">Đồng bộ thiết bị</button>
@@ -68,6 +69,17 @@
             <label>Gửi ảnh sản phẩm: chờ bao nhiêu giây rồi tự tìm hàng (0 = tắt)<input name="photoSearchSeconds" type="number" min="0"></label>
           </div>
         </section>
+        <section data-sec="inventory" hidden>
+          <h3>Kho hàng Google Sheets</h3>
+          <p class="hint">Kết nối Google ở mục Đồng bộ trước, sau đó nhập bảng kho mà tài khoản đó có quyền xem. App chỉ đọc kho, không thay đổi bảng tính. Dữ liệu được lấy mới mỗi lần gọi @Kho hàng.</p>
+          <label>Link Google Sheets kho hàng<input name="inventorySheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit"></label>
+          <label>Tên trang tính<input name="inventoryTab" type="text" placeholder="Kho hàng"></label>
+          <label>Ngưỡng sắp hết (số lượng)<input name="inventoryLowStock" type="number" min="0" step="1"></label>
+          <p class="hint">Dòng đầu gồm: Mã hàng | Tên hàng | Size | Màu | Tồn kho. Mỗi dòng là một biến thể, số tồn là số nguyên không âm. Tối đa 1.000 dòng hàng.</p>
+          <button type="button" id="s-inventory-check">Kiểm tra kết nối kho</button>
+          <p id="s-inventory-status" class="hint" aria-live="polite"></p>
+          <p class="hint">Lưu thay đổi rồi gõ “@Kho hàng báo cáo tồn kho” hoặc “@Kho hàng còn áo mã A01 size M không?” trong khung chat.</p>
+        </section>
         <section data-sec="groups" hidden>
           <h3>Danh sách nhóm</h3>
           <p class="hint">Dán liên kết Google Sheets công khai có cột tên nhóm và link nhóm Facebook. Bảng cần cho phép “Bất kỳ ai có liên kết đều có thể xem”; có thể đặt tiêu đề cột ở dòng đầu.</p>
@@ -91,7 +103,7 @@
         <section data-sec="sync" hidden>
           <h3>Đồng bộ thiết bị</h3>
           <p class="hint">Dùng Google Sheets riêng tư làm nơi đồng bộ khách hàng, hồ sơ và sổ thu giữa các máy. Mỗi máy đăng nhập cùng tài khoản Google và dùng cùng bảng tính. Dữ liệu chỉ người được cấp quyền trong Google Sheets xem được.</p>
-          <label>Địa chỉ Google Sheets riêng tư<input name="syncSpreadsheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit"></label>
+          <label>Địa chỉ Google Sheets đồng bộ khách (để trống nếu chỉ xem kho)<input name="syncSpreadsheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit"></label>
           <label>OAuth Client ID (ứng dụng Desktop)<input name="syncClientId" type="text" autocomplete="off"></label>
           <label>OAuth Client Secret<input name="syncClientSecret" type="password" autocomplete="new-password"></label>
           <p class="hint">Trong <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console</a>, bật Google Sheets API, cấu hình màn hình đồng ý OAuth (thêm tài khoản Google vào danh sách thử nghiệm nếu ứng dụng đang ở chế độ kiểm thử) rồi tạo OAuth Client loại Desktop. Dùng một bảng tính không bật chia sẻ công khai. Trên mọi máy, nhập cùng Client ID/Secret, cùng link bảng tính và đăng nhập cùng tài khoản Google. Ứng dụng mã hóa token đăng nhập bằng kho khóa của hệ điều hành; không gửi token hay thông tin đăng nhập cho bên thứ ba.</p>

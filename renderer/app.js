@@ -85,7 +85,7 @@ formA.addEventListener('submit', async (e) => {
 $('#btn-stop').onclick = () => api.stopAll();
 // ---------- Cửa sổ Cài đặt (kiểu Claude): mở từ nút bánh răng của văn phòng ----------
 const dlgS = $('#dlg-settings'), form = $('#cfgform');
-const FORM_SECS = ['shop', 'post', 'groups', 'cust', 'sync', 'conn', 'claude']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
+const FORM_SECS = ['shop', 'post', 'inventory', 'groups', 'cust', 'sync', 'conn', 'claude']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
 let curSec = 'shop', histAgent = '';
 function renderGroupList(groups) {
   const box = $('#s-groups-list'); box.replaceChildren();
@@ -109,6 +109,13 @@ function showSection(id) {
   if (id === 'about') api.version().then((v) => ($('#s-ver').textContent = v));
   if (id === 'office') askOffice();
 }
+$('#s-inventory-check').onclick = async () => {
+  const status = $('#s-inventory-status'); status.textContent = 'Đang đọc kho…';
+  try {
+    const result = await api.checkInventory({ inventorySheetUrl: form.elements.inventorySheetUrl.value, inventoryTab: form.elements.inventoryTab.value, inventoryLowStock: Number(form.elements.inventoryLowStock.value) });
+    status.textContent = result.ok ? `Đọc được ${result.variants} biến thể, tổng tồn ${result.total}. Bấm Lưu thay đổi để dùng với @Kho hàng.` : result.error;
+  } catch (error) { status.textContent = `Chưa đọc được kho: ${error.message}`; }
+};
 async function fillSettings() {
   const { cfg, claude } = await api.getCfg();
   for (const el of form.elements) if (el.name) el.value = cfg[el.name] ?? '';
@@ -171,8 +178,8 @@ form.addEventListener('submit', async (e) => {
     $('#s-groups-msg').textContent = `Đã lưu ${cfg.groups.length} nhóm. Agent sẽ dùng danh sách này khi soạn đề xuất đăng bài.`;
     return;
   }
-  for (const k of ['rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
-  for (const k of ['tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
+  for (const k of ['inventoryLowStock', 'rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
+  for (const k of ['inventorySheetUrl', 'inventoryTab', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
   cfg.shopName = form.elements.shopName.value.trim().slice(0, 40) || 'Cửa hàng của tôi';
   document.title = cfg.shopName;
   await api.setCfg(cfg);
