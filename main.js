@@ -30,6 +30,8 @@ const DEFAULT_CFG = {
   inboxMinutes: 0, inboxUrl: 'https://business.facebook.com/latest/inbox/all', // đọc hộp thư Messenger tự động (0 = tắt)
   followupMinutes: 10, followupMax: 1, // khách im lặng bấy nhiêu phút thì agent soạn tin nhắc (tối đa bấy nhiêu lần)
   photoSearchSeconds: 6, // chủ shop gửi ảnh sản phẩm: chờ bấy nhiêu giây xem có lời nhắn đi kèm không, nếu không thì giao cho đúng một agent tìm hàng (0 = tắt)
+  model: 'haiku', // model cho mọi agent: haiku tiết kiệm token nhất (mặc định), sonnet cân bằng, opus mạnh nhất, default = Claude Code tự chọn
+  chromeMode: 'app', // app = Chrome riêng của app; mine = Chrome của bạn (qua tiện ích Playwright)
   chromeIdleMinutes: 15, // Chrome dùng chung được tắt hẳn sau bấy nhiêu phút không dùng (0 = không tự tắt)
   commentScan: false, commentMinutes: 15, commentFromHour: 8, commentToHour: 22, commentPerScan: 3, // Trả lời comment: quét bảng tin định kỳ (mặc định TẮT)
   commentAutoPost: false, commentAutoMax: 8, // tự đăng bình luận không cần duyệt từng cái (mặc định TẮT, có hạn mức mỗi ngày)
@@ -110,7 +112,7 @@ async function runAgent(agent, text, opts = {}) {
   const cust = agent.kind === 'customer' ? customers.byAgent(agent.id) : null;
   let mcpFile = null;
   // agent chăm khách không dùng trình duyệt (giao việc cho agent chuyên môn); lượt chào/làm mới cũng nhẹ
-  if (!opts.light && !cust && !['inventory', 'assistant'].includes(agent.role)) mcpFile = browser.mcpConfig(app, dataDir) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
+  if (!opts.light && !cust && !['inventory', 'assistant'].includes(agent.role)) mcpFile = browser.mcpConfig(app, dataDir, loadCfg().chromeMode) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
   if (agent.role === 'inventory' && !opts.light) {
     try {
       const kho = path.join(agent.dir, 'kho');
@@ -170,7 +172,7 @@ async function runAgent(agent, text, opts = {}) {
 // Người đăng: chạy SAU KHI chủ shop duyệt; là lượt DUY NHẤT có quyền bấm/gõ trên trình duyệt, và chỉ nhận đúng nội dung đã duyệt
 async function runPublisher(item) {
   const cfg = loadCfg();
-  const mcpFile = browser.mcpConfig(app, dataDir) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
+  const mcpFile = browser.mcpConfig(app, dataDir, loadCfg().chromeMode) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
   const dir = path.join(dataDir, 'agents', '_publisher'); fs.mkdirSync(dir, { recursive: true });
   const text = `ĐỀ XUẤT #${item.num} ĐÃ ĐƯỢC CHỦ SHOP DUYỆT.\nLoại: ${KINDS[item.kind]}\nĐích (mở đúng link này): ${item.target}\nNội dung cần đăng, NGUYÊN VĂN (không sửa, không thêm):\n\"\"\"\n${item.text}\n\"\"\"\n${item.files?.length ? `Ảnh cần đính kèm (tải lên bằng browser_file_upload): ${item.files.join(', ')}` : 'Không có ảnh.'}`;
   let result = '', error = '';
@@ -198,7 +200,7 @@ async function toJpeg(file) {
 // Người đọc hộp thư Messenger: chỉ đọc, chỉ dùng trình duyệt, mỗi lần một phiên mới
 async function runReader(text) {
   const cfg = loadCfg();
-  const mcpFile = browser.mcpConfig(app, dataDir) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
+  const mcpFile = browser.mcpConfig(app, dataDir, loadCfg().chromeMode) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
   const dir = path.join(dataDir, 'agents', '_inbox'); fs.mkdirSync(dir, { recursive: true });
   let result = '', error = '';
   const { child, done } = runClaude({
@@ -511,7 +513,7 @@ app.whenReady().then(async () => {
     browser.touch(dataDir); // thời gian chờ tắt Chrome tính từ lúc mở app
     chromeTimer = setInterval(async () => {
       const mins = Number(loadCfg().chromeIdleMinutes ?? 15);
-      if (!(mins > 0) || dispatcher.anyBusy() || browser.idleMs(dataDir) < mins * 60e3 || !(await browser.up())) return;
+      if (loadCfg().chromeMode === 'mine' || !(mins > 0) || dispatcher.anyBusy() || browser.idleMs(dataDir) < mins * 60e3 || !(await browser.up())) return;
       if (await browser.close()) dispatcher.sys(`🌙 Đã tắt Chrome vì không dùng ${mins} phút (đăng nhập vẫn được giữ, lần sau agent cần sẽ tự mở).`);
     }, 60e3);
     // lời chào của các agent mỗi lần mở app (chờ văn phòng xếp chỗ ngồi cho agent trước)

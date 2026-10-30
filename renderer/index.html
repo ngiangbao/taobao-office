@@ -128,6 +128,12 @@
         </section>
         <section data-sec="conn" hidden>
           <h3>Kết nối tài khoản</h3>
+          <label>Chrome cho agent duyệt web
+            <select name="chromeMode">
+              <option value="app">Chrome riêng của app (đăng nhập một lần trong đó)</option>
+              <option value="mine">Chrome của tôi, đã đăng nhập sẵn (qua tiện ích Playwright)</option>
+            </select></label>
+          <p class="hint">Chế độ “Chrome của tôi”: cài tiện ích <b>Playwright Extension</b> (Playwright MCP Bridge) vào Chrome đang dùng; lần đầu agent duyệt web, tiện ích sẽ hỏi bạn chọn tab cho phép điều khiển. App không mở thêm cửa sổ Chrome trắng và không tự tắt Chrome của bạn. Chrome phải đang mở khi agent cần duyệt web. Chế độ này cần Chrome hoặc Edge có tiện ích; nếu tiện ích chưa cài, agent sẽ báo lỗi kết nối.</p>
           <label>Tự tắt Chrome dùng chung sau (phút không dùng, 0 = không tự tắt)<input name="chromeIdleMinutes" type="number" min="0" max="1440" step="1"></label>
           <p class="hint">Chrome chỉ mở khi agent thật sự cần duyệt web. Hết thời gian trên, và khi không có agent nào đang làm việc, app tắt hẳn Chrome để nhẹ máy; đăng nhập Facebook/Taobao vẫn được giữ.</p>
           <p class="hint">Facebook và Taobao dùng chung một Chrome của app: bạn đăng nhập một lần, mọi agent dùng chung, mỗi agent một tab riêng. App không lưu mật khẩu của bạn.</p>
@@ -135,6 +141,14 @@
         </section>
         <section data-sec="claude" hidden>
           <h3>Thiết lập Claude Code CLI</h3>
+          <label>Model cho các agent
+            <select name="model">
+              <option value="haiku">Haiku: tiết kiệm token nhất (mặc định)</option>
+              <option value="sonnet">Sonnet: cân bằng, hiểu ảnh và văn bản tốt hơn</option>
+              <option value="opus">Opus: mạnh nhất, tốn nhất</option>
+              <option value="default">Theo mặc định của Claude Code</option>
+            </select></label>
+          <p class="hint">Áp dụng cho mọi agent từ lượt chạy kế tiếp. Haiku đủ cho chat, báo giá, soạn bài. Nếu đối chiếu ảnh với kho hoặc quét bảng tin chưa đủ chính xác, thử Sonnet.</p>
           <p class="hint">Claude Code CLI là công cụ dòng lệnh mà agent sử dụng; ứng dụng Claude Desktop (cửa sổ chat) không thay thế CLI. Cài từ hướng dẫn chính thức, sau đó chạy lệnh `claude` trong Terminal/PowerShell một lần để đăng nhập.</p>
           <p class="hint">Lệnh cài đặt chính thức cho hệ điều hành này:</p>
           <pre id="s-claude-install" class="hint"></pre>

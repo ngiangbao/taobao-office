@@ -207,7 +207,7 @@ form.addEventListener('submit', async (e) => {
     return;
   }
   for (const k of ['chromeIdleMinutes', 'commentMinutes', 'commentFromHour', 'commentToHour', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
-  for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
+  for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'model', 'chromeMode', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
   for (const k of ['commentScan', 'commentAutoPost']) cfg[k] = form.elements[k].value === '1';
   cfg.shopName = form.elements.shopName.value.trim().slice(0, 40) || 'Cửa hàng của tôi';
   document.title = cfg.shopName;
