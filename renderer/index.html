@@ -131,7 +131,7 @@
             <select id="o-mode"><option value="merge">Thêm đơn mới, bỏ dòng trùng</option><option value="replace">Thay toàn bộ danh sách</option></select>
           </div>
           <label>Tự cập nhật từ link mỗi khi mở bảng Khách<select name="ordersAutoRefresh" data-bool><option value="1">Bật</option><option value="0">Tắt</option></select></label>
-          <div class="row-btns"><button type="button" id="o-import">Cập nhật từ link ngay</button><button type="button" id="o-import-file" class="ghost">Nhập từ file Excel…</button><button type="button" id="o-open-sheet" class="ghost">Mở bảng online</button><button type="button" id="o-assign" class="ghost" title="Gán ID còn thiếu và liên kết mỗi khách với một agent chăm sóc">Gán ID & liên kết agent</button></div>
+          <div class="row-btns"><button type="button" id="o-import">Cập nhật từ link ngay</button><button type="button" id="o-import-file" class="ghost">Nhập từ file Excel…</button><button type="button" id="o-open-sheet" class="ghost">Mở bảng online</button></div>
           <p id="o-msg" class="hint" aria-live="polite"></p>
           <details id="o-sync"><summary>Tự thêm khách mới vào bảng online (dòng cuối)</summary>
             <p class="hint">Không cần Google Cloud: dán một đoạn Apps Script ngắn vào chính bảng của bạn. (1) Mở bảng → Tiện ích mở rộng → Apps Script, dán đoạn script, đổi <b>MAT_KHAU</b>. (2) Chạy hàm <b>caiDat</b> một lần (cấp quyền; thêm cột “ID khách” vào trước STT). (3) Triển khai → Triển khai mới → Ứng dụng web: Thực thi bằng <b>Tôi</b>, Ai có quyền truy cập <b>Bất kỳ ai</b>. (4) Dán địa chỉ kết thúc bằng /exec và mật khẩu vào đây.</p>

@@ -391,12 +391,6 @@ app.whenReady().then(async () => {
       return { ok: true, filePath, count: orders.all().length };
     } catch (e) { return { ok: false, error: e.message }; }
   });
-  ipcMain.handle('orders:assign-ids', () => { // gán mã còn thiếu và nối mỗi khách với agent chăm sóc
-    const result = linkOrderCustomers(orders, customers);
-    for (const customer of result.assigned) appender.enqueue({ 'ID khách': customer.id, 'Tên Facebook khách hàng': customer.name }, { key: `fill:${customer.id}`, fill: true });
-    pushCustomers();
-    return { ok: true, assigned: result.assigned.length, linkedCustomers: result.linked.length, createdAgents: result.created, synced: !!loadCfg().ordersWebhookUrl, ...ordersPub() };
-  });
   ipcMain.handle('orders:tsv', () => toTsv(orders.all()));
   ipcMain.handle('orders:script', () => APPS_SCRIPT);
   ipcMain.handle('orders:webhook-test', async (_, d) => { // lưu cấu hình rồi gửi thử (không ghi dòng nào)
