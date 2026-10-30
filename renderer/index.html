@@ -128,6 +128,8 @@
         </section>
         <section data-sec="conn" hidden>
           <h3>Kết nối tài khoản</h3>
+          <label>Tự tắt Chrome dùng chung sau (phút không dùng, 0 = không tự tắt)<input name="chromeIdleMinutes" type="number" min="0" max="1440" step="1"></label>
+          <p class="hint">Chrome chỉ mở khi agent thật sự cần duyệt web. Hết thời gian trên, và khi không có agent nào đang làm việc, app tắt hẳn Chrome để nhẹ máy; đăng nhập Facebook/Taobao vẫn được giữ.</p>
           <p class="hint">Facebook và Taobao dùng chung một Chrome của app: bạn đăng nhập một lần, mọi agent dùng chung, mỗi agent một tab riêng. App không lưu mật khẩu của bạn.</p>
           <div class="row-btns"><button type="button" id="s-login">Đăng nhập Facebook và Taobao…</button><span id="s-loginmsg" class="hint"></span></div>
         </section>

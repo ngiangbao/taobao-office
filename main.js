@@ -7,6 +7,7 @@ const { createApprovals, PUBLISHER_PROMPT, KINDS } = require('./lib/approvals');
 const { createAgents, TEMPLATES } = require('./lib/agents');
 const { createDispatcher } = require('./lib/dispatcher');
 const { createStyle } = require('./lib/style');
+const { greeting } = require('./lib/greet');
 const { createScanner, autoPostGuard, SCAN_PROMPT } = require('./lib/commenter');
 const browser = require('./lib/browser');
 const { createHistory } = require('./lib/history');
@@ -29,6 +30,7 @@ const DEFAULT_CFG = {
   inboxMinutes: 0, inboxUrl: 'https://business.facebook.com/latest/inbox/all', // đọc hộp thư Messenger tự động (0 = tắt)
   followupMinutes: 10, followupMax: 1, // khách im lặng bấy nhiêu phút thì agent soạn tin nhắc (tối đa bấy nhiêu lần)
   photoSearchSeconds: 6, // chủ shop gửi ảnh sản phẩm: chờ bấy nhiêu giây xem có lời nhắn đi kèm không, nếu không thì giao cho đúng một agent tìm hàng (0 = tắt)
+  chromeIdleMinutes: 15, // Chrome dùng chung được tắt hẳn sau bấy nhiêu phút không dùng (0 = không tự tắt)
   commentScan: false, commentMinutes: 15, commentFromHour: 8, commentToHour: 22, commentPerScan: 3, // Trả lời comment: quét bảng tin định kỳ (mặc định TẮT)
   commentAutoPost: false, commentAutoMax: 8, // tự đăng bình luận không cần duyệt từng cái (mặc định TẮT, có hạn mức mỗi ngày)
   publishGapSeconds: 45, // giãn cách tối thiểu giữa hai lần đăng, như người thật
@@ -39,7 +41,7 @@ const DEFAULT_AGENTS = [
   { name: 'Chăm sóc khách', role: 'cskh' }, { name: 'Tìm hàng', role: 'search' }, { name: 'Báo giá', role: 'quote' },
   { name: 'Đăng bài', role: 'post' }, { name: 'Tìm khách', role: 'leads' },
 ];
-let style, scanner, dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, promptUpdateAgain = null, agents, dispatcher, history, customers, revenue, inbox, approvals, googleSync, syncCloud, gateOk = false;
+let chromeTimer, style, scanner, dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, promptUpdateAgain = null, agents, dispatcher, history, customers, revenue, inbox, approvals, googleSync, syncCloud, gateOk = false;
 const children = new Map(); // agentId -> process đang chạy
 const introducingAgents = new Set();
 const ICON = path.join(__dirname, 'renderer', 'icon.png');
@@ -506,6 +508,20 @@ app.whenReady().then(async () => {
       },
     });
     scanner.start();
+    browser.touch(dataDir); // thời gian chờ tắt Chrome tính từ lúc mở app
+    chromeTimer = setInterval(async () => {
+      const mins = Number(loadCfg().chromeIdleMinutes ?? 15);
+      if (!(mins > 0) || dispatcher.anyBusy() || browser.idleMs(dataDir) < mins * 60e3 || !(await browser.up())) return;
+      if (await browser.close()) dispatcher.sys(`🌙 Đã tắt Chrome vì không dùng ${mins} phút (đăng nhập vẫn được giữ, lần sau agent cần sẽ tự mở).`);
+    }, 60e3);
+    // lời chào của các agent mỗi lần mở app (chờ văn phòng xếp chỗ ngồi cho agent trước)
+    setTimeout(() => {
+      const cfg = loadCfg();
+      agents.all().filter((a) => a.kind !== 'customer').forEach((a, i) => setTimeout(() => {
+        const line = greeting(a, { customers: customers.all().length, revenue: revenue.total(), hasStock: !!cfg.inventorySheetUrl, scanOn: !!cfg.commentScan });
+        if (line) dispatcher.post(a, line);
+      }, i * 1300));
+    }, 6000);
     inbox = createInbox({ dataDir, runReader, deliver: (msg) => dispatcher.deliverInbound(msg), getCfg: loadCfg, onResult: (r) => send('inbox:result', r) });
     inbox.start();
     let syncing = false;
@@ -534,5 +550,5 @@ app.whenReady().then(async () => {
     pushAgents();
   } catch (e) { console.error('Không chạy được văn phòng:', e); send('office:error', String(e.message || e)); }
 });
-app.on('before-quit', () => { scanner?.stop(); dispatcher?.stop(); inbox?.stop(); for (const c of children.values()) c.kill(); browser.stop(); office?.child.kill(); });
+app.on('before-quit', () => { clearInterval(chromeTimer); scanner?.stop(); dispatcher?.stop(); inbox?.stop(); for (const c of children.values()) c.kill(); browser.stop(); office?.child.kill(); });
 app.on('window-all-closed', () => app.quit());

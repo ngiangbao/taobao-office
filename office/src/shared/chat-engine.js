@@ -144,7 +144,7 @@ export function createChatEngine(ctx) {
     const id = s.id;
     if (e.agent) { if (e.type === 'substart' && ok(`${id}:helper`, 30 * 60e3)) work(id, 'helper'); return; }
     switch (e.type) {
-      case 'start': if (ok(`${id}:hello`, 8 * 3600e3)) { system(tr('chat.sys.added', { by: ctx.staffName('__hr') || tr('chat.boss'), name: s.name })); work(id, 'hello', { project: s.project || s.name }, { answer: [{ key: 'hello', chance: 0.5 }] }); } break;
+      case 'start': if (ctx.quiet?.()) break; if (ok(`${id}:hello`, 8 * 3600e3)) { system(tr('chat.sys.added', { by: ctx.staffName('__hr') || tr('chat.boss'), name: s.name })); work(id, 'hello', { project: s.project || s.name }, { answer: [{ key: 'hello', chance: 0.5 }] }); } break;
       case 'prompt': if (e.label && ok(`${id}:prompt`, 60e3)) { say('me', `@${s.name} ${q(e.label)}`, { now: true }); work(id, 'ack', null, { delay: 900 }); } break;
       case 'stop': if (ok(`${id}:done`, 4 * 60e3)) work(id, 'done', { task: short(s.task || e.label, 60) }, { react: ['👍', '❤️'], reacts: 2, answer: [{ key: 'done', chance: 0.25 }] }); break;
       case 'wait': case 'ask': if (ok(`${id}:wait`, 3 * 60e3)) work(id, e.type, null, { now: true }); break;

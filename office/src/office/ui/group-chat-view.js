@@ -423,21 +423,25 @@ const folderOf = (s) => { const d = String(s?.dir || '').replace(/\/+$/, ''); re
 const statusOf = (s) => tr(s.status === 'rest' ? 'chat.memberRest' : s.status === 'wait' ? 'chat.memberWait' : 'chat.memberWork');
 // @: every conversation (not only those in the office now), newest first, with its folder and what it's doing; one with
 // Remote Control also gets "Giao việc ↗", which opens it in the Claude app (the real way to give it work)
+const foldQ = (x) => String(x || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/gi, 'd').toLowerCase().trim();
+const AT_TAIL = /@([^@\n]{0,24})$/;   // what is typed after the last @ (spaces allowed: agent names have them)
 function mentions() {
-  const m = /@([^\s@]*)$/.exec(input.value.slice(0, input.selectionStart));
+  const m = AT_TAIL.exec(input.value.slice(0, input.selectionStart));
   if (!m) { mentionEl.hidden = true; return; }
-  const q = m[1].toLowerCase();
-  const list = [...sessions.values()].filter((s) => `${dn(s)} ${s.dir || ''}`.toLowerCase().includes(q)).sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0)).slice(0, 8);
+  const q = foldQ(m[1]);
+  const rank = (s) => { const n = foldQ(dn(s)); return !q || n.startsWith(q) ? 0 : n.split(/\s+/).some((w) => w.startsWith(q)) ? 1 : n.includes(q) ? 2 : foldQ(s.dir).includes(q) ? 3 : 9; };
+  const list = [...sessions.values()].map((s) => [rank(s), s]).filter(([r]) => r < 9).sort((a, b) => a[0] - b[0] || (b[1].lastAt || 0) - (a[1].lastAt || 0)).slice(0, 8).map(([, s]) => s);
+  if (!list.length && /\s/.test(m[1])) { mentionEl.hidden = true; return; }   // (a space and nothing matches: it is just a sentence)
   if (!list.length) { mentionEl.replaceChildren(el('small', 'zc-men-empty', tr('chat.noSessions'))); mentionEl.hidden = false; return; }
   mentionEl.replaceChildren(...list.map((s) => {
     const row = el('div', 'zc-men-row'), b = el('button', 'zc-men-o'); b.type = 'button';
     const t = el('span', 'zc-men-t'); t.append(el('b', null, dn(s)), el('small', null, `📁 ${folderOf(s)} · ${statusOf(s)}`));
     b.append(avatar(faceOf(s.id, dn(s)), 30), t);
     b.addEventListener('pointerdown', (e) => e.preventDefault());   // (the input keeps the keyboard up)
-    b.addEventListener('click', () => { const pos = input.selectionStart, before = input.value.slice(0, pos).replace(/@[^\s@]*$/, `@${dn(s)} `); input.value = before + input.value.slice(pos); input.setSelectionRange(before.length, before.length); mentionEl.hidden = true; syncBar(); input.focus(); });
+    b.addEventListener('click', () => { const pos = input.selectionStart, before = input.value.slice(0, pos).replace(AT_TAIL, `@${dn(s)} `); input.value = before + input.value.slice(pos); input.setSelectionRange(before.length, before.length); mentionEl.hidden = true; syncBar(); input.focus(); });
     const task = el('button', 'zc-men-task'); task.type = 'button'; task.title = tr('chat.task.title'); task.append(icon('clipboard'));
     task.addEventListener('pointerdown', (e) => e.preventDefault());
-    task.addEventListener('click', () => { mentionEl.hidden = true; openTaskSheet(root, { to: { id: s.id }, text: input.value.replace(/@[^\s@]*$/, '').trim() }); });
+    task.addEventListener('click', () => { mentionEl.hidden = true; openTaskSheet(root, { to: { id: s.id }, text: input.value.replace(AT_TAIL, '').trim() }); });
     row.append(b, task);
     if (s.link) { const go = el('a', 'zc-men-go', tr('chat.giveWork')); go.href = s.link; go.target = '_blank'; go.rel = 'noopener'; row.append(go); }
     return row;

@@ -141,3 +141,11 @@ test('gọi agent bằng tên vai trò hoặc có dấu ngoặc kép vẫn đún
   for (const text of ['@Kiểm kho hàng giúp', '@Kiểm kho còn áo AC001 không', '@"Kho hàng" báo cáo', '@Kho hàng, còn nón len không?', 'kiểm kho đi']) assert.equal(agents.route(text).agent.role, 'inventory', text);
   assert.equal(agents.route('@"Tìm hàng" tìm áo').agent.role, 'search');
 });
+
+test('lời chào: mỗi vai trò một câu tiếng Việt, agent từng khách không tự chào', () => {
+  const { greeting } = require('../lib/greet');
+  for (const role of ['cskh', 'search', 'quote', 'post', 'leads', 'inventory', 'assistant', 'commenter', 'custom']) assert.match(greeting({ name: 'X', role }), /Chào chủ shop/, role);
+  assert.equal(greeting({ name: 'KH', role: 'khach', kind: 'customer' }), '');
+  assert.match(greeting({ role: 'cskh' }, { hour: 8, customers: 3 }), /buổi sáng.*3 khách/);
+  assert.match(greeting({ role: 'commenter' }, { scanOn: false }), /chưa bật/);
+});

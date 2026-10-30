@@ -56,3 +56,22 @@ test('thông điệp không phải JSON được chuyển nguyên, không làm h
   t.send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
   await t.waitFor(1); assert.equal(opened, 0); t.close();
 });
+
+test('tắt hẳn Chrome dùng chung khi rảnh: đóng qua cổng điều khiển, ghi nhận thời điểm dùng cuối', async (t) => {
+  process.env.TBO_CDP_PORT = '9447';
+  delete require.cache[require.resolve('../lib/browser')];
+  const browser = require('../lib/browser');
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), { spawn } = require('node:child_process');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tbo-ch-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  assert.equal(browser.idleMs(dir), 0, 'chưa có dấu: coi như vừa dùng');
+  fs.writeFileSync(path.join(dir, 'chrome-last-use'), String(Date.now() - 20 * 60e3));
+  assert.ok(browser.idleMs(dir) >= 20 * 60e3 - 50); browser.touch(dir); assert.ok(browser.idleMs(dir) < 2000);
+  const bin = browser.findChrome(); if (!bin) return t.skip('máy không có Chrome');
+  const child = spawn(bin, ['--headless=new', '--no-sandbox', '--user-data-dir=' + path.join(dir, 'p'), '--remote-debugging-port=9447', 'about:blank'], { stdio: 'ignore' });
+  t.after(() => { try { child.kill(); } catch { /* đã tắt */ } });
+  for (let i = 0; i < 40 && !(await browser.up()); i++) await new Promise((r) => setTimeout(r, 250));
+  assert.ok(await browser.up(), 'Chrome thử đã mở');
+  assert.ok(await browser.close(), 'đã tắt');
+  assert.equal(await browser.up(), false);
+});

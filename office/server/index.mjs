@@ -500,7 +500,7 @@ const CHAT_FILE = path.join(DATA_DIR, 'chat.json');
 let chat = null, chatSaveT = null;
 const STAFF_NAME = { __reception: 'people.staff.receptionist', __hr: 'people.staff.hr', __cleaner: 'people.staff.cleaner', __accountant: 'people.accountant.name', __guard: 'people.guard.name', __director: 'people.director', __courier: 'people.staff.shipper' };
 chat = createChatEngine({
-  tr, now: () => Date.now(),
+  tr, now: () => Date.now(), quiet: () => process.env.OFFICE_ONLY_AGENTS === '1',   // trong app: không có tin "thêm vào nhóm" / "rời nhóm"
   members: () => [...sessions.values()].map((s) => ({ id: s.id, name: s.title || s.name || 'claude', status: s.status, task: s.lastPrompt ? clip(oneLine(unwrapPaste(s.lastPrompt)), 80) : '', last: s.last, project: path.basename(s.cwd || '') })),
   staffName: (key) => (STAFF_NAME[key] ? tr(STAFF_NAME[key]) : null),
   store: {
@@ -601,6 +601,10 @@ async function doScan() {
     if (s.sid && s.cwd && !s.titleAt) { refreshTitle(s, true); originOf(s).then((o) => { if (o && o !== s.origin) { s.origin = o; broadcast({ k: 'sess', s: pub(s) }); } }); }
   }
   for (const [key, s] of sessions) {
+    if (ONLY_AGENTS && s.sid && agentName(s.sid)) {   // agent của app: tiến trình claude hết việc thì ngồi chơi tại bàn, không rời nhóm
+      if (!live.has(key) && (s.busy || s.status !== 'rest')) { s.busy = false; s.status = 'rest'; broadcast({ k: 'sess', s: pub(s) }); }
+      continue;
+    }
     if (s.fromFile && !live.has(key) && !(s.parked && Date.now() - s.parked.at < PARK_MS)) dropSession(key, s);   // (a moved one waits at its desk)
   }
 }
@@ -646,12 +650,26 @@ async function recallTask(s) {
   broadcast({ k: 'sess', s: pub(s) });
 }
 function dropSession(key, s) {
-  if (s.fromFile && !taskSids.has(s.sid)) chat.onLeft(s.title || s.name);
+  if (!ONLY_AGENTS && s.fromFile && !taskSids.has(s.sid)) chat.onLeft(s.title || s.name);
   sessions.delete(key);
   if (s.sid && sidToKey.get(s.sid) === key) sidToKey.delete(s.sid);
   broadcast({ k: 'gone', id: s.id });
 }
+// Chạy trong app: mỗi agent trong agent-names.json luôn có một người ngồi chơi trong văn phòng; agent đã xoá thì rời đi lặng lẽ.
+function syncAppAgents() {
+  let names; try { names = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'agent-names.json'), 'utf8')); } catch { return; }
+  for (const [sid, name] of Object.entries(names)) {
+    if (!name) continue;
+    let s = bySid(sid);
+    if (!s) {
+      s = newSession('s' + sid); s.sid = sid; s.name = name; s.title = name; s.customTitle = name; s.lastEventAt = Date.now();
+      sessions.set(s.key, s); sidToKey.set(sid, s.key); broadcast({ k: 'sess', s: pub(s) });
+    } else if (s.title !== name) { s.title = name; s.customTitle = name; broadcast({ k: 'sess', s: pub(s) }); }
+  }
+  for (const [key, s] of sessions) if (s.sid && !names[s.sid]) dropSession(key, s);
+}
 setInterval(() => {
+  if (ONLY_AGENTS) syncAppAgents();
   scanSessions();
   rollDay();
   const now = Date.now();
@@ -660,7 +678,7 @@ setInterval(() => {
     // suite) is not quiet; a tool still open after 10 minutes probably lost its PostToolUse.
     if (s.status === 'work' && !s.busy && (!s.inTool || now - s.lastEventAt > 600_000) && now - s.lastEventAt > 20_000) { s.status = 'rest'; broadcast({ k: 'sess', s: pub(s) }); }
     // Sessions seen only through hooks (no session file) leave after 10 quiet minutes.
-    if (!s.fromFile && now - s.lastEventAt > 600_000) dropSession(key, s);
+    if (!s.fromFile && now - s.lastEventAt > 600_000 && !(ONLY_AGENTS && agentName(s.sid))) dropSession(key, s);   // (agent của app ở lại văn phòng)
     // A subagent that went quiet is finished: 90 s once its session rests, 5 min while the session still works.
     for (const [id, sub] of Object.entries(s.subs)) if (now - sub.seenAt > (s.status === 'rest' ? 90_000 : 300_000)) { finishSub(s, id, now); broadcast({ k: 'sess', s: pub(s) }); }
   }
@@ -729,7 +747,7 @@ async function onHook(p) {
       break;
     case 'SessionEnd':
       e = mk('end', p.reason || '');
-      if (!s.fromFile) setTimeout(() => dropSession(s.key, s), 1500);
+      if (!s.fromFile && !ONLY_AGENTS) setTimeout(() => dropSession(s.key, s), 1500);
       break;
     case 'UserPromptSubmit': {
       s.status = 'work';
