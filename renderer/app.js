@@ -664,6 +664,7 @@ $('#customers-export').onclick = async () => {
     status.classList.add('err'); status.textContent = `Không xuất được tệp Excel: ${error.message}`;
   } finally { button.disabled = false; }
 };
+$('#orders-open').onclick = () => openOrders(); // đơn order: thêm, sửa, xoá từng dòng (trước đây chỉ mở được từ hộp Khách đã bị bỏ)
 $('#customers-local-open').onclick = async () => {
   $('#lc-q').value = ''; selectedLocalCustomers.clear(); await loadLocalCustomers(); dlgLocalCustomers.showModal();
 };
