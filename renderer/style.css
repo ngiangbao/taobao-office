@@ -29,7 +29,9 @@ dialog.wide{width:min(860px,94vw)}
 .hist-head select{width:auto;min-width:150px}.hist-head input{flex:1;min-width:160px;width:auto}
 .hist-list{max-height:62vh;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:2px}
 .hist-day{position:sticky;top:0;background:var(--bg);color:var(--mute);font-size:12px;padding:6px 0 2px;border-bottom:1px solid var(--line)}
-.h-item{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
+.h-item{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 34px 8px 10px;white-space:pre-wrap;word-break:break-word}
+.h-del{position:absolute;top:6px;right:6px;display:none;background:transparent;border:1px solid var(--line);color:var(--mute);padding:0 6px;font-size:12px;line-height:20px;border-radius:6px}
+.h-item:hover .h-del{display:block}.h-del:hover{color:#f99;border-color:#a33}
 .h-item .meta{color:var(--mute);font-size:12px;margin-bottom:2px}
 .h-item.user{border-color:#4a3322;background:#2b2118}.h-item.handoff{border-style:dashed}.h-item.error{border-color:#a33;color:#f99}
 .hist-foot{display:flex;justify-content:center;padding-top:8px}

@@ -116,6 +116,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('cfg:get', () => ({ cfg: loadCfg(), claude: findClaude(loadCfg().claudePath) }));
   ipcMain.handle('cfg:set', (_, c) => { fs.writeFileSync(cfgPath, JSON.stringify(c, null, 2)); return true; });
   ipcMain.handle('history:query', (_, o) => history.query(o || {}));
+  ipcMain.handle('history:delete', (_, o) => history.remove(o || {}));
   ipcMain.handle('history:open', () => shell.openPath(history.dir));
   ipcMain.handle('log:open', () => shell.openPath(dataDir));
   ipcMain.handle('agents:list', () => ({ agents: agents.list().map((a) => ({ ...a, busy: dispatcher?.isBusy(a.id) || false })), templates: Object.fromEntries(Object.entries(TEMPLATES).map(([k, v]) => [k, { label: v.label, prompt: v.prompt }])) }));
@@ -124,7 +125,7 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('agents:remove', (_, id) => { children.get(id)?.kill(); agents.remove(id); pushAgents(); return true; });
   ipcMain.handle('agents:reset', (_, id) => { if (dispatcher.isBusy(id)) return false; const a = agents.reset(id); pushAgents(); if (a) introduce(a); return true; });
-  ipcMain.handle('agents:stop', () => { for (const c of children.values()) c.kill(); return true; });
+  ipcMain.handle('agents:stop', () => { dispatcher?.stopAll(); for (const c of children.values()) c.kill(); return true; });
   ipcMain.handle('login:open', async () => browser.open(dataDir, ['https://www.facebook.com/', 'https://www.taobao.com/']));
 
   createWindow();
@@ -135,6 +136,7 @@ app.whenReady().then(async () => {
     hooksFile = writeHookSettings(office.dir, office.port, dataDir);
     dispatcher = createDispatcher({
       officeUrl: () => office.url, agents, run: runAgent, uploadsDir: path.join(dataDir, 'uploads'), history,
+      killAgent: (id) => children.get(id)?.kill(),
       onStatus: pushAgents, log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
     });
     dispatcher.start();

@@ -11,6 +11,7 @@
     "start": "electron .",
     "prestart": "node scripts/sync-icons.mjs",
     "icons": "node scripts/sync-icons.mjs",
+    "test": "node scripts/test-dispatcher.cjs",
     "prepare:office": "node scripts/prepare-office.mjs",
     "dist:linux": "npm run icons && npm run prepare:office && electron-builder --linux AppImage deb --publish never",
     "dist:win": "npm run icons && npm run prepare:office && electron-builder --win nsis --publish never",

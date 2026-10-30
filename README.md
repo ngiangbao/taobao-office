@@ -13,6 +13,8 @@
 - **Trình duyệt dùng chung**: một cửa sổ Chrome (đăng nhập Facebook/Taobao một lần bằng nút "Đăng nhập FB/Taobao"), mỗi agent mở tab riêng.
 - **Duyệt trước khi đăng**: agent chỉ soạn nháp; đăng/comment khi bạn trả lời "duyệt" (bằng lời nhắc hệ thống, chưa phải khóa kỹ thuật).
 - **Lịch sử chat lưu mãi mãi** trên máy (`history/YYYY-MM.jsonl`), xem và tìm kiếm bằng nút "Lịch sử".
+  Xoá được từng tin: rê chuột lên tin trong cửa sổ Lịch sử rồi bấm ✕. Tin nhắn bị **thu hồi** trong nhóm chat
+  (rê chuột lên bong bóng của bạn → nút Thu hồi) cũng dừng ngay việc agent đang làm và biến khỏi lịch sử.
 - **Tự cập nhật** từ GitHub Releases (Windows, Linux AppImage). macOS chưa ký nên phải cập nhật tay.
 
 ## Chạy
@@ -29,6 +31,7 @@ Yêu cầu: Node 20+, Claude Code đã cài và đăng nhập, Chrome/Chromium c
 - Sau `npm install`, nếu `npm start` báo không tìm thấy Electron thì chạy `node node_modules/electron/install.js`
   (npm 11 chặn script cài đặt của gói nên binary Electron chưa được tải).
 - Sửa giao diện văn phòng: `cd office && npm run dev`, rồi `npx next build` lại trước khi đóng gói.
+- Kiểm thử nhanh phần giao việc (không cần Electron hay Claude): `node scripts/test-dispatcher.cjs`.
 - Ảnh biểu tượng có một nguồn duy nhất: `build/icon.svg` → `build/icon.png` (1024×1024) → `build/icon.ico` (Windows).
   `npm start` và `npm run dist:*` tự chép `build/icon.png` sang `renderer/icon.png` cho biểu tượng cửa sổ lúc chạy.
   Khi sửa biểu tượng:
