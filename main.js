@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, nativeImage, dialog, safeStorage } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { runClaude, findClaude } = require('./lib/claude');
@@ -13,12 +13,15 @@ const { weekStats } = require('./lib/stats');
 const { createCustomers } = require('./lib/customers');
 const { createRevenue, parseVnd } = require('./lib/revenue');
 const { createInbox, READER_PROMPT } = require('./lib/inbox');
+const { importGroups } = require('./lib/google-sheets');
+const { buildCustomerRows, createCustomerWorkbook } = require('./lib/customer-export');
+const { createGooglePrivateSync, spreadsheetId } = require('./lib/google-private-sync');
 const crypto = require('node:crypto');
 
 const DEFAULT_CFG = {
   shopName: 'Cửa hàng của tôi',
   rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12,
-  tone: 'thân thiện, xưng "shop", gọi khách là "bạn"', browser: 'playwright', claudePath: '', groups: [],
+  tone: 'thân thiện, xưng "shop", gọi khách là "bạn"', browser: 'playwright', claudePath: '', groupsSheetUrl: '', groups: [],
   inboxMinutes: 0, inboxUrl: 'https://business.facebook.com/latest/inbox/all', // đọc hộp thư Messenger tự động (0 = tắt)
   followupMinutes: 10, followupMax: 1, // khách im lặng bấy nhiêu phút thì agent soạn tin nhắc (tối đa bấy nhiêu lần)
   photoSearchSeconds: 6, // chủ shop gửi ảnh sản phẩm: chờ bấy nhiêu giây xem có lời nhắn đi kèm không, nếu không thì giao cho đúng một agent tìm hàng (0 = tắt)
@@ -29,7 +32,7 @@ const DEFAULT_AGENTS = [
   { name: 'Chăm sóc khách', role: 'cskh' }, { name: 'Tìm hàng', role: 'search' }, { name: 'Báo giá', role: 'quote' },
   { name: 'Đăng bài', role: 'post' }, { name: 'Tìm khách', role: 'leads' },
 ];
-let dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, agents, dispatcher, history, customers, revenue, inbox, approvals, gateOk = false;
+let dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, agents, dispatcher, history, customers, revenue, inbox, approvals, googleSync, syncCloud, gateOk = false;
 const children = new Map(); // agentId -> process đang chạy
 const ICON = path.join(__dirname, 'renderer', 'icon.png');
 
@@ -199,6 +202,12 @@ app.whenReady().then(async () => {
   dataDir = path.join(app.getPath('userData'), 'workspace');
   fs.mkdirSync(path.join(dataDir, 'uploads'), { recursive: true });
   cfgPath = path.join(dataDir, 'config.json');
+  googleSync = createGooglePrivateSync({
+    tokenFile: path.join(dataDir, 'google-sync', 'token.enc'),
+    credentialsFile: path.join(dataDir, 'google-sync', 'credentials.enc'),
+    safeStorage,
+    openExternal: (url) => shell.openExternal(url),
+  });
   const firstRun = !fs.existsSync(path.join(dataDir, 'agents.json'));
   agents = createAgents(dataDir);
   history = createHistory(dataDir);
@@ -210,7 +219,86 @@ app.whenReady().then(async () => {
   ipcMain.handle('office:url', () => office?.url || null);
   ipcMain.handle('cfg:get', () => ({ cfg: loadCfg(), claude: findClaude(loadCfg().claudePath) }));
   ipcMain.handle('cfg:set', (_, c) => { fs.writeFileSync(cfgPath, JSON.stringify(c, null, 2)); win?.setTitle(loadCfg().shopName); writeStats(); return true; });
+  ipcMain.handle('groups:import', async (_, url) => {
+    try { return { ok: true, groups: await importGroups(url) }; }
+    catch (e) { return { ok: false, error: e.message }; }
+  });
+  syncCloud = async () => {
+    if (dispatcher?.anyBusy()) throw new Error('Đang có agent làm việc; hãy đồng bộ lại khi các agent đã xong.');
+    const cfg = loadCfg();
+    if (!cfg.syncSpreadsheetUrl) throw new Error('Hãy nhập địa chỉ Google Sheets riêng tư trong Cài đặt.');
+    const result = await googleSync.sync({
+      sheetUrl: cfg.syncSpreadsheetUrl,
+      customers,
+      revenue,
+      profileFor(customer) {
+        const agent = agents.get(customer.agentId);
+        if (!agent) return '';
+        try { return fs.readFileSync(customers.profileFile(agent), 'utf8'); }
+        catch (error) { if (error.code === 'ENOENT') return ''; throw error; }
+      },
+      profileModifiedAt(customer) {
+        const agent = agents.get(customer.agentId);
+        if (!agent) return 0;
+        try { return fs.statSync(customers.profileFile(agent)).mtimeMs; }
+        catch (error) { if (error.code === 'ENOENT') return 0; throw error; }
+      },
+      mergeCustomer(remote) {
+        const customer = customers.mergeSynced(remote);
+        const agent = agents.get(customer.agentId);
+        if (!agent || typeof remote.profile !== 'string') return;
+        const file = customers.profileFile(agent);
+        let current = '';
+        try { current = fs.readFileSync(file, 'utf8'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+        if (current !== remote.profile) fs.writeFileSync(file, remote.profile, { mode: 0o600 });
+      },
+    });
+    writeStats(); pushCustomers();
+    return result;
+  };
+  ipcMain.handle('sync:status', () => googleSync.status());
+  ipcMain.handle('sync:connect', async (_, data) => {
+    try {
+      const sheetUrl = String(data?.sheetUrl || '').trim();
+      spreadsheetId(sheetUrl);
+      const clientId = String(data?.clientId || '').trim();
+      const clientSecret = String(data?.clientSecret || '').trim();
+      const cfg = loadCfg(); cfg.syncSpreadsheetUrl = sheetUrl; cfg.syncClientId = clientId;
+      fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), { mode: 0o600 });
+      const account = await googleSync.authorize({ clientId, clientSecret });
+      const result = await syncCloud();
+      return { ok: true, email: account.email, ...result };
+    } catch (error) { return { ok: false, error: error.message }; }
+  });
+  ipcMain.handle('sync:now', async () => {
+    try { return { ok: true, ...await syncCloud() }; }
+    catch (error) { return { ok: false, error: error.message }; }
+  });
+  ipcMain.handle('sync:disconnect', () => {
+    try { googleSync.disconnect(); return { ok: true }; }
+    catch (error) { return { ok: false, error: error.message }; }
+  });
   ipcMain.handle('customers:list', () => custList());
+  ipcMain.handle('customers:export', async () => {
+    try {
+      const { canceled, filePath } = await dialog.showSaveDialog(win, {
+        title: 'Xuất danh sách khách hàng',
+        defaultPath: path.join(app.getPath('documents'), `Danh-sach-khach-hang-${new Date().toISOString().slice(0, 10)}.xlsx`),
+        filters: [{ name: 'Tệp Excel', extensions: ['xlsx'] }],
+      });
+      if (canceled || !filePath) return { ok: false, canceled: true };
+
+      const rows = buildCustomerRows(customers.all(), revenue.list(), (customer) => {
+        const agent = agents.get(customer.agentId);
+        if (!agent) return '';
+        try { return fs.readFileSync(customers.profileFile(agent), 'utf8'); }
+        catch (error) { if (error.code === 'ENOENT') return ''; throw error; }
+      });
+      const buffer = await createCustomerWorkbook(rows);
+      fs.writeFileSync(filePath, buffer, { mode: 0o600 });
+      return { ok: true, filePath, count: rows.length };
+    } catch (error) { return { ok: false, error: error.message }; }
+  });
   ipcMain.handle('customers:rename', (_, d) => { const ok = customers.rename(d.code, d.name); pushCustomers(); return ok; });
   ipcMain.handle('customers:pause', (_, d) => { const c = customers.byCode(d.code); if (!c) return false; c.paused = !!d.paused; if (c.paused) c.followupDue = 0; customers.save(); pushCustomers(); return true; });
   ipcMain.handle('customers:refresh', (_, code) => { const c = customers.byCode(code), a = c && agents.get(c.agentId); if (!a || dispatcher.isBusy(a.id)) return false; dispatcher.refresh(a, 'theo yêu cầu'); return true; });
@@ -275,6 +363,20 @@ app.whenReady().then(async () => {
     dispatcher.start();
     inbox = createInbox({ dataDir, runReader, deliver: (msg) => dispatcher.deliverInbound(msg), getCfg: loadCfg, onResult: (r) => send('inbox:result', r) });
     inbox.start();
+    let syncing = false;
+    const backgroundSync = async () => {
+      if (syncing || !loadCfg().syncSpreadsheetUrl || !googleSync.status().connected || dispatcher.anyBusy()) return;
+      syncing = true;
+      try {
+        const result = await syncCloud();
+        send('sync:update', { ok: true, ...result, at: Date.now() });
+      } catch (error) {
+        console.error('Đồng bộ Google Sheets:', error.message);
+        send('sync:update', { ok: false, error: error.message, at: Date.now() });
+      } finally { syncing = false; }
+    };
+    setTimeout(backgroundSync, 10000);
+    setInterval(backgroundSync, 120000);
     if (approvals.recovered) setTimeout(() => dispatcher.sys(`⚠️ App bị tắt giữa lúc đang đăng ${approvals.recovered} đề xuất: hãy kiểm tra trên Facebook xem đã đăng chưa trước khi đăng lại (mở Chờ duyệt để xem).`), 3000);
     writeStats(); setInterval(writeStats, 5000);
     send('office:ready', office.url);

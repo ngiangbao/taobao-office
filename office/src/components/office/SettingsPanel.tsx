@@ -105,8 +105,6 @@ export default async function SettingsPanel() {
             ))}
           </div>
 
-          <h3>{t('ui.topBar.more')}</h3>
-          <div className="pop-toggles">{toggle('zones', false)}{toggle('stream', false)}{toggle('autocam', true)}</div>
         </section>
 
         <section className="st-panel" id="st-panel-more" role="tabpanel" aria-labelledby="st-tab-more" data-st-panel="more" hidden>
@@ -118,7 +116,7 @@ export default async function SettingsPanel() {
           </div>
           </div>
           <h3>{t('settings.behaviour')}</h3>
-          <div className="pop-toggles">{toggle('sound', true)}{toggle('perm', true)}</div>
+          <div className="pop-toggles">{toggle('zones', false)}{toggle('stream', false)}{toggle('autocam', true)}{toggle('sound', true)}{toggle('perm', true)}</div>
           <div className="pop-acts"><button id="btn-tips" className="tb-btn" type="button"><span data-icon="sparkle"></span><span className="lbl">{t('tips.again')}</span></button></div>
         </section>
       </div>

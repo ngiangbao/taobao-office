@@ -34,7 +34,9 @@
       <h2>Cài đặt</h2>
       <button type="button" data-nav="shop" class="on">Cửa hàng</button>
       <button type="button" data-nav="post">Đăng bài và ảnh</button>
+      <button type="button" data-nav="groups">Danh sách nhóm</button>
       <button type="button" data-nav="cust">Khách hàng</button>
+      <button type="button" data-nav="sync">Đồng bộ thiết bị</button>
       <button type="button" data-nav="conn">Kết nối tài khoản</button>
       <button type="button" data-nav="hist">Lịch sử chat</button>
       <button type="button" data-nav="office">Văn phòng 3D</button>
@@ -53,7 +55,6 @@
             <label>Phí dịch vụ (%)<input name="servicePct" type="number" step="any"></label>
           </div>
           <label>Giọng văn của shop<input name="tone" type="text"></label>
-          <label>Nhóm Facebook (mỗi dòng: Tên | link | ghi chú)<textarea name="groups" rows="6"></textarea></label>
         </section>
         <section data-sec="post" hidden>
           <h3>Đăng bài và ảnh</h3>
@@ -63,6 +64,13 @@
             <label>Giãn cách giữa hai lần đăng (giây)<input name="publishGapSeconds" type="number" min="0"></label>
             <label>Gửi ảnh sản phẩm: chờ bao nhiêu giây rồi tự tìm hàng (0 = tắt)<input name="photoSearchSeconds" type="number" min="0"></label>
           </div>
+        </section>
+        <section data-sec="groups" hidden>
+          <h3>Danh sách nhóm</h3>
+          <p class="hint">Dán liên kết Google Sheets công khai có cột tên nhóm và link nhóm Facebook. Bảng cần cho phép “Bất kỳ ai có liên kết đều có thể xem”; có thể đặt tiêu đề cột ở dòng đầu.</p>
+          <label>Địa chỉ Google Sheets<input name="groupsSheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit?usp=sharing"></label>
+          <p id="s-groups-msg" class="hint" aria-live="polite"></p>
+          <div id="s-groups-list" class="group-list" aria-live="polite"></div>
         </section>
         <section data-sec="cust" hidden>
           <h3>Khách hàng</h3>
@@ -76,6 +84,16 @@
             <label>Địa chỉ hộp thư<input name="inboxUrl" type="text"></label>
           </div>
           <p class="hint">Đọc hộp thư dùng Chrome đã đăng nhập và chỉ đọc. Mở cuộc trò chuyện sẽ hiện "đã xem" với khách.</p>
+        </section>
+        <section data-sec="sync" hidden>
+          <h3>Đồng bộ thiết bị</h3>
+          <p class="hint">Dùng Google Sheets riêng tư làm nơi đồng bộ khách hàng, hồ sơ và sổ thu giữa các máy. Mỗi máy đăng nhập cùng tài khoản Google và dùng cùng bảng tính. Dữ liệu chỉ người được cấp quyền trong Google Sheets xem được.</p>
+          <label>Địa chỉ Google Sheets riêng tư<input name="syncSpreadsheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit"></label>
+          <label>OAuth Client ID (ứng dụng Desktop)<input name="syncClientId" type="text" autocomplete="off"></label>
+          <label>OAuth Client Secret<input name="syncClientSecret" type="password" autocomplete="new-password"></label>
+          <p class="hint">Trong <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console</a>, bật Google Sheets API, cấu hình màn hình đồng ý OAuth (thêm tài khoản Google vào danh sách thử nghiệm nếu ứng dụng đang ở chế độ kiểm thử) rồi tạo OAuth Client loại Desktop. Dùng một bảng tính không bật chia sẻ công khai. Trên mọi máy, nhập cùng Client ID/Secret, cùng link bảng tính và đăng nhập cùng tài khoản Google. Ứng dụng mã hóa token đăng nhập bằng kho khóa của hệ điều hành; không gửi token hay thông tin đăng nhập cho bên thứ ba.</p>
+          <div class="row-btns"><button type="button" id="s-sync-connect">Kết nối Google và đồng bộ</button><button type="button" id="s-sync-now" class="ghost">Đồng bộ ngay</button><button type="button" id="s-sync-disconnect" class="ghost">Ngắt kết nối</button></div>
+          <p id="s-sync-status" class="hint" aria-live="polite">Chưa kết nối Google.</p>
         </section>
         <section data-sec="conn" hidden>
           <h3>Kết nối tài khoản</h3>
@@ -117,8 +135,9 @@
 </dialog>
 
 <dialog id="dlg-cust" class="wide">
-  <div class="hist-head"><h3>Khách hàng</h3><input id="c-q" type="search" placeholder="Tìm theo tên hoặc mã…"><button id="c-close" class="ghost">Đóng</button></div>
-  <p class="hint">Mỗi khách có <b>một agent riêng</b> và một <b>mã định danh</b> chỉ bạn và agent đó biết. Khách nhắn lại, agent của họ tự dậy với đầy đủ hồ sơ.</p>
+  <div class="hist-head"><h3>Khách hàng</h3><input id="c-q" type="search" placeholder="Tìm theo tên hoặc mã…"><button id="c-export" class="ghost">Xuất Excel</button><button id="c-close" class="ghost">Đóng</button></div>
+  <p class="hint">Mỗi khách có <b>một agent riêng</b> và một <b>mã định danh</b> chỉ bạn và agent đó biết. Khách nhắn lại, agent của họ tự dậy với đầy đủ hồ sơ. Bấm “Xuất Excel” để lưu toàn bộ khách hàng; số điện thoại, địa chỉ và size lấy từ hồ sơ nếu đã có.</p>
+  <p id="c-export-msg" class="hint" aria-live="polite"></p>
   <div id="c-list" class="hist-list"></div>
   <pre id="c-profile" class="profile" hidden></pre>
 </dialog>

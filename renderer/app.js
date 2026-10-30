@@ -8,13 +8,20 @@ let templates = {};
 const api = window.api || (() => {
   let list = [{ id: 'a', name: 'Báo giá', roleLabel: 'Báo giá', busy: false }, { id: 'b', name: 'Đăng bài', roleLabel: 'Đăng bài nhóm', busy: true }];
   return {
-    getCfg: async () => ({ cfg: { shopName: 'Lan Fashion', rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12, tone: '', browser: 'playwright', claudePath: '', groups: [] }, claude: null }),
+    getCfg: async () => ({ cfg: { shopName: 'Lan Fashion', rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12, tone: '', browser: 'playwright', claudePath: '', groupsSheetUrl: '', groups: [] }, claude: null }),
     setCfg: async () => true, openData: async () => {}, openLogin: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }),
+    importGroups: async () => ({ ok: false, error: 'Đọc Google Sheets chỉ có trong app desktop.' }),
+    syncStatus: async () => ({ connected: false, email: '' }),
+    connectSync: async () => ({ ok: false, error: 'Đồng bộ riêng tư chỉ có trong app desktop.' }),
+    syncNow: async () => ({ ok: false, error: 'Đồng bộ riêng tư chỉ có trong app desktop.' }),
+    disconnectSync: async () => ({ ok: false, error: 'Đồng bộ riêng tư chỉ có trong app desktop.' }),
+    onSync: () => {},
     listAgents: async () => ({ agents: list, templates: { quote: { label: 'Báo giá', prompt: 'Chuyên báo giá.' }, post: { label: 'Đăng bài nhóm', prompt: 'Chuyên đăng bài.' }, leads: { label: 'Tìm khách', prompt: 'Chuyên tìm khách.' }, custom: { label: 'Tùy chỉnh', prompt: '' } } }),
     addAgent: async (d) => { list = [...list, { id: String(Math.random()), name: d.name, roleLabel: d.role, busy: false }]; return { ok: true }; },
     removeAgent: async (id) => { list = list.filter((a) => a.id !== id); }, resetAgent: async () => true, stopAll: async () => true,
     historyQuery: async () => ({ items: [{ t: new Date().toISOString(), kind: 'user', agent: 'Báo giá', text: 'Báo giá áo khoác này' }, { t: new Date().toISOString(), kind: 'agent', agent: 'Báo giá', text: 'Đã báo giá xong (bản giả lập).' }], more: false }), historyDelete: async () => 1, openHistoryDir: async () => {},
     listCustomers: async () => [{ code: 'KH-7F3K9', name: 'Lan', agentName: 'Khách Lan', state: 'awake', busy: false, lastInboundAt: Date.now() - 600000, followupDue: Date.now() + 240000, paused: false, followupCount: 0, ctx: 42000 }, { code: 'KH-2M8QX', name: 'Hương', agentName: 'Khách Hương', state: 'asleep', busy: false, lastInboundAt: Date.now() - 86400000 * 3, followupDue: 0, paused: false, followupCount: 1, ctx: 8000 }],
+    exportCustomers: async () => ({ ok: false, error: 'Xuất Excel chỉ có trong app desktop.' }),
     renameCustomer: async () => true, pauseCustomer: async () => true, refreshCustomer: async () => true, customerProfile: async () => '# Hồ sơ khách Lan\n- Xưng hô: chị Lan\n- Size: M\n- Thích: màu be, dáng ngắn',
     onCustomers: () => {}, listRevenue: async () => ({ total: 936800, items: [{ id: 'a1', t: new Date().toISOString(), amount: 436800, name: 'Lan', code: 'KH-7F3K9', note: 'cọc áo khoác be', source: 'agent' }] }),
     addRevenue: async () => ({ ok: true }), voidRevenue: async () => true, inboxManual: async () => ({ ok: true, code: 'KH-NEW01', created: true }), inboxPoll: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), onInbox: () => {},
@@ -61,13 +68,25 @@ formA.addEventListener('submit', async (e) => {
 $('#btn-stop').onclick = () => api.stopAll();
 // ---------- Cửa sổ Cài đặt (kiểu Claude): mở từ nút bánh răng của văn phòng ----------
 const dlgS = $('#dlg-settings'), form = $('#cfgform');
-const FORM_SECS = ['shop', 'post', 'cust', 'conn']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
+const FORM_SECS = ['shop', 'post', 'groups', 'cust', 'sync', 'conn']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
 let curSec = 'shop', histAgent = '';
+function renderGroupList(groups) {
+  const box = $('#s-groups-list'); box.replaceChildren();
+  if (!groups.length) { const empty = document.createElement('p'); empty.className = 'hint'; empty.textContent = 'Chưa có danh sách nhóm. Nhập địa chỉ Google Sheets rồi bấm “Đọc danh sách và lưu”.'; box.append(empty); return; }
+  for (const group of groups) {
+    const row = document.createElement('div'); row.className = 'group-item';
+    const name = document.createElement('b'); name.textContent = group.name;
+    const url = document.createElement('span'); url.textContent = group.url;
+    row.append(name, url); box.append(row);
+  }
+}
 function showSection(id) {
   curSec = id;
   dlgS.querySelectorAll('.s-nav button').forEach((b) => b.classList.toggle('on', b.dataset.nav === id));
   dlgS.querySelectorAll('section[data-sec]').forEach((sec) => { sec.hidden = sec.dataset.sec !== id; });
   form.hidden = !FORM_SECS.includes(id);
+  $('#s-save').hidden = id === 'sync';
+  $('#s-save').textContent = id === 'groups' ? 'Đọc danh sách và lưu' : 'Lưu thay đổi';
   $('#s-saved').textContent = '';
   if (id === 'hist') { const ag = histAgent; histAgent = ''; initHist(ag); }
   if (id === 'about') api.version().then((v) => ($('#s-ver').textContent = v));
@@ -75,8 +94,14 @@ function showSection(id) {
 }
 async function fillSettings() {
   const { cfg, claude } = await api.getCfg();
-  for (const el of form.elements) if (el.name && el.name !== 'groups') el.value = cfg[el.name] ?? '';
-  form.elements.groups.value = cfg.groups.map((g) => [g.name, g.url || '', g.note || ''].join(' | ')).join('\n');
+  for (const el of form.elements) if (el.name) el.value = cfg[el.name] ?? '';
+  renderGroupList(cfg.groups || []);
+  $('#s-groups-msg').textContent = '';
+  form.elements.syncClientSecret.value = '';
+  const syncStatus = await api.syncStatus();
+  $('#s-sync-status').textContent = syncStatus.error
+    ? `Không đọc được thông tin bảo mật Google: ${syncStatus.error}`
+    : syncStatus.connected ? `Đã kết nối Google${syncStatus.email ? `: ${syncStatus.email}` : ''}.` : 'Chưa kết nối Google.';
   $('#claudeinfo').textContent = claude ? `Đã tìm thấy claude: ${claude}` : 'Chưa tìm thấy lệnh claude: cài Claude Code và đăng nhập (chạy `claude` một lần), hoặc nhập đường dẫn ở trên.';
 }
 async function openSettings(sec = curSec) { await fillSettings(); showSection(sec); if (!dlgS.open) dlgS.showModal(); }
@@ -86,13 +111,67 @@ dlgS.addEventListener('click', (e) => { if (e.target === dlgS) dlgS.close(); });
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const { cfg } = await api.getCfg();
+  if (curSec === 'sync') {
+    const status = $('#s-sync-status'); status.classList.remove('err'); status.textContent = 'Đang mở đăng nhập Google…';
+    const result = await api.connectSync({
+      clientId: form.elements.syncClientId.value,
+      clientSecret: form.elements.syncClientSecret.value,
+      sheetUrl: form.elements.syncSpreadsheetUrl.value,
+    });
+    form.elements.syncClientSecret.value = '';
+    status.classList.toggle('err', !result.ok);
+    status.textContent = result.ok
+      ? `Đã kết nối${result.email ? ` với ${result.email}` : ''}; đồng bộ ${result.customers} khách hàng và ${result.revenue} khoản thu.`
+      : `Không kết nối/đồng bộ được: ${result.error}`;
+    return;
+  }
+  if (curSec === 'groups') {
+    const sheetUrl = form.elements.groupsSheetUrl.value.trim();
+    let result;
+    try { result = await api.importGroups(sheetUrl); }
+    catch (error) {
+      $('#s-groups-msg').classList.add('err'); $('#s-groups-msg').textContent = `Không đọc được bảng tính: ${error.message}`;
+      return;
+    }
+    if (!result.ok) {
+      $('#s-groups-msg').classList.add('err'); $('#s-groups-msg').textContent = result.error;
+      return;
+    }
+    cfg.groupsSheetUrl = sheetUrl; cfg.groups = result.groups;
+    try { await api.setCfg(cfg); }
+    catch (error) {
+      $('#s-groups-msg').classList.add('err'); $('#s-groups-msg').textContent = `Không lưu được danh sách nhóm: ${error.message}`;
+      return;
+    }
+    renderGroupList(cfg.groups);
+    $('#s-groups-msg').classList.remove('err');
+    $('#s-groups-msg').textContent = `Đã lưu ${cfg.groups.length} nhóm. Agent sẽ dùng danh sách này khi soạn đề xuất đăng bài.`;
+    return;
+  }
   for (const k of ['rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
-  for (const k of ['tone', 'claudePath', 'inboxUrl']) cfg[k] = form.elements[k].value;
+  for (const k of ['tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
   cfg.shopName = form.elements.shopName.value.trim().slice(0, 40) || 'Cửa hàng của tôi';
   document.title = cfg.shopName;
-  cfg.groups = form.elements.groups.value.split('\n').map((l) => l.split('|').map((x) => x.trim())).filter((p) => p[0]).map(([name, url, note]) => ({ name, url, note }));
   await api.setCfg(cfg);
   $('#s-saved').textContent = 'Đã lưu ✓'; setTimeout(() => ($('#s-saved').textContent = ''), 3000);
+});
+$('#s-sync-connect').onclick = () => form.requestSubmit();
+$('#s-sync-now').onclick = async () => {
+  const status = $('#s-sync-status'); status.classList.remove('err'); status.textContent = 'Đang đồng bộ…';
+  const result = await api.syncNow();
+  status.classList.toggle('err', !result.ok);
+  status.textContent = result.ok ? `Đã đồng bộ ${result.customers} khách hàng và ${result.revenue} khoản thu.` : `Đồng bộ thất bại: ${result.error}`;
+};
+$('#s-sync-disconnect').onclick = async () => {
+  const result = await api.disconnectSync();
+  const status = $('#s-sync-status'); status.classList.toggle('err', !result.ok);
+  status.textContent = result.ok ? 'Đã ngắt kết nối Google trên thiết bị này. Dữ liệu trên Google Sheets không bị xóa.' : `Không ngắt được kết nối: ${result.error}`;
+};
+api.onSync((result) => {
+  const status = $('#s-sync-status');
+  if (!status || !dlgS.open || curSec !== 'sync') return;
+  status.classList.toggle('err', !result.ok);
+  status.textContent = result.ok ? `Đã đồng bộ ${result.customers} khách hàng và ${result.revenue} khoản thu.` : `Đồng bộ thất bại: ${result.error}`;
 });
 $('#s-login').onclick = async () => {
   const r = await api.openLogin();
@@ -228,6 +307,18 @@ function renderCusts() {
 const loadCusts = async () => { custs = await api.listCustomers(); renderCusts(); };
 api.onCustomers((l) => { custs = l; renderCusts(); });
 $('#btn-cust').onclick = async () => { cProf.hidden = true; await loadCusts(); dlgC.showModal(); renderCusts(); };
+$('#c-export').onclick = async () => {
+  const button = $('#c-export'), message = $('#c-export-msg');
+  button.disabled = true; message.classList.remove('err'); message.textContent = 'Đang tạo tệp Excel…';
+  try {
+    const result = await api.exportCustomers();
+    if (result.canceled) { message.textContent = 'Đã hủy xuất tệp.'; return; }
+    if (!result.ok) throw new Error(result.error);
+    message.textContent = `Đã xuất ${result.count} khách hàng: ${result.filePath}`;
+  } catch (error) {
+    message.classList.add('err'); message.textContent = `Không xuất được tệp Excel: ${error.message}`;
+  } finally { button.disabled = false; }
+};
 $('#c-q').oninput = renderCusts; $('#c-close').onclick = () => dlgC.close();
 loadCusts(); setInterval(() => { if (dlgC.open) loadCusts(); }, 15000);
 

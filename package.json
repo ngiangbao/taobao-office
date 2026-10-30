@@ -1,7 +1,7 @@
 {
   "name": "taobao-office",
   "desktopName": "taobao-office.desktop",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.1",
   "description": "Trợ lý order Taobao: chat với Claude, văn phòng 3D hiển thị việc đang làm",
   "main": "main.js",
   "author": "Taobao Office <noreply@example.com>",
@@ -83,6 +83,12 @@
   },
   "dependencies": {
     "@playwright/mcp": "^0.0.83",
-    "electron-updater": "^6.8.11"
+    "electron-updater": "^6.8.11",
+    "exceljs": "^4.4.0"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "^11.1.1"
+    }
   }
 }
