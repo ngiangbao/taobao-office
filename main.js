@@ -660,7 +660,7 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('agents:remove', (_, id) => { children.get(id)?.kill(); agents.remove(id); pushAgents(); return true; });
   ipcMain.handle('agents:reset', (_, id) => { if (dispatcher.isBusy(id)) return false; const a = agents.reset(id); pushAgents(); if (a) introduce(a); return true; });
-  ipcMain.handle('agents:stop', () => { dispatcher?.stopAll(); const c0 = loadCfg(); if (c0.commentScan) { fs.writeFileSync(cfgPath, JSON.stringify({ ...c0, commentScan: false }, null, 2)); dispatcher?.sys('⏹ Đã tắt tự động quét bảng tin của Trả lời comment. Bật lại trong Cài đặt khi cần.'); } for (const c of children.values()) c.kill(); return true; });
+  ipcMain.handle('agents:stop', () => { dispatcher?.stopAll(); const c0 = loadCfg(); if (c0.commentScan || c0.postAutoPost) { fs.writeFileSync(cfgPath, JSON.stringify({ ...c0, commentScan: false, postAutoPost: false }, null, 2)); dispatcher?.sys('⏹ Đã tắt tự động quét bảng tin và tự đăng bài; các bài đang chờ giờ tự đăng chuyển về chờ bạn duyệt. Bật lại trong Cài đặt khi cần.'); } for (const c of children.values()) c.kill(); return true; });
   ipcMain.handle('login:open', async () => browser.open(dataDir, ['https://www.facebook.com/', 'https://www.taobao.com/', 'https://www.1688.com/']));
 
   createWindow();

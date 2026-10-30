@@ -225,7 +225,8 @@ test('agent Đăng bài đặt lịch tự đăng khi bật; agent khác vẫn c
 test('điều khiển Chrome đầy đủ: bật thì agent thường bấm/gõ được nhưng vẫn không chạy mã tuỳ ý; tắt thì khoá như cũ; agent quét/đọc/khách không đổi', () => {
   const P = 'mcp__playwright__browser_';
   const full = policy('team', { scroll: true, full: true });
-  for (const t of ['click', 'type', 'fill_form', 'press_key', 'select_option', 'file_upload']) assert.ok(full.allowed.includes(P + t), t);
+  for (const t of ['click', 'type', 'fill_form', 'press_key', 'select_option']) assert.ok(full.allowed.includes(P + t), t);
+  for (const t of ['file_upload', 'drop']) assert.ok(full.denied.includes(P + t) && !full.allowed.includes(P + t), 'không tải tệp lên web: ' + t);
   for (const t of ['evaluate', 'run_code_unsafe', 'network_requests']) assert.ok(full.denied.includes(P + t) && !full.allowed.includes(P + t), t);
   assert.ok(full.denied.includes('Bash'));
   const locked = policy('team', { scroll: true });
@@ -243,7 +244,8 @@ test('chế độ extension Claude in Chrome: agent thường và người đăn
   const ro = policy('team', { ext: true }), fullp = policy('team', { ext: true, full: true }), pub = policy('publisher', { ext: true });
   for (const n of ['navigate', 'read_page', 'get_page_text']) assert.ok(ro.allowed.includes(C + n), n);
   for (const n of ['computer', 'form_input', 'file_upload']) assert.ok(!ro.allowed.includes(C + n) && ro.denied.includes(C + n), 'chỉ đọc: ' + n);
-  for (const n of ['computer', 'form_input', 'file_upload']) assert.ok(fullp.allowed.includes(C + n) && pub.allowed.includes(C + n), 'đầy đủ/người đăng: ' + n);
+  for (const n of ['computer', 'form_input']) assert.ok(fullp.allowed.includes(C + n) && pub.allowed.includes(C + n), 'đầy đủ/người đăng: ' + n);
+  assert.ok(pub.allowed.includes(C + 'file_upload'), 'chỉ người đăng được tải ảnh lên'); assert.ok(!fullp.allowed.includes(C + 'file_upload') && fullp.denied.includes(C + 'file_upload'), 'agent thường không tải tệp lên');
   for (const p of [ro, fullp, pub]) for (const n of ['javascript_tool', 'read_network_requests', 'shortcuts_execute']) assert.ok(p.denied.includes(C + n) && !p.allowed.includes(C + n), n);
   for (const kind of ['scanner', 'reader', 'customer', 'inventory']) assert.deepEqual(policy(kind, { scroll: true, ext: true }), policy(kind, { scroll: true }), kind + ' không đổi');
   const fs2 = require('node:fs'), os2 = require('node:os');
@@ -258,4 +260,16 @@ test('chế độ extension Claude in Chrome: agent thường và người đăn
       assert.ok(!(await run({ chromeMode: 'app' })).includes('--chrome'));
     } finally { fs2.rmSync(dir, { recursive: true, force: true }); }
   })();
+});
+
+test('Dừng tất cả: bài đang chờ giờ tự đăng được huỷ lịch và quay về chờ duyệt tay', async () => {
+  const FAN = 'https://www.facebook.com/trang-cua-shop';
+  const t = await setup(async () => ({ text: `[[DE_XUAT loai="bai_dang" dich="${FAN}"]]Hàng mới về[[/DE_XUAT]]` }), { postAutoPost: true, fanpageUrl: FAN });
+  try {
+    const poster = t.agents.add({ name: 'Đăng bài', role: 'post' });
+    await t.d.enqueue(poster, 'x', [], { id: 1, hops: 0, files: [], owner: true }); await t.idle();
+    const it = t.approvals.pending()[0]; assert.ok(it.autoPostAt > Date.now(), 'đã đặt lịch tự đăng');
+    t.d.stopAll();
+    assert.equal(t.approvals.get(it.id).autoPostAt, undefined, 'lịch tự đăng bị huỷ'); assert.equal(t.approvals.get(it.id).status, 'pending', 'chờ chủ shop duyệt tay');
+  } finally { t.close(); }
 });

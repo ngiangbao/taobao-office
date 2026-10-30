@@ -86,3 +86,14 @@ test('đọc trang kho riêng tư chỉ gọi GET, tên trang có dấu nháy đ
   } });
   assert.deepEqual(await sync.readInventory({ sheetUrl: 'https://docs.google.com/spreadsheets/d/abcdefghij123/edit', tab: "Kho 'mới'" }), [header]);
 });
+
+test('mất mạng: chỉ dùng bản lưu của CHÍNH bảng đang cấu hình, không dùng bản lưu của bảng khác', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kho-url-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, 'kho.xlsx'); await makeBook(file);
+  const A = { inventorySheetUrl: 'https://docs.google.com/spreadsheets/d/aaaaaaaaaa123/edit' }, B = { inventorySheetUrl: 'https://docs.google.com/spreadsheets/d/bbbbbbbbbb123/edit' };
+  const ok = async () => ({ ok: true, url: 'https://doc-0.googleusercontent.com/x', arrayBuffer: async () => fs.readFileSync(file) });
+  const down = async () => { throw new Error('mất mạng'); };
+  assert.equal((await readInventory(A, path.join(dir, 'a'), ok)).items.length, 2);
+  assert.equal((await readInventory(A, path.join(dir, 'a'), down)).stale, true, 'cùng bảng: dùng bản lưu');
+  await assert.rejects(readInventory(B, path.join(dir, 'a'), down), /mất mạng/, 'bảng khác: không dùng bản lưu của bảng A');
+});

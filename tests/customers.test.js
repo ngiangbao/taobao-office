@@ -194,3 +194,20 @@ test('lịch sử ghi tin khách, câu trả lời, giao việc, thu tiền; ả
 test('parseVnd', () => {
   assert.equal(parseVnd('436.800'), 436800); assert.equal(parseVnd('1,5tr'), 1500000); assert.equal(parseVnd('300k'), 300000); assert.ok(Number.isNaN(parseVnd('abc')));
 });
+
+test('nhập đơn khách không ghi đè khách đang có: giữ tên chủ shop đặt, trạng thái tắt nhắc, số lần nhắc và tên agent', () => {
+  const fs2 = require('node:fs'), os2 = require('node:os'), path2 = require('node:path');
+  const { createAgents } = require('../lib/agents'), { createCustomers, linkOrderCustomers } = require('../lib/customers'), { createOrders } = require('../lib/orders');
+  const d = fs2.mkdtempSync(path2.join(os2.tmpdir(), 'tbo-link-')); try {
+    const agents = createAgents(d), customers = createCustomers(d, agents), orders = createOrders(d);
+    const { customer: c } = customers.ensure({ key: 't1', name: 'Lan Nguyễn' });
+    customers.rename(c.code, 'Lan quen'); customers.stopFollowup(c); c.followupCount = 1; customers.save();
+    orders.add({ fbName: 'Lan Nguyễn', custId: c.code, sku: 'A' }); orders.add({ fbName: 'Mai', sku: 'B' });
+    const r = linkOrderCustomers(orders, customers);
+    const after = customers.byCode(c.code);
+    assert.equal(after.name, 'Lan quen'); assert.equal(agents.get(after.agentId).name, 'Khách Lan quen');
+    assert.equal(after.paused, true, 'khách đã tắt nhắc không bị bật lại'); assert.equal(after.followupCount, 1);
+    assert.equal(r.created, 1, 'chỉ tạo agent cho khách mới (Mai)'); assert.equal(customers.all().length, 2);
+    assert.equal(linkOrderCustomers(orders, customers).created, 0, 'nhập lại không tạo thêm');
+  } finally { fs2.rmSync(d, { recursive: true, force: true }); }
+});
