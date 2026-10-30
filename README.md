@@ -73,3 +73,24 @@ Sự kiện thật của Claude (đọc file, tìm kiếm, mở trình duyệt..
 chạy trên máy bạn.
 
 Cập nhật văn phòng: thay thư mục `office/` bằng bản mới của my-office rồi chạy lại `npm run dist:*`.
+
+### Kho hàng từ Google Sheets
+
+Trong **Cài đặt → Đồng bộ thiết bị**, kết nối tài khoản Google có quyền xem bảng kho.
+Có thể để trống link đồng bộ khách nếu chỉ dùng kho hàng. Token vẫn được mã hóa bằng kho khóa hệ điều hành.
+
+Trong **Cài đặt → Kho hàng**, nhập link bảng tính riêng tư, tên trang tính (mặc định `Kho hàng`)
+và ngưỡng sắp hết (mặc định 5). Bấm **Kiểm tra kết nối kho**, rồi **Lưu thay đổi**.
+Dòng đầu của trang tính dùng mẫu sau; các dòng sau chứa số tồn là số nguyên không âm:
+
+| Mã hàng | Tên hàng | Size | Màu | Tồn kho |
+| --- | --- | --- | --- | --- |
+| AO01 | Áo sơ mi | M | Trắng | 12 |
+| AO01 | Áo sơ mi | L | Trắng | 3 |
+
+Mỗi bộ mã/size/màu chỉ xuất hiện một lần; tối đa 1.000 dòng hàng. Agent **Kho hàng**
+được thêm tự động cả khi nâng cấp bản cài hiện có. Gõ `@Kho hàng báo cáo tồn kho`
+hoặc `@Kho hàng còn AO01 size M không?` trong chat văn phòng.
+Mỗi lượt lấy dữ liệu mới trực tiếp qua Google Sheets API và kèm thời điểm đọc;
+nếu không kết nối được thì báo lỗi, không dùng lại số tồn cũ. Kho chỉ được đọc,
+không tự trừ hàng, không ghi ngược lên bảng tính. Hiện chưa tạo bảng tính thay người dùng.
