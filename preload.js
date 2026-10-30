@@ -48,6 +48,8 @@ contextBridge.exposeInMainWorld('api', {
   openHistoryDir: () => ipcRenderer.invoke('history:open'),
   listCustomers: () => ipcRenderer.invoke('customers:list'),
   exportCustomers: () => ipcRenderer.invoke('customers:export'),
+  renameAgent: (d) => ipcRenderer.invoke('agents:rename', d),
+  agentBySid: (sid) => ipcRenderer.invoke('agents:by-sid', sid),
   renameCustomer: (d) => ipcRenderer.invoke('customers:rename', d),
   pauseCustomer: (d) => ipcRenderer.invoke('customers:pause', d),
   refreshCustomer: (code) => ipcRenderer.invoke('customers:refresh', code),

@@ -500,6 +500,8 @@ app.whenReady().then(async () => {
       return { ok: true, filePath, count: rows.length };
     } catch (error) { return { ok: false, error: error.message }; }
   });
+  ipcMain.handle('agents:rename', (_, d) => { const a = agents.all().find((x) => x.sid === d?.sid || x.id === d?.id); if (!a) return { ok: false, error: 'Không thấy agent này.' }; const r = agents.renameChecked(a.id, d.name); if (r.ok) pushAgents(); return r; });
+  ipcMain.handle('agents:by-sid', (_, sid) => { const a = agents.all().find((x) => x.sid === sid); return a ? { id: a.id, name: a.name, kind: a.kind || 'team' } : null; });
   ipcMain.handle('customers:rename', (_, d) => { const ok = customers.rename(d.code, d.name); pushCustomers(); return ok; });
   ipcMain.handle('customers:pause', (_, d) => { const c = customers.byCode(d.code); if (!c) return false; c.paused = !!d.paused; if (c.paused) c.followupDue = 0; customers.save(); pushCustomers(); return true; });
   ipcMain.handle('customers:refresh', (_, code) => { const c = customers.byCode(code), a = c && agents.get(c.agentId); if (!a || dispatcher.isBusy(a.id)) return false; dispatcher.refresh(a, 'theo yêu cầu'); return true; });

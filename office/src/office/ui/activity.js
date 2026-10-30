@@ -301,6 +301,15 @@ export function setup() {
   }));
   $('rail-list').addEventListener('click', onListClick);
   $('chips').addEventListener('click', onListClick);
+  // Taobao Office: bấm chuột phải vào một agent trong danh sách thì app hiện hộp đổi tên (chỉ khi văn phòng được nhúng trong app)
+  const onRenameMenu = (ev) => {
+    if (window.parent === window) return;
+    const b = ev.target.closest('[data-sess]'); if (!b || b.dataset.agent) return;
+    const s = sessions.get(b.dataset.sess); if (!s?.sid) return;
+    ev.preventDefault(); window.parent.postMessage({ tbo: 'rename-agent', sid: s.sid, name: dn(s) }, '*');
+  };
+  $('rail-list').addEventListener('contextmenu', onRenameMenu);
+  $('chips').addEventListener('contextmenu', onRenameMenu);
   $('sess-search').addEventListener('input', (e) => { query = e.target.value; renderRail(); });
   document.querySelector('.st-row').addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-st]'); if (!b) return;

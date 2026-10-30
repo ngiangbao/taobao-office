@@ -24,7 +24,7 @@ const api = window.api || (() => {
     listCustomers: async () => [{ code: 'KH-7F3K9', name: 'Lan', agentName: 'Khách Lan', state: 'awake', busy: false, lastInboundAt: Date.now() - 600000, followupDue: Date.now() + 240000, paused: false, followupCount: 0, ctx: 42000 }, { code: 'KH-2M8QX', name: 'Hương', agentName: 'Khách Hương', state: 'asleep', busy: false, lastInboundAt: Date.now() - 86400000 * 3, followupDue: 0, paused: false, followupCount: 1, ctx: 8000 }],
     ordersList: async () => ({ items: [], statuses: ['Đã đặt hàng', 'Đã về'], sync: {} }), ordersSave: async () => ({ ok: true, items: [] }), ordersDelete: async () => ({ ok: true, items: [] }), ordersImport: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersImportFile: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersExport: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersTsv: async () => '', ordersAssignIds: async () => ({ ok: true, assigned: 0, items: [] }), ordersScript: async () => '', ordersWebhookTest: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersOpenSheet: async () => false, openInventory: async () => ({ ok: false }),
     exportCustomers: async () => ({ ok: false, error: 'Xuất Excel chỉ có trong app desktop.' }),
-    renameCustomer: async () => true, pauseCustomer: async () => true, refreshCustomer: async () => true, customerProfile: async () => '# Hồ sơ khách Lan\n- Xưng hô: chị Lan\n- Size: M\n- Thích: màu be, dáng ngắn',
+    renameCustomer: async () => true, renameAgent: async () => ({ ok: true }), agentBySid: async () => null, pauseCustomer: async () => true, refreshCustomer: async () => true, customerProfile: async () => '# Hồ sơ khách Lan\n- Xưng hô: chị Lan\n- Size: M\n- Thích: màu be, dáng ngắn',
     onCustomers: () => {}, listRevenue: async () => ({ total: 936800, items: [{ id: 'a1', t: new Date().toISOString(), amount: 436800, name: 'Lan', code: 'KH-7F3K9', note: 'cọc áo khoác be', source: 'agent' }] }),
     addRevenue: async () => ({ ok: true }), voidRevenue: async () => true, inboxManual: async () => ({ ok: true, code: 'KH-NEW01', created: true }), inboxPoll: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), onInbox: () => {},
     listApprovals: async () => ({ limit: 12, today: 3, items: [{ id: 'p1', num: 7, status: 'pending', agentName: 'Đăng bài', kind: 'bai_dang', target: 'https://www.facebook.com/groups/vi-du', text: 'Áo khoác lông cừu be về hàng, size S-M-L, ib shop nhé 💕', files: [], hash: 'h1', t: Date.now() }, { id: 'p2', num: 6, status: 'done', agentName: 'Tìm khách', kind: 'binh_luan', target: 'https://www.facebook.com/groups/vi-du/posts/1', text: 'Shop có mẫu này ạ, bạn ib shop nha', files: [], result: 'ĐÃ ĐĂNG: ok', t: Date.now() - 3600e3 }] }),
@@ -272,11 +272,23 @@ $('#s-login').onclick = async () => {
 window.addEventListener('message', (ev) => {
   if (ev.source !== frame.contentWindow) return;
   const d = ev.data || {};
-  if (d.tbo === 'open-settings') openSettings();
+  if (d.tbo === 'rename-agent' && d.sid) askRename({ sid: d.sid, name: String(d.name || '') });
+  else if (d.tbo === 'open-settings') openSettings();
   else if (d.tbo === 'open-inventory') api.openInventory().then((r) => { if (!r?.ok) openSettings('inventory'); }); // chưa nhập link kho: mở thẳng mục Kho hàng
   else if (d.tbo === 'office-state') renderOfficeSettings(d.groups || []);
   else if (d.tbo === 'office-ready' && dlgS.open && curSec === 'office') askOffice(); // văn phòng vừa tải lại (ví dụ sau khi đổi ngôn ngữ)
 });
+// ---------- Đổi tên agent (chuột phải vào agent trong cột bên trái của văn phòng); Electron không có prompt() nên dùng hộp riêng ----------
+const dlgRn = $('#dlg-rename'), rnForm = $('#renameform');
+let rnTarget = null;
+function askRename(target, title = 'Đổi tên agent') { rnTarget = target; $('#rn-title').textContent = title; $('#rn-err').textContent = ''; $('#rn-input').value = target.name || ''; dlgRn.showModal(); $('#rn-input').select(); }
+$('#rn-cancel').onclick = () => dlgRn.close();
+rnForm.onsubmit = async (e) => {
+  e.preventDefault(); const name = $('#rn-input').value.trim(); if (!name || !rnTarget) return;
+  const r = rnTarget.code ? { ok: await api.renameCustomer({ code: rnTarget.code, name }) } : await api.renameAgent({ sid: rnTarget.sid, name });
+  if (!r.ok) { $('#rn-err').textContent = r.error || 'Không đổi được tên.'; return; }
+  dlgRn.close();
+};
 // ---------- Mục "Văn phòng 3D": tùy chọn của chính văn phòng, hiện thẳng trong cửa sổ này ----------
 const askOffice = () => frame.contentWindow?.postMessage({ tbo: 'office-get' }, '*');
 function renderOfficeSettings(groups) {
@@ -473,7 +485,7 @@ function renderCusts() {
     const btn = (label, fn, title) => { const b = document.createElement('button'); b.className = 'ghost'; b.textContent = label; if (title) b.title = title; b.onclick = fn; acts.append(b); };
     btn('Hồ sơ', async () => { cProf.hidden = false; cProf.textContent = (await api.customerProfile(c.code)) || '(Chưa có hồ sơ: agent sẽ tạo sau lần xử lý đầu tiên.)'; cProf.scrollIntoView({ block: 'nearest' }); });
     btn('Lịch sử', () => openHist(c.agentId));
-    btn('Đổi tên', async () => { const n = prompt('Tên hiển thị của khách (mã định danh không đổi):', c.name); if (n && n.trim()) api.renameCustomer({ code: c.code, name: n.trim() }); });
+    btn('Đổi tên', () => askRename({ code: c.code, name: c.name }, 'Đổi tên khách (mã định danh không đổi)'));
     btn(c.paused ? 'Bật lại nhắc' : 'Tắt nhắc', () => api.pauseCustomer({ code: c.code, paused: !c.paused }));
     btn('Làm mới trí nhớ', async () => { if (!(await api.refreshCustomer(c.code))) say('Agent đang làm việc, hãy chờ xong.'); }, 'Agent ghi đầy đủ hồ sơ rồi bắt đầu hội thoại mới cho nhẹ; hồ sơ được giữ');
     cList.append(el);

@@ -308,6 +308,14 @@
   <div id="r-list" class="hist-list"></div>
 </dialog>
 
+<dialog id="dlg-rename">
+  <form id="renameform" method="dialog">
+    <h3 id="rn-title">Đổi tên agent</h3>
+    <label>Tên mới<input id="rn-input" name="name" type="text" maxlength="48" autocomplete="off" required></label>
+    <p id="rn-err" class="hint err" aria-live="polite"></p>
+    <menu><button type="button" id="rn-cancel" class="ghost">Hủy</button><button type="submit" id="rn-ok">Đổi tên</button></menu>
+  </form>
+</dialog>
 <dialog id="dlg-agent">
   <form method="dialog" id="agentform">
     <h3>Thêm agent mới</h3>
