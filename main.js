@@ -547,12 +547,6 @@ app.whenReady().then(async () => {
       return { ok: true, ...res, agents: skillsPub() };
     } catch (e) { return { ok: false, error: e.message }; }
   });
-  ipcMain.handle('customers:add', (_, d) => { // thêm khách thủ công (chưa có tin nhắn): tạo khách + agent riêng
-    const name = String(d?.name || '').trim(); if (!name) return { ok: false, error: 'Hãy nhập tên khách.' };
-    const { customer: c, created } = customers.ensure({ key: `manual:${Date.now()}`, name });
-    if (created) { try { appender.enqueue({ 'ID khách': c.code, 'Tên Facebook khách hàng': c.name }, { key: `cust:${c.code}`, once: true }); } catch { /* bảng online chưa cấu hình */ } }
-    pushCustomers(); pushAgents(); return { ok: true, code: c.code, name: c.name };
-  });
   ipcMain.handle('customers:rename', (_, d) => { const ok = customers.rename(d.code, d.name); pushCustomers(); return ok; });
   ipcMain.handle('customers:pause', (_, d) => { const c = customers.byCode(d.code); if (!c) return false; c.paused = !!d.paused; if (c.paused) c.followupDue = 0; customers.save(); pushCustomers(); return true; });
   ipcMain.handle('customers:refresh', (_, code) => { const c = customers.byCode(code), a = c && agents.get(c.agentId); if (!a || dispatcher.isBusy(a.id)) return false; dispatcher.refresh(a, 'theo yêu cầu'); return true; });
