@@ -24,6 +24,7 @@ test('model: mặc định haiku (tiết kiệm nhất), đổi được, "defau
   };
   return (async () => {
     try {
+      await new Promise((ok) => setTimeout(ok, 150)); // để tệp chạy thử được ghi xong hẳn trước khi chạy (tránh "Text file busy")
       let a = await args({}); assert.equal(a[a.indexOf('--model') + 1], 'haiku');
       a = await args({ model: 'sonnet' }); assert.equal(a[a.indexOf('--model') + 1], 'sonnet');
       assert.ok(!(await args({ model: 'default' })).includes('--model'));

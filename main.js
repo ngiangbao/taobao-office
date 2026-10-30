@@ -36,6 +36,7 @@ const DEFAULT_CFG = {
   model: 'haiku', // model cho mọi agent: haiku tiết kiệm token nhất (mặc định), sonnet cân bằng, opus mạnh nhất, default = Claude Code tự chọn
   chromeMode: 'app', // app = Chrome riêng của app; mine = Chrome của bạn (qua tiện ích Playwright)
   autoOffMinutes: 60, // lâu không dùng app (không gõ, không giao việc) thì tạm dừng việc tự chạy nền (quét bảng tin, đọc hộp thư, nhắc khách) để khỏi tốn token; 0 = không tự nghỉ
+  followupEnabled: true, ordersAutoRefresh: true, fanpageUrl: '', postAutoPost: false, postAutoMax: 3, // soạn tin nhắc khách; tự cập nhật khách từ link; fanpage của shop; tự đăng bài (mặc định TẮT)
   ordersSheetUrl: '', ordersWebhookUrl: '', ordersWebhookToken: '', ordersSheetName: 'khách order', ordersAutoAppend: true, // bảng đơn khách trên Google Sheets: khách mới tự thêm vào dòng cuối
   chromeIdleMinutes: 15, // Chrome dùng chung được tắt hẳn sau bấy nhiêu phút không dùng (0 = không tự tắt)
   commentScan: false, commentMinutes: 15, commentFromHour: 8, commentToHour: 22, commentPerScan: 3, // Trả lời comment: quét bảng tin định kỳ (mặc định TẮT)
@@ -185,7 +186,9 @@ async function runPublisher(item) {
   const cfg = loadCfg();
   const mcpFile = browser.mcpConfig(app, dataDir, loadCfg().chromeMode) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt */;
   const dir = path.join(dataDir, 'agents', '_publisher'); fs.mkdirSync(dir, { recursive: true });
-  const text = `ĐỀ XUẤT #${item.num} ĐÃ ĐƯỢC CHỦ SHOP DUYỆT.\nLoại: ${KINDS[item.kind]}\nĐích (mở đúng link này): ${item.target}\nNội dung cần đăng, NGUYÊN VĂN (không sửa, không thêm):\n\"\"\"\n${item.text}\n\"\"\"\n${item.files?.length ? `Ảnh cần đính kèm (tải lên bằng browser_file_upload): ${item.files.join(', ')}` : 'Không có ảnh.'}`;
+  const fan = String(loadCfg().fanpageUrl || '').trim().replace(/\/+$/, '').toLowerCase();
+  const isFanpage = (t) => !!fan && String(t).toLowerCase().replace(/\/+$/, '').startsWith(fan);
+  const text = `ĐỀ XUẤT #${item.num} ĐÃ ĐƯỢC CHỦ SHOP DUYỆT.\nLoại: ${KINDS[item.kind]}\nĐích (mở đúng link này): ${item.target}\n${isFanpage(item.target) ? 'ĐÂY LÀ FANPAGE CỦA CHÍNH SHOP: hãy đăng VỚI TƯ CÁCH TRANG (nếu Facebook đang ở hồ sơ cá nhân thì chuyển sang Trang bằng nút Chuyển/Switch trước khi đăng; không đăng bằng hồ sơ cá nhân). Nếu không chuyển được sang Trang, DỪNG và báo.\n' : ''}Nội dung cần đăng, NGUYÊN VĂN (không sửa, không thêm):\n\"\"\"\n${item.text}\n\"\"\"\n${item.files?.length ? `Ảnh cần đính kèm (tải lên bằng browser_file_upload): ${item.files.join(', ')}` : 'Không có ảnh.'}`;
   let result = '', error = '';
   const { child, done } = runClaude({
     text, cfg, dataDir, hooksFile: null, mcpFile,

@@ -92,3 +92,8 @@ dialog.settings{max-width:94vw;max-height:92vh}.s-win>*{min-width:0}
 .o-import{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.o-import input{flex:1;min-width:220px;width:auto}.o-import select{width:auto}
 .o-table{width:100%;border-collapse:collapse;font-size:12px}.o-table th,.o-table td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:middle}.o-table img{border-radius:4px;display:block}
 #dlg-orders details{margin:8px 0}#dlg-orders summary{cursor:pointer;color:var(--mute)}
+
+.s-nav .s-sep{border:0;border-top:1px solid var(--line);margin:8px 6px;width:calc(100% - 12px)}
+.s-main hr{border:0;border-top:1px solid var(--line);margin:18px 0 12px}.s-main h4{margin:6px 0 8px;font-size:15px}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.o-sum{display:grid;grid-template-columns:1.4fr .8fr .5fr .5fr .9fr 1.2fr;gap:8px;padding:8px 6px;border-bottom:1px solid var(--line);font-size:12px;cursor:pointer}.o-sum:hover{background:#ffffff0a}.o-sum.h{cursor:default;color:var(--mute);font-weight:600}

@@ -165,3 +165,43 @@ test('1688 là nền tảng chính thức: agent tìm hàng và báo giá hiểu
   assert.equal(agents.route('báo giá link https://detail.1688.com/offer/1.html').agent.role, 'quote', 'link 1688 không làm lệch việc báo giá');
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('tự đăng bài: mặc định tắt; chỉ vào fanpage hoặc nhóm trong danh sách; không trùng 24 giờ; có hạn mức; bình luận và bài tính riêng', () => {
+  const { autoPostGuard: guard, allowedDestination } = require('../lib/commenter');
+  const dir = tmp(); const ap = createApprovals(dir);
+  const FAN = 'https://www.facebook.com/trang-cua-shop', GROUP = 'https://www.facebook.com/groups/abc';
+  const cfg = { postAutoPost: true, postAutoMax: 2, maxPostsPerDay: 12, fanpageUrl: FAN, groups: [{ name: 'A', url: GROUP }] };
+  const item = (target, text = 'Mẫu mới về, nhắn shop nhé') => ({ id: 'x', kind: 'bai_dang', target, text });
+  assert.equal(guard({ ...cfg, postAutoPost: false }, ap, item(FAN), NOON).ok, false, 'mặc định tắt');
+  assert.equal(guard(cfg, ap, item(FAN), NOON).ok, true);
+  assert.equal(guard(cfg, ap, item(GROUP + '/'), NOON).ok, true);
+  assert.equal(guard(cfg, ap, item('https://www.facebook.com/groups/khac'), NOON).ok, false, 'nhóm lạ phải chờ duyệt');
+  assert.equal(guard(cfg, ap, item('https://www.facebook.com/trang-cua-shop-gia'), NOON).ok, false, 'chỉ khớp đúng đường dẫn');
+  assert.ok(allowedDestination(cfg, FAN + '/posts/1'));
+  assert.equal(guard(cfg, ap, item(FAN, 'a'.repeat(2001)), NOON).ok, false);
+  assert.equal(guard(cfg, ap, item(FAN), new Date(2026, 9, 31, 2)).ok, false, 'ngoài giờ');
+  assert.equal(guard({ ...cfg, commentAutoPost: false }, ap, { kind: 'binh_luan', target: FAN, text: 'ok' }, NOON).ok, false, 'tự đăng bài không kéo theo tự đăng bình luận');
+  assert.equal(guard(cfg, ap, { kind: 'khac', target: FAN, text: 'x' }, NOON).ok, false);
+  const a = ap.create({ agentId: 'p', agentName: 'p', kind: 'bai_dang', target: FAN, text: 'Bài cũ' }); ap.approve(a.id, a.hash, true);
+  assert.equal(guard(cfg, ap, { ...item(FAN, 'Bài cũ'), id: 'other' }, new Date()).ok === false, true, 'trùng nội dung trong 24 giờ');
+  const b = ap.create({ agentId: 'p', agentName: 'p', kind: 'bai_dang', target: GROUP, text: 'Bài hai' }); ap.approve(b.id, b.hash, true);
+  const today = new Date(); today.setHours(12, 0, 0, 0);
+  assert.equal(guard(cfg, ap, item(FAN, 'Bài ba'), today).ok, false, 'đủ hạn mức 2 bài/ngày');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('agent Đăng bài được tự đăng khi bật; agent khác thì không; tắt soạn tin nhắc thì không nhắc khách', async () => {
+  const FAN = 'https://www.facebook.com/trang-cua-shop';
+  const run = async (agent) => ({ text: `Xong.\n[[DE_XUAT loai="bai_dang" dich="${FAN}"]]Hàng mới về nhé cả nhà (${agent.role})[[/DE_XUAT]]` });
+  let t = await setup(run, { postAutoPost: true, fanpageUrl: FAN });
+  try {
+    await t.d.enqueue(t.cskh, 'x', [], { id: 1, hops: 0, files: [], owner: true }); await t.idle();
+    assert.equal(t.approvals.pending().length, 1, 'cskh luôn chờ duyệt'); assert.equal(t.published.length, 0);
+    const poster = t.agents.add({ name: 'Đăng bài', role: 'post' });
+    await t.d.enqueue(poster, 'x', [], { id: 2, hops: 0, files: [], owner: true }); await t.idle();
+    assert.equal(t.published.length, 1, 'agent Đăng bài tự đăng khi đã bật'); assert.equal(t.published[0].auto, true); assert.equal(t.published[0].target, FAN);
+  } finally { t.close(); }
+  let asked = 0;
+  const d = createDispatcher({ officeUrl: () => 'http://127.0.0.1:1/', agents: { all: () => [], get: () => null }, customers: { due: () => { asked++; return []; } }, getCfg: () => ({ followupEnabled: false }), run: async () => ({}), uploadsDir: path.join(os.tmpdir(), 'x') });
+  d.followupTick(); assert.equal(asked, 0, 'tắt soạn tin nhắc');
+});

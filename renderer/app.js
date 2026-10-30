@@ -86,7 +86,7 @@ formA.addEventListener('submit', async (e) => {
 $('#btn-stop').onclick = () => api.stopAll();
 // ---------- Cửa sổ Cài đặt (kiểu Claude): mở từ nút bánh răng của văn phòng ----------
 const dlgS = $('#dlg-settings'), form = $('#cfgform');
-const FORM_SECS = ['shop', 'post', 'inventory', 'comment', 'groups', 'cust', 'sync', 'conn', 'claude']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
+const FORM_SECS = ['shop', 'post', 'inventory', 'groups', 'cust', 'sync', 'conn', 'claude']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
 let curSec = 'shop', histAgent = '';
 function renderGroupList(groups) {
   const box = $('#s-groups-list'); box.replaceChildren();
@@ -148,7 +148,7 @@ $('#s-inventory-check').onclick = async () => {
 async function fillSettings() {
   const { cfg, claude } = await api.getCfg();
   for (const el of form.elements) if (el.name) el.value = el.hasAttribute('data-bool') ? (cfg[el.name] ? '1' : '0') : (cfg[el.name] ?? '');
-  renderGroupList(cfg.groups || []);
+  renderGroupList(cfg.groups || []); fillOrdersSettings();
   $('#s-groups-msg').textContent = '';
   form.elements.syncClientSecret.value = '';
   const syncStatus = await api.syncStatus();
@@ -207,9 +207,10 @@ form.addEventListener('submit', async (e) => {
     $('#s-groups-msg').textContent = `Đã lưu ${cfg.groups.length} nhóm. Agent sẽ dùng danh sách này khi soạn đề xuất đăng bài.`;
     return;
   }
-  for (const k of ['autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentFromHour', 'commentToHour', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
-  for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'model', 'chromeMode', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
-  for (const k of ['commentScan', 'commentAutoPost']) cfg[k] = form.elements[k].value === '1';
+  for (const k of ['postAutoMax', 'autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentFromHour', 'commentToHour', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'maxPostsPerDay', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
+  for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'model', 'chromeMode', 'fanpageUrl', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
+  for (const k of ['commentScan', 'commentAutoPost', 'postAutoPost', 'followupEnabled', 'ordersAutoRefresh']) cfg[k] = form.elements[k].value === '1';
+  cfg.ordersSheetUrl = $('#o-url').value.trim(); cfg.ordersWebhookUrl = $('#o-hook').value.trim(); cfg.ordersWebhookToken = $('#o-token').value; cfg.ordersSheetName = $('#o-sheetname').value.trim() || 'khách order'; cfg.ordersAutoAppend = $('#o-auto').value === '1';
   cfg.shopName = form.elements.shopName.value.trim().slice(0, 40) || 'Cửa hàng của tôi';
   document.title = cfg.shopName;
   await api.setCfg(cfg);
@@ -388,11 +389,13 @@ oForm.onsubmit = async (e) => {
   oData = { ...oData, ...r }; dlgOE.close(); renderOrders();
 };
 $('#o-form-cancel').onclick = () => dlgOE.close();
-async function openOrders() {
-  oData = await api.ordersList(); const { cfg } = await api.getCfg();
+async function openOrders(query = '') {
+  oData = await api.ordersList(); $('#o-q').value = query; renderOrders(); if (!dlgO.open) dlgO.showModal();
+}
+async function fillOrdersSettings() {
+  const { cfg } = await api.getCfg();
   $('#o-url').value = cfg.ordersSheetUrl || ''; $('#o-hook').value = cfg.ordersWebhookUrl || ''; $('#o-token').value = cfg.ordersWebhookToken || '';
-  $('#o-sheetname').value = cfg.ordersSheetName || 'khách order'; $('#o-auto').value = cfg.ordersAutoAppend === false ? '0' : '1';
-  $('#o-msg').textContent = ''; renderOrders(); if (!dlgO.open) dlgO.showModal();
+  $('#o-sheetname').value = cfg.ordersSheetName || 'khách order'; $('#o-auto').value = cfg.ordersAutoAppend === false ? '0' : '1'; $('#o-msg').textContent = '';
 }
 $('#c-orders').onclick = openOrders;
 $('#o-close').onclick = () => dlgO.close();
@@ -477,7 +480,37 @@ function renderCusts() {
 }
 const loadCusts = async () => { custs = await api.listCustomers(); renderCusts(); };
 api.onCustomers((l) => { custs = l; renderCusts(); });
-$('#btn-cust').onclick = async () => { cProf.hidden = true; await loadCusts(); dlgC.showModal(); renderCusts(); };
+function renderSheetCusts() {
+  const box = $('#c-sheet'), q = fold($('#c-q').value); box.replaceChildren();
+  const groups = new Map();
+  for (const o of oData.items || []) {
+    const k = o.custId || fold(o.fbName); if (!k) continue;
+    const g = groups.get(k) || { name: o.fbName, id: o.custId, lines: 0, qty: 0, total: 0, status: {} };
+    g.lines++; g.qty += Number(o.qty) || 0; g.total += (Number(o.price) || 0) * (Number(o.qty) || 0); if (o.status) g.status[o.status] = (g.status[o.status] || 0) + 1;
+    if (!g.name) g.name = o.fbName; if (!g.id) g.id = o.custId; groups.set(k, g);
+  }
+  const list = [...groups.values()].filter((g) => !q || fold(`${g.name} ${g.id}`).includes(q));
+  if (!list.length) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = groups.size ? 'Không có khách nào khớp.' : 'Chưa có khách từ bảng. Dán link ở Cài đặt → Khách hàng.'; box.append(p); return; }
+  const head = document.createElement('div'); head.className = 'o-sum h'; for (const h of ['Khách', 'ID khách', 'Dòng', 'SL', 'Tổng tiền', 'Tình trạng']) head.append(Object.assign(document.createElement('span'), { textContent: h })); box.append(head);
+  for (const g of list) {
+    const r = document.createElement('div'); r.className = 'o-sum'; r.title = 'Xem các dòng đơn của khách này';
+    for (const t of [g.name || '(chưa có tên)', g.id || '', g.lines, g.qty, vnd(Math.round(g.total || 0)), Object.entries(g.status).map(([k, v]) => `${v} ${k}`).join(', ')]) r.append(Object.assign(document.createElement('span'), { textContent: t }));
+    r.onclick = () => openOrders(g.id || g.name); box.append(r);
+  }
+}
+async function loadSheetCusts(refresh) {
+  const msg = $('#c-sheet-msg'); msg.classList.remove('err');
+  const { cfg } = await api.getCfg();
+  if (refresh && cfg.ordersSheetUrl && cfg.ordersAutoRefresh !== false) {
+    msg.textContent = 'Đang cập nhật từ link Google Sheets…';
+    const x = await api.ordersImport({ url: cfg.ordersSheetUrl, mode: 'merge' });
+    if (x.ok) { oData = x; msg.textContent = `Đã cập nhật từ link: ${x.added} dòng mới, tổng ${x.total} dòng.`; } else { msg.classList.add('err'); msg.textContent = `Chưa cập nhật được từ link: ${x.error}`; }
+  } else if (!cfg.ordersSheetUrl) msg.textContent = 'Chưa có link: vào Cài đặt → Khách hàng để dán link bảng Google Sheets.';
+  else msg.textContent = '';
+  if (!oData.items?.length) oData = await api.ordersList();
+  renderSheetCusts();
+}
+$('#btn-cust').onclick = async () => { cProf.hidden = true; await loadCusts(); dlgC.showModal(); renderCusts(); renderSheetCusts(); loadSheetCusts(true); };
 $('#c-export').onclick = async () => {
   const button = $('#c-export'), message = $('#c-export-msg');
   button.disabled = true; message.classList.remove('err'); message.textContent = 'Đang tạo tệp Excel…';
@@ -490,12 +523,11 @@ $('#c-export').onclick = async () => {
     message.classList.add('err'); message.textContent = `Không xuất được tệp Excel: ${error.message}`;
   } finally { button.disabled = false; }
 };
-$('#c-q').oninput = renderCusts; $('#c-close').onclick = () => dlgC.close();
+$('#c-q').oninput = () => { renderCusts(); renderSheetCusts(); }; $('#c-close').onclick = () => dlgC.close();
 loadCusts(); setInterval(() => { if (dlgC.open) loadCusts(); }, 15000);
 
 // Nhập tin của khách / đọc hộp thư Messenger
 const dlgI = $('#dlg-inbound'), formI = $('#inboundform');
-$('#btn-inbound').onclick = () => { formI.reset(); $('#inboundmsg').textContent = ''; $('#pollmsg').textContent = ''; dlgI.showModal(); formI.elements.name.focus(); };
 formI.addEventListener('submit', async (e) => {
   if (e.submitter?.value !== 'ok') return;
   e.preventDefault();
