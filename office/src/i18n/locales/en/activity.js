@@ -40,6 +40,14 @@ export default {
     edit: 'Edits',
     cmd: 'Cmds',   // the tile is narrow: "Commands" does not fit
     cost: 'API price',
+    work: 'Jobs',
+    customers: 'Customers',
+    revenue: 'Revenue',
+  },
+  kpiTitle: {
+    work: 'Agents working right now',
+    customers: 'All customers, past and present',
+    revenue: 'Total money collected (VND)',
   },
   kpiToday: '{label} today',
   costTitle: "Equivalent list API price of the open sessions (not your bill if you're on a Pro/Max plan)",

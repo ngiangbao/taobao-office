@@ -8,3 +8,8 @@ Chép nguyên bản (bỏ thư mục docs/, tests/, .github/). Giấy phép: off
   lời nhắc của mỗi tác vụ Claude dưới tên "me"; cờ này giúp app phân biệt để các agent không tự giao việc cho nhau vô hạn.
 - `server/index.mjs`: (1) `op: 'say'` nhận `from` là mã phiên Claude (sid); (2) tên agent đọc từ `agent-names.json` ({sid: tên}),
   để người trong văn phòng mang đúng tên chủ shop đặt thay vì tên thư mục.
+- `src/office/ui/activity.js`, `src/i18n/locales/{vi,en}/activity.js`, `src/styles/sessions.css`: các thẻ chỉ số mục Hoạt động đổi thành
+  ba thẻ bằng nhau: Việc (số agent đang làm), Khách (tổng số khách đã và đang chăm sóc), Doanh thu (VNĐ), đọc từ `/api/shop` mỗi 2,5 giây.
+- `server/index.mjs`: thêm `GET /api/shop` (đọc `shop-stats.json` trong thư mục dữ liệu) và `op: 'sys'` của `/api/chat` (dòng thông báo hệ thống, chỉ từ máy này).
+- `src/i18n/locales/vi/*.js`: Việt hóa lại thuật ngữ cho cửa hàng thời trang (Lệnh → Xử lý, Sửa file → Ghi chép, Đọc → Xem, Web → Tìm hàng,
+  session/phiên → agent/ca làm, deploy → ra mắt, commit → chốt đơn, thư viện → phòng mẫu, phòng máy → kho hàng, giám đốc → chủ shop...).

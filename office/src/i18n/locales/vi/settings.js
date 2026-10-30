@@ -16,7 +16,7 @@ export default {
     pro: { name: 'Chuyên nghiệp', sub: 'Cả tầng công ty · 12 bàn' },
     hq: { name: 'Tập đoàn', sub: 'Bốn phòng ban · 44 bàn' },
   },
-  layoutNote: 'Đổi kiểu văn phòng sẽ dựng lại văn phòng: trang tải lại và các phiên quay về ngay.',
+  layoutNote: 'Đổi kiểu văn phòng sẽ dựng lại văn phòng: trang tải lại và các agent quay về ngay.',
   times: {
     auto: { name: 'Tự động', sub: 'Theo giờ thật' },
     day: { name: 'Ngày', sub: 'Luôn ban ngày' },

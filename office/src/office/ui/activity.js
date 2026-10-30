@@ -225,18 +225,30 @@ function onListClick(ev) {
 }
 export const fmtTok = (n) => (n >= 1e6 ? `${num(n / 1e6, 1)}M` : `${Math.round(n / 1000)}k`);
 export const fmtUsd = (v) => `$${v >= 100 ? Math.round(v) : v.toFixed(2)}`;
-const KPIS = [['prompts', 'clipboard'], ['read', 'file'], ['edit', 'pencil'], ['cmd', 'terminal'], ['cost', 'coin']];   // labels: activity.kpi.<key>
+// Taobao Office: ba thẻ Việc (số agent đang làm), Khách (tổng số khách đã và đang chăm sóc), Doanh thu (tổng tiền thu được, VNĐ).
+// Số liệu do app ghi vào shop-stats.json, máy chủ đọc ra ở /api/shop.
+const KPIS = [['work', 'clipboard'], ['customers', 'users'], ['revenue', 'coin']];   // nhãn: activity.kpi.<key>
+const fmtVnd = (v) => (v >= 1e9 ? `${num(v / 1e9, 2)} tỷ` : v >= 1e6 ? `${num(v / 1e6, 1)}tr` : `${num(v)}₫`);   // thẻ hẹp: rút gọn từ 1 triệu, số chính xác nằm ở chú giải
+let shopJson = '';
+async function pollShop() {
+  try {
+    const r = await fetch('/api/shop', { cache: 'no-store' }); if (!r.ok) return;
+    const t = await r.text(); if (t === shopJson) return;
+    shopJson = t; state.shop = JSON.parse(t); renderHud();
+  } catch { /* chưa có số liệu */ }
+}
+if (typeof window !== 'undefined') { setInterval(pollShop, 2500); pollShop(); }
 export function renderHud() {
   const list = [...sessions.values()];
   const waiting = list.filter((s) => s.status === 'wait').length;
   const subCount = list.reduce((a, s) => a + (s.subs?.length || 0), 0);
   $('active-count').textContent = list.length ? tr('activity.sessions', { n: list.length }) + (subCount ? ` · ${tr('activity.subsRunning', { n: subCount })}` : '') : tr('activity.noSessions');
   $('feed-stats').replaceChildren(...KPIS.map(([k, ic]) => {
-    const label = tr(`activity.kpi.${k}`);
-    const d = el('div', k === 'cost' ? 'kpi kpi--cost' : 'kpi'), i = el('span', 'kpi-ic'); i.append(icon(ic));
-    const b = el('b', null, k === 'cost' ? fmtUsd(list.reduce((a, s) => a + (s.usage?.cost || 0), 0)) : num(state.stats[k] || 0));
-    if (k === 'cost') b.prepend(el('small', null, '≈'));   // (an estimate: the list price, not a bill)
-    d.append(i, b, el('span', null, label)); d.title = k === 'cost' ? tr('activity.costTitle') : tr('activity.kpiToday', { label });
+    const label = tr(`activity.kpi.${k}`), shop = state.shop || {};
+    const d = el('div', 'kpi'), i = el('span', 'kpi-ic'); i.append(icon(ic));
+    const v = k === 'work' ? num(shop.working || 0) : k === 'customers' ? num(shop.customers || 0) : fmtVnd(shop.revenue || 0);
+    d.append(i, el('b', null, v), el('span', null, label));
+    d.title = k === 'revenue' ? `${tr('activity.kpiTitle.revenue')}: ${num(shop.revenue || 0)}₫` : tr(`activity.kpiTitle.${k}`);
     return d;
   }));
   $('bell-dot').hidden = !waiting;

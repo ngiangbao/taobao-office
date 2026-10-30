@@ -1855,6 +1855,7 @@ const server = http.createServer((req, res) => {
       else if (op === 'recall') chat.recall(str(b.id, 40));
       else if (op === 'poll') chat.poll('me', str(b.q, 120), (Array.isArray(b.opts) ? b.opts : []).slice(0, 6).map((x) => str(x, 60)));
       else if (op === 'photo' && mac && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(String(b.data || '')) && b.data.length < 500_000) chat.photo(b.data);
+      else if (op === 'sys' && mac) chat.system(str(b.text, 600));   // dòng thông báo của hệ thống trong nhóm
       else if (op === 'say' && mac) {
         const photo = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(String(b.photo || '')) && b.photo.length < 500_000 ? b.photo : null;
         chat.say(fromId(str(b.from, 60)), str(b.text, b.long ? 4000 : 600), { long: !!b.long, tag: b.tag === 'claude' ? 'claude' : undefined, now: !!b.now, key: str(b.key, 120) || undefined, sticker: Number.isInteger(b.sticker) ? b.sticker : undefined, photo, pin: !!b.pin, delay: Number.isFinite(b.delay) ? Math.min(60_000, Math.max(0, b.delay)) : undefined,
@@ -1995,6 +1996,11 @@ const server = http.createServer((req, res) => {
     if (url.pathname === '/' || url.pathname === '/index.html') res.writeHead(303, { Location: '/pin' }).end();
     else json(res, 401, { ok: false, message: tr('server.pin.needed') });
     return;
+  }
+  if (url.pathname === '/api/shop') {   // số liệu của shop (app Taobao Office ghi vào shop-stats.json): việc, khách, doanh thu
+    let o = { working: 0, customers: 0, revenue: 0 };
+    try { o = { ...o, ...JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'shop-stats.json'), 'utf8')) }; } catch { /* chưa có */ }
+    json(res, 200, o); return;
   }
   if (url.pathname === '/api/chat') { json(res, 200, chatOut()); return; }
   if (url.pathname === '/api/tasks') { json(res, 200, tasksOut(isLoopback(req))); return; }

@@ -15,12 +15,22 @@
 - **Lịch sử chat lưu mãi mãi** trên máy (`history/YYYY-MM.jsonl`), xem và tìm kiếm bằng nút "Lịch sử".
 - **Tự cập nhật** từ GitHub Releases (Windows, Linux AppImage). macOS chưa ký nên phải cập nhật tay.
 
+## Khách hàng: mỗi khách một agent riêng
+- **Khách nhắn đến thì tự có một agent**, kèm **mã định danh riêng** (dạng `KH-7F3K9`) chỉ bạn và agent đó biết. Khách nhắn lại thì đúng agent đó tự dậy với đầy đủ hồ sơ.
+- **Che danh tính**: khi giao việc cho agent chuyên môn (tìm hàng, báo giá), tên và số điện thoại thật của khách được thay bằng mã.
+- **Hồ sơ khách (`ho-so.md`)**: agent tự ghi sau mỗi lần xử lý; là trí nhớ dài hạn. Hội thoại quá dài thì app **làm mới có nhớ**: ghi đầy đủ hồ sơ rồi bắt đầu phiên mới, hồ sơ được nạp lại ở mỗi lượt.
+- **Nhắc khách im lặng**: sau N phút (mặc định 10) không thấy khách trả lời, agent soạn tin nhắc để bạn duyệt và tự gửi. Nhắc tối đa M lần; khách đã chốt hoặc từ chối thì agent trả `[[DUNG_NHAC]]` để dừng.
+- **Nhận tin khách**: dán tay (nút "＋ Tin khách") hoặc đọc hộp thư Messenger bằng Chrome đã đăng nhập (chỉ đọc; mở cuộc trò chuyện sẽ hiện "đã xem" với khách; chưa kiểm chứng với Messenger thật).
+- **Doanh thu**: chỉ tính tiền **đã thu thật**. Agent chỉ ghi khi chính bạn báo "đã nhận tiền"; tin của khách không làm tăng doanh thu. Bạn cũng ghi/hủy tay ở nút "Doanh thu". Ba thẻ **Việc / Khách / Doanh thu** ở mục Hoạt động của văn phòng đọc từ đây.
+- **An toàn**: tin của khách là dữ liệu không đáng tin. Agent chăm khách chỉ được ghi trong thư mục riêng của nó, không dùng web hay trình duyệt, không thể sửa sổ doanh thu.
+
 ## Chạy
 ```bash
 npm install
 npm run prepare:office   # dựng văn phòng một lần
 npm start
 ```
+Kiểm thử (không tốn tiền, dùng agent giả): `node --test tests/`.
 Đóng gói: `npm run dist:linux` / `dist:win` (chạy trên Windows) / `dist:mac` (chạy trên macOS).
 
 Yêu cầu: Node 20+, Claude Code đã cài và đăng nhập, Chrome/Chromium cho Playwright.

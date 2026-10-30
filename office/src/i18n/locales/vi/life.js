@@ -28,7 +28,7 @@ export default {
     loading: 'đang lấy thời tiết…',
   },
   nap: {
-    start: '😴 12:30, giờ nghỉ trưa: rèm kéo xuống, ai rảnh thì chợp mắt (phiên đang chạy vẫn làm tiếp).',
+    start: '😴 12:30, giờ nghỉ trưa: rèm kéo xuống, ai rảnh thì chợp mắt (agent đang chạy vẫn làm tiếp).',
     end: '⏰ 13:30, hết giờ nghỉ trưa: kéo rèm lên, dậy làm thôi!',
   },
   quota: {
@@ -39,7 +39,7 @@ export default {
     until: 'Dùng lại {when}',
     more: '{name} cũng hết lượt · còn {left}',
     leave: ['Hết lượt Claude rồi, đi pha trà thôi.', 'Hết lượt rồi, nghỉ giải lao chút.', 'Claude nghỉ thì mình cũng nghỉ.', 'Hết quota, đi uống nước đã.'],
-    chat: ['Còn {left} nữa mới có lượt…', 'Dùng lại {time}, đợi tí.', 'Tranh thủ đọc nốt chương này.', 'Ai pha thêm ấm trà không?', 'Hết lượt mà đầu vẫn nghĩ về cái bug…', 'Nghỉ tí cho đầu óc thoáng.'],
+    chat: ['Còn {left} nữa mới có lượt…', 'Dùng lại {time}, đợi tí.', 'Tranh thủ đọc nốt chương này.', 'Ai pha thêm ấm trà không?', 'Hết lượt mà đầu vẫn nghĩ về đống đơn…', 'Nghỉ tí cho đầu óc thoáng.'],
     back: '🔔 Có lượt Claude lại rồi, mọi người về chỗ!',
     backOther: '🔔 {name} có lượt lại rồi, về chỗ thôi!',
     cheer: ['Có lượt rồi, về chỗ!', 'Làm tiếp thôi!', 'Về bàn nào.'],
@@ -49,6 +49,6 @@ export default {
     left: 'Thổ năng sinh bạch ngọc',
     right: 'Địa khả xuất hoàng kim',
   },
-  tests: { title: 'BẢNG ĐÈN TEST', running: 'đang chạy…', pass: 'qua', fail: 'lỗi', idle: 'chưa chạy' },
+  tests: { title: 'BẢNG KIỂM HÀNG', running: 'đang kiểm…', pass: 'đạt', fail: 'lỗi', idle: 'chưa kiểm' },
   post: { plate: { one: 'Hôm nay: 1 thư', other: 'Hôm nay: {n} thư' }, sign: 'THƯ' },
 };

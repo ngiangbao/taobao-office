@@ -1,11 +1,11 @@
 export default {
   banner: 'Có sự cố: 3 lỗi trong 5 phút',
   bubble: 'Có sự cố!',
-  pushed: '🚀 {name} vừa đẩy code lên {branch}',
-  ciRed: '🚨 CI đỏ: {label} · {repo}',
+  pushed: '🚀 {name} vừa đăng lên {branch}',
+  ciRed: '🚨 Đơn bị lỗi: {label} · {repo}',
   ciRedDefault: 'kiểm thử hỏng',
-  ciGreen: '✅ CI xanh lại: {label} · {repo}',
-  deployed: '🚀 {name} vừa deploy {label}',
+  ciGreen: '✅ Đơn ổn lại: {label} · {repo}',
+  deployed: '🚀 {name} vừa ra mắt {label}',
   againFail: 'Lại lỗi nữa à! {text}',
   report: 'Báo cáo: xong “{task}”',
   reportHidden: 'Báo cáo: xong “việc”',
@@ -14,6 +14,6 @@ export default {
   turn: {
     done: '{name} xong việc',
     body: 'Đến lượt bạn xem kết quả',
-    none: 'Không có phiên nào đang chờ bạn.',
+    none: 'Không có agent nào đang chờ bạn.',
   },
 };

@@ -30,7 +30,7 @@ export default {
   saveOffline: 'Không lưu được: mất kết nối tới My Office.',
   demo: {
     d1: 'Trả lời email khách về bảng giá',
-    d2: 'Review PR giỏ hàng',
+    d2: 'Duyệt đơn giỏ hàng',
     d3: 'Đặt lịch họp thứ Sáu',
   },
 };

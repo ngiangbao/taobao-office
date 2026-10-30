@@ -7,21 +7,46 @@ const { createAgents, TEMPLATES } = require('./lib/agents');
 const { createDispatcher } = require('./lib/dispatcher');
 const browser = require('./lib/browser');
 const { createHistory } = require('./lib/history');
+const { isPackagedApp } = require('./lib/runtime');
+const { createCustomers } = require('./lib/customers');
+const { createRevenue, parseVnd } = require('./lib/revenue');
+const { createInbox, READER_PROMPT } = require('./lib/inbox');
+const crypto = require('node:crypto');
 
 const DEFAULT_CFG = {
   rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12,
   tone: 'thân thiện, xưng "shop", gọi khách là "bạn"', browser: 'playwright', claudePath: '', groups: [],
+  inboxMinutes: 0, inboxUrl: 'https://business.facebook.com/latest/inbox/all', // đọc hộp thư Messenger tự động (0 = tắt)
+  followupMinutes: 10, followupMax: 1, // khách im lặng bấy nhiêu phút thì agent soạn tin nhắc (tối đa bấy nhiêu lần)
+  refreshTokens: 100000, sleepHours: 24, // hội thoại dài quá ngưỡng thì làm mới có nhớ; nghỉ quá bấy nhiêu giờ thì hiện là "đang ngủ"
 };
 const DEFAULT_AGENTS = [
   { name: 'Chăm sóc khách', role: 'cskh' }, { name: 'Tìm hàng', role: 'search' }, { name: 'Báo giá', role: 'quote' },
   { name: 'Đăng bài', role: 'post' }, { name: 'Tìm khách', role: 'leads' },
 ];
-let dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, agents, dispatcher, history;
+let dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, agents, dispatcher, history, customers, revenue, inbox;
 const children = new Map(); // agentId -> process đang chạy
 
 const loadCfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(fs.readFileSync(cfgPath, 'utf8')) }; } catch { return { ...DEFAULT_CFG }; } };
 const send = (ch, v) => win?.webContents.send(ch, v);
 const pushAgents = () => send('agents:update', agents.list().map((a) => ({ ...a, busy: dispatcher?.isBusy(a.id) || false })));
+
+// Ba thẻ ở mục Hoạt động của văn phòng: Việc (agent đang làm), Khách (tổng số khách), Doanh thu (VNĐ đã thu)
+function writeStats() {
+  try {
+    fs.mkdirSync(path.join(dataDir, 'office'), { recursive: true });
+    fs.writeFileSync(path.join(dataDir, 'office', 'shop-stats.json'), JSON.stringify({ working: dispatcher?.busyCount() || 0, customers: customers.all().length, revenue: revenue.total(), at: Date.now() }));
+  } catch { /* thư mục chưa sẵn sàng */ }
+}
+function custList() {
+  const sleepMs = (loadCfg().sleepHours || 24) * 3600e3;
+  return customers.all().map((c) => {
+    const a = agents.get(c.agentId), busy = dispatcher?.isBusy(c.agentId) || false;
+    const idle = Date.now() - Math.max(c.lastInboundAt || 0, c.lastReplyAt || 0, c.createdAt || 0);
+    return { ...customers.pub(c), agentName: a?.name || '', ctx: a?.ctx || 0, busy, state: busy ? 'busy' : idle > sleepMs ? 'asleep' : 'awake' };
+  }).sort((x, y) => (y.lastInboundAt || y.createdAt) - (x.lastInboundAt || x.createdAt));
+}
+const pushCustomers = () => { send('customers:update', custList()); pushAgents(); writeStats(); };
 
 function createWindow() {
   win = new BrowserWindow({
@@ -36,14 +61,25 @@ function createWindow() {
 // Chạy một việc cho một agent; trả { text, error }
 async function runAgent(agent, text, opts = {}) {
   const cfg = loadCfg();
+  const cust = agent.kind === 'customer' ? customers.byAgent(agent.id) : null;
   let mcpFile = null;
-  if (cfg.browser !== 'chrome' && !opts.light) mcpFile = await browser.ensure(app, dataDir); // lượt chào nhẹ: không cần mở trình duyệt
-  let result = '', error = '';
+  // agent chăm khách không dùng trình duyệt (giao việc cho agent chuyên môn); lượt chào/làm mới cũng nhẹ
+  if (cfg.browser !== 'chrome' && !opts.light && !cust) mcpFile = await browser.ensure(app, dataDir);
+  let profile = '';
+  if (cust) { try { profile = fs.readFileSync(customers.profileFile(agent), 'utf8'); } catch { /* chưa có hồ sơ */ } }
+  let result = '', error = '', ctx = 0;
   const { child, done } = runClaude({
     text, cfg, dataDir, hooksFile, mcpFile,
-    agent: { ...agent, rolePrompt: TEMPLATES[agent.role]?.prompt || '', team: agents.list().filter((x) => x.id !== agent.id).map((x) => ({ name: x.name, roleLabel: x.roleLabel })) },
+    agent: {
+      ...agent, rolePrompt: TEMPLATES[agent.role]?.prompt || '',
+      customer: cust ? { code: cust.code, name: cust.name } : null, profile,
+      // agent chăm khách: chỉ làm việc trong thư mục riêng, chỉ ghi hồ sơ, không web/trình duyệt (tin của khách là dữ liệu không đáng tin)
+      ...(cust ? { restrictDir: true, noBrowser: true, allowedTools: ['Write', 'Edit'] } : {}),
+      team: agents.list().filter((x) => x.id !== agent.id && x.kind !== 'customer').map((x) => ({ name: x.name, roleLabel: x.roleLabel })),
+    },
     onEvent: (ev) => {
       if (ev.type === 'system' && ev.subtype === 'init') agents.markStarted(agent.id);
+      if (ev.type === 'assistant' && ev.message?.usage) { const u = ev.message.usage; ctx = (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0); }
       if (ev.type === 'result') { result = String(ev.result || ''); if (ev.is_error) error = result || 'lỗi'; }
     },
   });
@@ -51,7 +87,25 @@ async function runAgent(agent, text, opts = {}) {
   const r = await done;
   children.delete(agent.id);
   if (r.code !== 0 && !result) error = r.err.trim().slice(-400) || `claude thoát với mã ${r.code}`;
-  return { text: result, error };
+  return { text: result, error, ctx };
+}
+
+// Người đọc hộp thư Messenger: chỉ đọc, chỉ dùng trình duyệt, mỗi lần một phiên mới
+async function runReader(text) {
+  const cfg = loadCfg();
+  const mcpFile = cfg.browser !== 'chrome' ? await browser.ensure(app, dataDir) : null;
+  const dir = path.join(dataDir, 'agents', '_inbox'); fs.mkdirSync(dir, { recursive: true });
+  let result = '', error = '';
+  const { child, done } = runClaude({
+    text, cfg, dataDir, hooksFile: null, mcpFile,
+    agent: { name: 'Đọc hộp thư', sid: crypto.randomUUID(), started: false, dir, rolePrompt: READER_PROMPT, instructions: '', team: [], restrictDir: true, allowedTools: ['mcp__playwright'] },
+    onEvent: (ev) => { if (ev.type === 'result') { result = String(ev.result || ''); if (ev.is_error) error = result; } },
+  });
+  children.set('_inbox', child);
+  const r = await done; children.delete('_inbox');
+  if (r.code !== 0 && !result) throw new Error(r.err.trim().slice(-300) || `claude thoát với mã ${r.code}`);
+  if (error) throw new Error(error.slice(0, 300));
+  return result;
 }
 
 async function introduce(agent) {
@@ -60,7 +114,7 @@ async function introduce(agent) {
 }
 
 function setupUpdater() {
-  if (!app.isPackaged) return;
+  if (!isPackagedApp(app)) return; // chỉ bản đóng gói mới tự cập nhật
   try { ({ autoUpdater } = require('electron-updater')); } catch (e) { return console.error('updater', e); }
   let pending = false;
   const maybeInstall = () => { if (pending && !dispatcher.anyBusy()) { pending = false; setTimeout(() => autoUpdater.quitAndInstall(true, true), 8000); } };
@@ -82,11 +136,36 @@ app.whenReady().then(async () => {
   const firstRun = !fs.existsSync(path.join(dataDir, 'agents.json'));
   agents = createAgents(dataDir);
   history = createHistory(dataDir);
+  customers = createCustomers(dataDir, agents);
+  revenue = createRevenue(dataDir);
 
   ipcMain.handle('app:version', () => app.getVersion());
   ipcMain.handle('office:url', () => office?.url || null);
   ipcMain.handle('cfg:get', () => ({ cfg: loadCfg(), claude: findClaude(loadCfg().claudePath) }));
   ipcMain.handle('cfg:set', (_, c) => { fs.writeFileSync(cfgPath, JSON.stringify(c, null, 2)); return true; });
+  ipcMain.handle('customers:list', () => custList());
+  ipcMain.handle('customers:rename', (_, d) => { const ok = customers.rename(d.code, d.name); pushCustomers(); return ok; });
+  ipcMain.handle('customers:pause', (_, d) => { const c = customers.byCode(d.code); if (!c) return false; c.paused = !!d.paused; if (c.paused) c.followupDue = 0; customers.save(); pushCustomers(); return true; });
+  ipcMain.handle('customers:refresh', (_, code) => { const c = customers.byCode(code), a = c && agents.get(c.agentId); if (!a || dispatcher.isBusy(a.id)) return false; dispatcher.refresh(a, 'theo yêu cầu'); return true; });
+  ipcMain.handle('customers:profile', (_, code) => { const c = customers.byCode(code), a = c && agents.get(c.agentId); if (!a) return ''; try { return fs.readFileSync(customers.profileFile(a), 'utf8').slice(0, 20000); } catch { return ''; } });
+  ipcMain.handle('revenue:list', () => ({ total: revenue.total(), items: revenue.list().slice(0, 300) }));
+  ipcMain.handle('revenue:add', (_, d) => {
+    try { const c = d.code && customers.byCode(d.code); const r = revenue.add({ amount: parseVnd(d.amount), code: c?.code || '', name: c?.name || '', note: d.note || '', source: 'manual' }); writeStats(); return { ok: true, item: r }; }
+    catch (e) { return { ok: false, error: e.message }; }
+  });
+  ipcMain.handle('revenue:void', (_, id) => { const ok = revenue.void(id); writeStats(); return ok; });
+  ipcMain.handle('inbox:manual', (_, d) => { // dán tin của khách vào app
+    try {
+      if (!dispatcher) throw new Error('Văn phòng chưa sẵn sàng.');
+      const text = String(d.text || '').trim(), name = String(d.name || '').trim();
+      if (!text && !(d.images || []).length) throw new Error('Hãy nhập nội dung tin của khách.');
+      if (!name) throw new Error('Hãy nhập tên khách.');
+      const files = (d.images || []).slice(0, 4).map((im, i) => { const f = path.join(dataDir, 'uploads', `${Date.now()}-khach-${i}-${path.basename(String(im.name || 'anh.jpg')).replace(/[^\w.-]/g, '_')}`); fs.writeFileSync(f, Buffer.from(im.data)); return f; });
+      const r = dispatcher.deliverInbound({ key: '', name, text: text || '(khách gửi ảnh)', files });
+      return { ok: true, code: r.customer.code, created: r.created };
+    } catch (e) { return { ok: false, error: e.message }; }
+  });
+  ipcMain.handle('inbox:poll', async () => { if (!inbox) return { ok: false, error: 'Văn phòng chưa sẵn sàng.' }; return inbox.pollNow(); });
   ipcMain.handle('history:query', (_, o) => history.query(o || {}));
   ipcMain.handle('history:open', () => shell.openPath(history.dir));
   ipcMain.handle('log:open', () => shell.openPath(dataDir));
@@ -96,7 +175,7 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('agents:remove', (_, id) => { children.get(id)?.kill(); agents.remove(id); pushAgents(); return true; });
   ipcMain.handle('agents:reset', (_, id) => { if (dispatcher.isBusy(id)) return false; const a = agents.reset(id); pushAgents(); if (a) introduce(a); return true; });
-  ipcMain.handle('agents:stop', () => { for (const c of children.values()) c.kill(); return true; });
+  ipcMain.handle('agents:stop', () => { dispatcher?.cancelAll(); for (const c of children.values()) c.kill(); return true; });
   ipcMain.handle('login:open', async () => browser.open(dataDir, ['https://www.facebook.com/', 'https://www.taobao.com/']));
 
   createWindow();
@@ -106,16 +185,20 @@ app.whenReady().then(async () => {
     hooksFile = writeHookSettings(office.dir, office.port, dataDir);
     dispatcher = createDispatcher({
       officeUrl: () => office.url, agents, run: runAgent, uploadsDir: path.join(dataDir, 'uploads'), history,
-      onStatus: pushAgents, log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
+      customers, revenue, getCfg: loadCfg, onCustomers: pushCustomers, onRevenue: writeStats,
+      onStatus: () => { pushAgents(); writeStats(); }, log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
     });
     dispatcher.start();
+    inbox = createInbox({ dataDir, runReader, deliver: (msg) => dispatcher.deliverInbound(msg), getCfg: loadCfg, onResult: (r) => send('inbox:result', r) });
+    inbox.start();
+    writeStats(); setInterval(writeStats, 5000);
     send('office:ready', office.url);
     if (firstRun && findClaude(loadCfg().claudePath)) {
       const made = DEFAULT_AGENTS.map((d) => agents.add(d));
       (async () => { for (const a of made) await introduce(a); })(); // chào lần lượt, không chạy 5 tiến trình cùng lúc
     }
     pushAgents();
-  } catch (e) { console.error('Không chạy được văn phòng:', e); }
+  } catch (e) { console.error('Không chạy được văn phòng:', e); send('office:error', String(e.message || e)); }
 });
-app.on('before-quit', () => { dispatcher?.stop(); for (const c of children.values()) c.kill(); browser.stop(); office?.child.kill(); });
+app.on('before-quit', () => { dispatcher?.stop(); inbox?.stop(); for (const c of children.values()) c.kill(); browser.stop(); office?.child.kill(); });
 app.on('window-all-closed', () => app.quit());

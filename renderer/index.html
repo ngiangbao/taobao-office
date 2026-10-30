@@ -17,6 +17,9 @@
     <button id="btn-stop" class="danger" hidden>Dừng tất cả</button>
     <a class="credit" href="https://github.com/khanh020905/my-office" target="_blank" rel="noopener">Văn phòng: My Office · khanh020905 (MIT)</a>
     <button id="btn-login" class="ghost" title="Mở Chrome của app để tự đăng nhập Facebook/Taobao">Đăng nhập FB/Taobao</button>
+    <button id="btn-inbound" class="ghost" title="Dán tin của khách vào, hoặc đọc hộp thư Messenger">＋ Tin khách</button>
+    <button id="btn-cust" class="ghost" title="Mỗi khách có một agent riêng">Khách</button>
+    <button id="btn-rev" class="ghost" title="Sổ doanh thu: tiền đã thu thật">Doanh thu</button>
     <button id="btn-hist" class="ghost" title="Toàn bộ lịch sử chat với các agent">Lịch sử</button>
     <button id="btn-data" class="ghost">Nhật ký</button>
     <button id="btn-cfg" class="ghost">Cài đặt</button>
@@ -40,6 +43,40 @@
   <p class="hint">Lưu mãi mãi trên máy bạn, không bao giờ bị xóa tự động. Tin mới nhất nằm trên cùng.</p>
   <div id="h-list" class="hist-list"></div>
   <div class="hist-foot"><button id="h-more" class="ghost" hidden>Xem thêm tin cũ hơn</button></div>
+</dialog>
+
+<dialog id="dlg-cust" class="wide">
+  <div class="hist-head"><h3>Khách hàng</h3><input id="c-q" type="search" placeholder="Tìm theo tên hoặc mã…"><button id="c-close" class="ghost">Đóng</button></div>
+  <p class="hint">Mỗi khách có <b>một agent riêng</b> và một <b>mã định danh</b> chỉ bạn và agent đó biết. Khách nhắn lại, agent của họ tự dậy với đầy đủ hồ sơ.</p>
+  <div id="c-list" class="hist-list"></div>
+  <pre id="c-profile" class="profile" hidden></pre>
+</dialog>
+
+<dialog id="dlg-inbound">
+  <form method="dialog" id="inboundform">
+    <h3>Tin của khách</h3>
+    <p class="hint">Dán tin khách nhắn: khách mới sẽ tự có agent riêng, khách cũ thì agent của họ tự dậy.</p>
+    <label>Tên khách<input name="name" type="text" maxlength="40" placeholder="Ví dụ: Lan" required></label>
+    <label>Nội dung tin<textarea name="text" rows="4" placeholder="Shop ơi, áo này còn size M không?"></textarea></label>
+    <label>Ảnh khách gửi (tùy chọn)<input name="images" type="file" accept="image/*" multiple></label>
+    <p id="inboundmsg" class="err"></p>
+    <div class="row-btns"><button type="button" id="btn-poll" class="ghost" title="Dùng Chrome đã đăng nhập để đọc tin chưa xem. Lưu ý: mở cuộc trò chuyện sẽ hiện &quot;đã xem&quot; với khách.">Đọc hộp thư Messenger ngay</button><span id="pollmsg" class="hint"></span></div>
+    <menu><button value="cancel" class="ghost">Đóng</button><button id="inbound-ok" value="ok">Giao cho agent của khách</button></menu>
+  </form>
+</dialog>
+
+<dialog id="dlg-rev" class="wide">
+  <div class="hist-head"><h3>Doanh thu</h3><button id="r-close" class="ghost">Đóng</button></div>
+  <div class="rev-total"><span>Tổng tiền đã thu</span><b id="r-total">0₫</b></div>
+  <p class="hint">Chỉ tính tiền <b>đã thu thật</b> (cọc, thanh toán). Báo giá không được tính. Agent chỉ ghi khi chính bạn báo "đã nhận tiền"; bạn cũng ghi tay được ở đây.</p>
+  <form id="revform" class="rev-form">
+    <select name="code"><option value="">Khách (tùy chọn)</option></select>
+    <input name="amount" type="text" placeholder="Số tiền, ví dụ 436800 hoặc 1,5tr" required>
+    <input name="note" type="text" maxlength="200" placeholder="Ghi chú, ví dụ: cọc áo khoác be">
+    <button type="submit">Ghi khoản thu</button>
+  </form>
+  <p id="r-err" class="err"></p>
+  <div id="r-list" class="hist-list"></div>
 </dialog>
 
 <dialog id="dlg-agent">
@@ -74,6 +111,16 @@
       </label>
       <label>Đường dẫn lệnh claude (để trống = tự tìm)<input name="claudePath" type="text"></label>
     </div>
+    <h4>Khách hàng</h4>
+    <div class="grid">
+      <label>Khách im lặng bao nhiêu phút thì agent soạn tin nhắc<input name="followupMinutes" type="number" min="0"></label>
+      <label>Nhắc tối đa mấy lần mỗi lượt<input name="followupMax" type="number" min="0"></label>
+      <label>Làm mới trí nhớ khi hội thoại dài quá (token, 0 = tắt)<input name="refreshTokens" type="number" min="0"></label>
+      <label>Khách nghỉ quá bao nhiêu giờ thì hiện "đang ngủ"<input name="sleepHours" type="number" min="1"></label>
+      <label>Tự đọc hộp thư Messenger mỗi N phút (0 = tắt)<input name="inboxMinutes" type="number" min="0"></label>
+      <label>Địa chỉ hộp thư<input name="inboxUrl" type="text"></label>
+    </div>
+    <p class="hint">Đọc hộp thư dùng Chrome đã đăng nhập và chỉ đọc. Mở cuộc trò chuyện sẽ hiện "đã xem" với khách.</p>
     <p id="claudeinfo" class="hint"></p>
     <menu><button value="cancel" class="ghost">Hủy</button><button id="save" value="ok">Lưu</button></menu>
   </form>
