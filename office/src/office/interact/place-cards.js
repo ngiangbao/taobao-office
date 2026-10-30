@@ -158,6 +158,7 @@ function placeContent(id) {
   return null;
 }
 export function openPlace(id, from = null) {
+  if (id === 'deploy') { launchRocket(); sfx.play('deploy'); return; }   // Taobao Office: không có bảng bệ phóng, bấm vào tên lửa (hay bệ phóng) là tên lửa phóng luôn
   if (PLACES[id]?.open) { PLACES[id].open(); return; }
   if (plcState.id === id) { renderPlace(); return; }
   plcState.id = id; plcState.prop = from;
