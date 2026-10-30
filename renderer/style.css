@@ -106,3 +106,5 @@ dialog.settings{max-width:94vw;max-height:92vh}.s-win>*{min-width:0}
 
 .sk-agent{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0}.sk-head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}.sk-acts{margin-left:auto;display:flex;gap:6px}
 .sk-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:start;padding:8px 0;border-top:1px solid var(--line)}.sk-row p{margin:2px 0;font-size:13px}
+
+.grid{align-items:end}.grid label{display:flex;flex-direction:column;justify-content:flex-end}

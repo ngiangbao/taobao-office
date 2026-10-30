@@ -71,12 +71,12 @@
           <h4>Duyệt hay tự đăng</h4>
           <label>Khi agent soạn xong bài đăng fanpage<select name="fanpageAuto" data-bool><option value="0">Chờ tôi duyệt từng cái (khuyên dùng)</option><option value="1">Agent tự đăng theo lịch bên dưới</option></select></label>
           <div class="grid">
-            <label>Tự đăng sau (phút) kể từ khi agent soạn xong (0 = ngay)<input name="fanpageDelayMinutes" type="number" min="0" max="1440" step="1"></label>
-            <label>Mỗi bài cách bài cuối cùng của kênh này ít nhất (phút)<input name="fanpageGapMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Tự đăng sau (phút)<input name="fanpageDelayMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Mỗi bài cách nhau (phút)<input name="fanpageGapMinutes" type="number" min="0" max="1440" step="1"></label>
             <label>Chỉ đăng từ giờ (0–23)<input name="fanpageFromHour" type="number" min="0" max="23" step="1"></label>
             <label>đến giờ (0–24)<input name="fanpageToHour" type="number" min="0" max="24" step="1"></label>
           </div>
-          <p class="hint">Cài đặt này <b>chỉ áp dụng cho bài đăng fanpage</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
+          <p class="hint"><b>Tự đăng sau</b>: số phút chờ kể từ khi agent soạn xong (0 = đăng ngay). <b>Mỗi bài cách nhau</b>: số phút tối thiểu kể từ bài cuối cùng của kênh này. Cài đặt này <b>chỉ áp dụng cho bài đăng fanpage</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
           <p class="hint err" id="s-sched-fanpage" aria-live="polite"></p>
         </section>
         <section data-sec="newsfeed" hidden>
@@ -92,12 +92,12 @@
           <h4>Duyệt hay tự đăng</h4>
           <label>Khi agent soạn xong bình luận newsfeed<select name="commentAutoPost" data-bool><option value="0">Chờ tôi duyệt từng cái (khuyên dùng)</option><option value="1">Agent tự đăng theo lịch bên dưới</option></select></label>
           <div class="grid">
-            <label>Tự đăng sau (phút) kể từ khi agent soạn xong (0 = ngay)<input name="commentDelayMinutes" type="number" min="0" max="1440" step="1"></label>
-            <label>Mỗi bài cách bài cuối cùng của kênh này ít nhất (phút)<input name="commentGapMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Tự đăng sau (phút)<input name="commentDelayMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Mỗi bài cách nhau (phút)<input name="commentGapMinutes" type="number" min="0" max="1440" step="1"></label>
             <label>Chỉ đăng từ giờ (0–23)<input name="commentFromHour" type="number" min="0" max="23" step="1"></label>
             <label>đến giờ (0–24)<input name="commentToHour" type="number" min="0" max="24" step="1"></label>
           </div>
-          <p class="hint">Cài đặt này <b>chỉ áp dụng cho bình luận newsfeed</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
+          <p class="hint"><b>Tự đăng sau</b>: số phút chờ kể từ khi agent soạn xong (0 = đăng ngay). <b>Mỗi bài cách nhau</b>: số phút tối thiểu kể từ bài cuối cùng của kênh này. Cài đặt này <b>chỉ áp dụng cho bình luận newsfeed</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
           <p class="hint err" id="s-sched-comment" aria-live="polite"></p>
           <label>Hạn mức bình luận tự đăng mỗi ngày<input name="commentAutoMax" type="number" min="0" max="50" step="1"></label>
           <p class="hint">Khung giờ ở trên dùng cho cả việc quét bảng tin lẫn đăng bình luận. Giới hạn khi tự đăng bình luận: dưới 300 ký tự, không link, không số điện thoại, không @tên, không bình luận hai lần vào một bài. Nút “Dừng tất cả” tắt luôn tự quét và mọi chế độ tự đăng.</p>
@@ -123,12 +123,12 @@
           <h4>Duyệt hay tự đăng</h4>
           <label>Khi agent soạn xong bài đăng nhóm<select name="groupAuto" data-bool><option value="0">Chờ tôi duyệt từng cái (khuyên dùng)</option><option value="1">Agent tự đăng theo lịch bên dưới</option></select></label>
           <div class="grid">
-            <label>Tự đăng sau (phút) kể từ khi agent soạn xong (0 = ngay)<input name="groupPostDelayMinutes" type="number" min="0" max="1440" step="1"></label>
-            <label>Mỗi bài cách bài cuối cùng của kênh này ít nhất (phút)<input name="groupPostGapMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Tự đăng sau (phút)<input name="groupPostDelayMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Mỗi bài cách nhau (phút)<input name="groupPostGapMinutes" type="number" min="0" max="1440" step="1"></label>
             <label>Chỉ đăng từ giờ (0–23)<input name="groupPostFromHour" type="number" min="0" max="23" step="1"></label>
             <label>đến giờ (0–24)<input name="groupPostToHour" type="number" min="0" max="24" step="1"></label>
           </div>
-          <p class="hint">Cài đặt này <b>chỉ áp dụng cho bài đăng nhóm</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
+          <p class="hint"><b>Tự đăng sau</b>: số phút chờ kể từ khi agent soạn xong (0 = đăng ngay). <b>Mỗi bài cách nhau</b>: số phút tối thiểu kể từ bài cuối cùng của kênh này. Cài đặt này <b>chỉ áp dụng cho bài đăng nhóm</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
           <p class="hint err" id="s-sched-group" aria-live="polite"></p>
           <hr>
           <h4>Danh sách nhóm được phép đăng</h4>
