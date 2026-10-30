@@ -1847,6 +1847,21 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
+  if (url.pathname === '/api/attach' && req.method === 'POST') {   // a file the owner attached in the chat (kept until a command sends it); only from this computer
+    if (!isLoopback(req) || !authorized(req, url) || !sameOriginOf(req) || !String(req.headers['content-type'] || '').startsWith('application/json')) { json(res, 403, { ok: false }); return; }
+    readJson(req, 9_000_000).then(async (b) => {
+      const ext = (String(b?.name || '').match(/\.([A-Za-z0-9]{1,5})$/) || [])[1]?.toLowerCase();
+      if (!['xlsx', 'docx', 'md', 'txt', 'csv', 'json', 'pdf'].includes(ext)) { json(res, 415, { ok: false, message: 'Chỉ nhận tệp xlsx, docx, md, txt, csv, json, pdf.' }); return; }
+      const buf = Buffer.from(String(b.data || ''), 'base64');
+      if (!buf.length || buf.length > 6_000_000) { json(res, 413, { ok: false, message: 'Tệp trống hoặc lớn hơn 6 MB.' }); return; }
+      const base = path.basename(String(b.name)).replace(/\.[^.]*$/, '').replace(/[^\p{L}\p{N}_-]+/gu, '_').slice(0, 60) || 'tep';
+      const safe = `${base}.${ext}`, dir = path.join(DATA_DIR, 'attach');
+      await fsp.mkdir(dir, { recursive: true });
+      await fsp.writeFile(path.join(dir, `${Date.now()}-${safe}`), buf, { mode: 0o600 });
+      json(res, 200, { ok: true, name: safe });
+    }).catch(() => json(res, 400, { ok: false }));
+    return;
+  }
   if (url.pathname === '/api/chat' && req.method === 'POST') {   // the group chat: { op, … } (say and photo only from this computer)
     if (!authorized(req, url) || !sameOriginOf(req) || !String(req.headers['content-type'] || '').startsWith('application/json')) { json(res, 403, { ok: false }); return; }
     readJson(req, 600_000).then((b) => {

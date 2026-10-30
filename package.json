@@ -84,7 +84,8 @@
   "dependencies": {
     "@playwright/mcp": "^0.0.83",
     "electron-updater": "^6.8.11",
-    "exceljs": "^4.4.0"
+    "exceljs": "^4.4.0",
+    "jszip": "^3.10.2"
   },
   "overrides": {
     "exceljs": {

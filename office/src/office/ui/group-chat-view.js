@@ -267,6 +267,8 @@ function setReply(m) {
 }
 /* ---------- images from this computer: picked, dragged in or pasted; kept here (not sent) until a command is typed and sent ---------- */
 const pending = [];   // JPEG data URLs waiting for the command
+const pendingFiles = [];   // documents (File) waiting for the command: uploaded to this computer's office only when sent
+const DOC_EXT = /\.(xlsx|docx|md|txt|csv|json|pdf)$/i;
 let thumbsEl = null;
 function toJpeg(file) {   // → JPEG data URL under the server's limit, or null
   return new Promise((resolve) => {
@@ -288,9 +290,13 @@ function toJpeg(file) {   // → JPEG data URL under the server's limit, or null
 }
 function drawThumbs() {
   if (!thumbsEl) return;
-  thumbsEl.replaceChildren(); thumbsEl.hidden = !pending.length; root.classList.toggle('has-pending', !!pending.length);
-  if (!pending.length) return;
+  thumbsEl.replaceChildren(); thumbsEl.hidden = !pending.length && !pendingFiles.length; root.classList.toggle('has-pending', !thumbsEl.hidden);
+  if (thumbsEl.hidden) return;
   const row = el('div', 'zc-thumbs-row');
+  pendingFiles.forEach((f, i) => {
+    const chip = el('span', 'zc-fchip', `📎 ${f.name}`), x = el('button', 'zc-thumb-x zc-fchip-x'); x.type = 'button'; x.title = tr('chat.imgRemove'); x.textContent = '×';
+    x.addEventListener('click', () => { pendingFiles.splice(i, 1); drawThumbs(); }); chip.append(x); row.append(chip);
+  });
   pending.forEach((d, i) => {
     const box = el('span', 'zc-thumb'), im = el('img'), x = el('button', 'zc-thumb-x'); im.src = d; im.alt = '';
     x.type = 'button'; x.title = tr('chat.imgRemove'); x.textContent = '×'; x.addEventListener('click', () => { pending.splice(i, 1); drawThumbs(); });
@@ -299,6 +305,10 @@ function drawThumbs() {
   thumbsEl.append(row, el('span', 'zc-thumbs-hint', tr('chat.pendHint')));
 }
 async function stageFiles(files) {
+  for (const f of [...files].filter((x) => DOC_EXT.test(x.name)).slice(0, 4)) {
+    if (f.size > 5_000_000) { toast(tr('chat.fileBig', { name: f.name })); continue; }
+    if (pendingFiles.length < 4) pendingFiles.push(f);
+  }
   for (const f of [...files].filter((x) => /^image\//.test(x.type)).slice(0, 6)) {
     const d = await toJpeg(f);
     if (!d) { toast(tr('chat.imgBad')); continue; }
@@ -306,13 +316,35 @@ async function stageFiles(files) {
   }
   drawThumbs(); input.focus();
 }
+function pickFiles() {
+  const f = document.createElement('input'); f.type = 'file'; f.accept = '.xlsx,.docx,.md,.txt,.csv,.json,.pdf'; f.multiple = true;
+  f.addEventListener('change', () => { stageFiles(f.files); });
+  f.click();
+}
+async function uploadPending() {   // → ' 📎name 📎name' to add to the command, or null when an upload failed
+  let tokens = '';
+  for (const f of pendingFiles) {
+    const data = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1] || ''); r.onerror = () => ok(''); r.readAsDataURL(f); });
+    const res = await fetch(`/api/attach${TOKEN ? `?k=${encodeURIComponent(TOKEN)}` : ''}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: f.name, data }) }).then((r) => r.json()).catch(() => null);
+    if (!res?.ok) { toast(res?.message || tr('chat.fileBad', { name: f.name })); return null; }
+    tokens += ` 📎${res.name}`;
+  }
+  return tokens;
+}
 function pickImages() {
   const f = document.createElement('input'); f.type = 'file'; f.accept = 'image/*'; f.multiple = true;
   f.addEventListener('change', () => { stageFiles(f.files); });
   f.click();
 }
-function send() {
-  if (pending.length && !input.value.trim()) { toast(tr('chat.pendNeedText')); input.focus(); return; }
+let sending = false;
+async function send() {
+  if ((pending.length || pendingFiles.length) && !input.value.trim()) { toast(tr('chat.pendNeedText')); input.focus(); return; }
+  if (pendingFiles.length) {   // documents: upload them now, and name them in the command so the app attaches them to this job
+    if (sending) return; sending = true;
+    const tokens = await uploadPending(); sending = false;
+    if (tokens == null) return;
+    pendingFiles.splice(0); drawThumbs(); input.value = `${tokens.trim()} ${input.value.trim()}`;   // (in front: the box keeps only 600 characters)
+  }
   const hadImages = pending.length > 0;
   if (hadImages) { for (const d of pending.splice(0)) chatSendImage(d); drawThumbs(); }   // the images go first, then the command that says who gets them
   const v = input.value; input.value = ''; syncBar(); mentionEl.hidden = true; input.style.height = '';
@@ -491,7 +523,7 @@ function build() {
   const photoBtn = (cls) => ib('image', tr('chat.sendPhoto'), pickImages, cls);   // an image file from this computer, kept until the command is sent   // (a photo of the office as it is now: taken on the Mac)
   const atBtn = () => { moreEl.hidden = true; input.focus(); input.setRangeText(input.value && !/\s$/.test(input.value) ? ' @' : '@', input.selectionStart, input.selectionEnd, 'end'); mentions(); };
   const toolbar = el('div', 'zc-toolbar zc-pc');
-  toolbar.append(ib('smile', tr('chat.stickerTab'), () => openStickers('sticker')), photoBtn(''), ib('clip', ''), ib('card', ''), ib('chart', tr('chat.newPoll'), openMore), ib('at', tr('chat.mention'), atBtn),
+  toolbar.append(ib('smile', tr('chat.stickerTab'), () => openStickers('sticker')), photoBtn(''), ib('clip', tr('chat.attachFile'), pickFiles), ib('card', ''), ib('chart', tr('chat.newPoll'), openMore), ib('at', tr('chat.mention'), atBtn),
     ib('clipboard', tr('chat.task.title'), () => openTaskSheet(root), 'zc-task-btn'), ib('format', ''), ib('more', tr('chat.more'), openMore));
   bar = el('form', 'zc-bar');
   input = el('textarea', 'zc-in'); input.rows = 1; input.maxLength = 600;
