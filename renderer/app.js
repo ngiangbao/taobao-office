@@ -13,7 +13,7 @@ const api = window.api || (() => {
     listAgents: async () => ({ agents: list, templates: { quote: { label: 'Báo giá', prompt: 'Chuyên báo giá.' }, post: { label: 'Đăng bài nhóm', prompt: 'Chuyên đăng bài.' }, leads: { label: 'Tìm khách', prompt: 'Chuyên tìm khách.' }, custom: { label: 'Tùy chỉnh', prompt: '' } } }),
     addAgent: async (d) => { list = [...list, { id: String(Math.random()), name: d.name, roleLabel: d.role, busy: false }]; return { ok: true }; },
     removeAgent: async (id) => { list = list.filter((a) => a.id !== id); }, resetAgent: async () => true, stopAll: async () => true,
-    historyQuery: async () => ({ items: [{ t: new Date().toISOString(), kind: 'user', agent: 'Báo giá', text: 'Báo giá áo khoác này' }, { t: new Date().toISOString(), kind: 'agent', agent: 'Báo giá', text: 'Đã báo giá xong (bản giả lập).' }], more: false }), openHistoryDir: async () => {},
+    historyQuery: async () => ({ items: [{ t: new Date().toISOString(), kind: 'user', agent: 'Báo giá', text: 'Báo giá áo khoác này' }, { t: new Date().toISOString(), kind: 'agent', agent: 'Báo giá', text: 'Đã báo giá xong (bản giả lập).' }], more: false }), historyDelete: async () => 1, openHistoryDir: async () => {},
     listCustomers: async () => [{ code: 'KH-7F3K9', name: 'Lan', agentName: 'Khách Lan', state: 'awake', busy: false, lastInboundAt: Date.now() - 600000, followupDue: Date.now() + 240000, paused: false, followupCount: 0, ctx: 42000 }, { code: 'KH-2M8QX', name: 'Hương', agentName: 'Khách Hương', state: 'asleep', busy: false, lastInboundAt: Date.now() - 86400000 * 3, followupDue: 0, paused: false, followupCount: 1, ctx: 8000 }],
     renameCustomer: async () => true, pauseCustomer: async () => true, refreshCustomer: async () => true, customerProfile: async () => '# Hồ sơ khách Lan\n- Xưng hô: chị Lan\n- Size: M\n- Thích: màu be, dáng ngắn',
     onCustomers: () => {}, listRevenue: async () => ({ total: 936800, items: [{ id: 'a1', t: new Date().toISOString(), amount: 436800, name: 'Lan', code: 'KH-7F3K9', note: 'cọc áo khoác be', source: 'agent' }] }),
@@ -149,7 +149,15 @@ function addHist(items) {
     const who = r.kind === 'inbound' ? `Khách nhắn → ${r.agent}${r.code ? ' (' + r.code + ')' : ''}` : r.kind === 'system' ? `Hệ thống · ${r.agent}` : r.kind === 'proposal' ? `Đề xuất · ${r.agent}` : r.kind === 'user' ? `Chủ shop → ${r.agent ? '@' + r.agent : '(chưa giao cho ai)'}` : r.kind === 'handoff' ? `${r.agent} ➜ giao cho @${r.to}` : r.kind === 'error' ? `${r.agent} · lỗi` : r.agent;
     const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = `${fmtTime(r.t)} · ${who}${r.chain ? ` · chuỗi #${r.chain}` : ''}`;
     const body = document.createElement('div'); body.textContent = r.text + (r.files?.length ? `\n[${r.files.length} ảnh đính kèm]` : '');
-    el.append(meta, body); hList.append(el);
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'h-del'; del.textContent = '✕';
+    del.title = 'Xoá tin này khỏi lịch sử trên máy (không thể hoàn tác)';
+    del.onclick = async () => {
+      if (!confirm('Xoá tin này khỏi lịch sử? Không thể hoàn tác.')) return;
+      const n = await api.historyDelete({ t: r.t, id: r.id || '' });
+      if (n) { const prev = el.previousElementSibling; el.remove(); if (prev?.classList.contains('hist-day') && !prev.nextElementSibling) prev.remove(); }
+      else say('Không xoá được tin này.');
+    };
+    el.append(meta, body, del); hList.append(el);
   }
 }
 async function loadHist(reset) {

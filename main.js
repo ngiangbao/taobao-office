@@ -31,6 +31,7 @@ const DEFAULT_AGENTS = [
 ];
 let dataDir, cfgPath, win, office = null, hooksFile = null, autoUpdater = null, agents, dispatcher, history, customers, revenue, inbox, approvals, gateOk = false;
 const children = new Map(); // agentId -> process đang chạy
+const ICON = path.join(__dirname, 'renderer', 'icon.png');
 
 const loadCfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(fs.readFileSync(cfgPath, 'utf8')) }; } catch { return { ...DEFAULT_CFG }; } };
 const send = (ch, v) => win?.webContents.send(ch, v);
@@ -55,14 +56,38 @@ const approvalsPub = () => ({ items: [...approvals.all()].sort((a, b) => (a.stat
 const pushApprovals = () => send('approvals:update', approvalsPub());
 const pushCustomers = () => { send('customers:update', custList()); pushAgents(); writeStats(); };
 
+// Màn hình chào: hiện ngay khi mở app, tự đóng khi cửa sổ chính vẽ xong (giữ tối thiểu ~0,9 s để kịp đọc).
+let splash = null, splashAt = 0;
+function createSplash() {
+  splashAt = Date.now();
+  splash = new BrowserWindow({
+    width: 440, height: 320, frame: false, resizable: false, maximizable: false, minimizable: false,
+    show: false, backgroundColor: '#14161c', title: 'Taobao Office', icon: ICON,
+    webPreferences: {
+      preload: path.join(__dirname, 'renderer', 'splash-preload.js'),
+      contextIsolation: true, nodeIntegration: false, sandbox: true,
+    },
+  });
+  splash.on('closed', () => { splash = null; });
+  splash.loadFile('renderer/splash.html');
+  splash.once('ready-to-show', () => splash?.show());
+}
+const splashSay = (t) => splash?.webContents.send('splash:msg', t);
+function closeSplash() {
+  const wait = Math.max(0, 900 - (Date.now() - splashAt));
+  setTimeout(() => { splash?.destroy(); splash = null; }, wait);
+}
+
 function createWindow() {
   win = new BrowserWindow({
-    width: 1280, height: 800, backgroundColor: '#14161c', title: loadCfg().shopName,
+    width: 1280, height: 800, backgroundColor: '#14161c', title: loadCfg().shopName, icon: ICON, show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
   win.setMenuBarVisibility(false);
   win.on('page-title-updated', (e) => { e.preventDefault(); win.setTitle(loadCfg().shopName); }); // tiêu đề cửa sổ luôn là tên cửa hàng
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+  win.once('ready-to-show', () => { win.show(); closeSplash(); });
+  win.on('closed', () => { win = null; });
   win.loadFile('renderer/index.html');
 }
 
@@ -167,7 +192,10 @@ function setupUpdater() {
   check(); setInterval(check, 4 * 3600 * 1000);
 }
 
+app.setAppUserModelId('vn.taobaooffice.app');
+
 app.whenReady().then(async () => {
+  createSplash();
   dataDir = path.join(app.getPath('userData'), 'workspace');
   fs.mkdirSync(path.join(dataDir, 'uploads'), { recursive: true });
   cfgPath = path.join(dataDir, 'config.json');
@@ -218,6 +246,7 @@ app.whenReady().then(async () => {
     } catch (e) { return { ok: false, error: e.message }; }
   });
   ipcMain.handle('history:query', (_, o) => history.query(o || {}));
+  ipcMain.handle('history:delete', (_, o) => history.remove(o || {}));
   ipcMain.handle('history:open', () => shell.openPath(history.dir));
   ipcMain.handle('log:open', () => shell.openPath(dataDir));
   ipcMain.handle('agents:list', () => ({ agents: agents.list().map((a) => ({ ...a, busy: dispatcher?.isBusy(a.id) || false })), templates: Object.fromEntries(Object.entries(TEMPLATES).map(([k, v]) => [k, { label: v.label, prompt: v.prompt }])) }));
@@ -226,11 +255,12 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('agents:remove', (_, id) => { children.get(id)?.kill(); agents.remove(id); pushAgents(); return true; });
   ipcMain.handle('agents:reset', (_, id) => { if (dispatcher.isBusy(id)) return false; const a = agents.reset(id); pushAgents(); if (a) introduce(a); return true; });
-  ipcMain.handle('agents:stop', () => { dispatcher?.cancelAll(); for (const c of children.values()) c.kill(); return true; });
+  ipcMain.handle('agents:stop', () => { dispatcher?.stopAll(); for (const c of children.values()) c.kill(); return true; });
   ipcMain.handle('login:open', async () => browser.open(dataDir, ['https://www.facebook.com/', 'https://www.taobao.com/']));
 
   createWindow();
   setupUpdater();
+  splashSay('Đang mở văn phòng 3D…');
   try {
     office = await startOffice(app, dataDir);
     gateOk = testGate(); // lớp chặn phím chạy được thì agent mới được dùng phím cuộn trang; không thì không có phím nào
@@ -238,6 +268,7 @@ app.whenReady().then(async () => {
     hooksFile = writeHookSettings(office.dir, office.port, dataDir, { gate: gateOk });
     dispatcher = createDispatcher({
       officeUrl: () => office.url, agents, run: runAgent, uploadsDir: path.join(dataDir, 'uploads'), history,
+      killAgent: (id) => children.get(id)?.kill(),
       customers, revenue, approvals, publisher: runPublisher, toJpeg, onApprovals: pushApprovals, getCfg: loadCfg, onCustomers: pushCustomers, onRevenue: writeStats,
       onStatus: () => { pushAgents(); writeStats(); }, log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
     });
