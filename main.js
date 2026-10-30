@@ -296,9 +296,15 @@ function setupUpdater() {
   check(); setInterval(check, 4 * 3600 * 1000);
 }
 
+// Chỉ một bản app chạy cùng lúc: mở lần hai thì đưa cửa sổ đang chạy lên trước (hai bản chạy chung dữ liệu dễ ghi đè cấu hình của nhau)
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) { app.quit(); } else {
+  app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } });
+}
 app.setAppUserModelId('vn.taobaooffice.app');
 
 app.whenReady().then(async () => {
+  if (!gotLock) return; // bản thứ hai: đã xin thoát, không khởi động gì cả
   createSplash();
   dataDir = path.join(app.getPath('userData'), 'workspace');
   fs.mkdirSync(path.join(dataDir, 'uploads'), { recursive: true });

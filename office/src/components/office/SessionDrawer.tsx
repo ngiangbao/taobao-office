@@ -18,8 +18,8 @@ export default async function SessionDrawer() {
         <li><b id="ds-edit">0</b><span>{t('ui.sessionDrawer.edit')}</span></li>
         <li><b id="ds-cmd">0</b><span>{t('ui.sessionDrawer.cmd')}</span></li>
         <li><b id="ds-time">–</b><span>{t('ui.sessionDrawer.time')}</span></li>
-        <li><b id="ds-ctx">–</b><span>{t('ui.sessionDrawer.ctx')}</span></li>
-        <li><b id="ds-cost">–</b><span>{t('ui.sessionDrawer.cost')}</span></li>
+        <li hidden><b id="ds-ctx">–</b><span>{t('ui.sessionDrawer.ctx')}</span></li>
+        <li hidden><b id="ds-cost">–</b><span>{t('ui.sessionDrawer.cost')}</span></li>
       </ul>
       <div className="tabs" role="tablist">
         <button className="tab" role="tab" id="tab-chat" aria-selected="true" type="button">{t('ui.sessionDrawer.chat')}</button>
