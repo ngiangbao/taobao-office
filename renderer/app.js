@@ -1,14 +1,15 @@
-import { createOffice } from './office.js';
-
 const $ = (s) => document.querySelector(s);
 const log = $('#log'), input = $('#input'), statusEl = $('#status'), whereEl = $('#where'), chips = $('#chips');
-const office = createOffice($('#office'));
+const frame = $('#office'), wait = $('#office-wait');
+// Văn phòng là bản my-office chạy cục bộ; app chỉ nhúng nó vào khung bên trái.
+const showOffice = (u) => { if (u && frame.src !== u) { frame.src = u; frame.onload = () => wait.classList.add('hide'); } };
 let attached = []; // [{name, path}]
 
 // Bản chạy thử trong trình duyệt (không có Electron): giả lập để xem giao diện.
 const api = window.api || {
   getCfg: async () => ({ cfg: { rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12, tone: '', browser: 'playwright', claudePath: '', groups: [] }, claude: null }),
   setCfg: async () => true, reset: async () => true, stop: async () => true, openData: async () => {}, saveFile: async (n) => '/mock/' + n,
+  officeUrl: async () => 'http://localhost:4310/', onOfficeReady: () => {},
   onEvent: (cb) => (window.__mockEmit = cb),
   send: async (t) => {
     const e = window.__mockEmit;
@@ -28,12 +29,9 @@ function add(cls, text) {
 function setBusy(b) {
   statusEl.textContent = b ? 'Đang làm việc…' : 'Đang rảnh'; statusEl.classList.toggle('busy', b);
   $('#btn-send').hidden = b; $('#btn-stop').hidden = !b;
-  if (!b) whereEl.textContent = office.idle();
+  if (!b) whereEl.textContent = '';
 }
 
-const stationFor = (name) =>
-  /playwright|chrome|browser/i.test(name) ? 'browser' :
-  /WebSearch|WebFetch|Read|Glob|Grep/.test(name) ? 'library' : 'desk';
 const toolText = (n, i) =>
   /navigate/.test(n) ? `Mở ${i?.url || 'trang web'}` : /WebSearch/.test(n) ? `Tìm: ${i?.query || ''}` :
   /Read/.test(n) ? 'Đang đọc/xem ảnh' : /Write|Edit/.test(n) ? 'Ghi nhật ký' : n.replace(/^mcp__\w+?__/, '');
@@ -42,7 +40,7 @@ api.onEvent((ev) => {
   if (ev.type !== 'assistant') return;
   for (const c of ev.message?.content || []) {
     if (c.type === 'text' && c.text.trim()) add('bot', c.text.trim());
-    if (c.type === 'tool_use') { whereEl.textContent = office.act(stationFor(c.name)); add('tool', '⚙ ' + toolText(c.name, c.input)); }
+    if (c.type === 'tool_use') { whereEl.textContent = toolText(c.name, c.input); add('tool', '⚙ ' + toolText(c.name, c.input)); }
   }
 });
 
@@ -50,7 +48,7 @@ async function send(text) {
   text = text.trim(); if (!text && !attached.length) return;
   add('user', text + (attached.length ? `\n[${attached.length} ảnh]` : ''));
   const files = attached.map((a) => a.path); attached = []; chips.innerHTML = ''; input.value = '';
-  setBusy(true); whereEl.textContent = office.act('desk');
+  setBusy(true);
   const r = await api.send(text, files);
   if (!r.ok) add('err', r.error);
   setBusy(false);
@@ -98,6 +96,8 @@ form.addEventListener('submit', async (e) => {
   await api.setCfg(cfg);
 });
 
-whereEl.textContent = office.idle();
 add('bot', 'Xin chào! Gửi ảnh món cần báo giá, hoặc bảo tôi soạn bài/tìm khách. Mọi bài đăng và comment đều chờ bạn duyệt trước.');
 api.getCfg().then(({ claude }) => { if (!claude) add('err', 'Chưa tìm thấy lệnh `claude`. Cài Claude Code và đăng nhập (chạy `claude` một lần), hoặc nhập đường dẫn trong Cài đặt.'); });
+
+api.officeUrl().then(showOffice);
+api.onOfficeReady(showOffice);

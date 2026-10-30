@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; frame-src http://127.0.0.1:* http://localhost:*; style-src 'self' 'unsafe-inline'; script-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Taobao Office</title>
 <link rel="stylesheet" href="style.css">
@@ -10,13 +10,15 @@
 <body>
 <div class="app">
   <section class="office">
-    <canvas id="office"></canvas>
+    <iframe id="office" title="Văn phòng" allow="autoplay; fullscreen"></iframe>
+    <div id="office-wait" class="office-wait">Đang mở văn phòng…</div>
     <div class="hud"><span id="status" class="pill">Đang rảnh</span><span id="where" class="where"></span></div>
   </section>
   <section class="chat">
     <header>
       <b>Taobao Office</b>
       <span class="spacer"></span>
+      <a class="credit" href="https://github.com/khanh020905/my-office" target="_blank" rel="noopener">Văn phòng: My Office · khanh020905 (MIT)</a>
       <button id="btn-login" class="ghost" title="Mở Chrome của app để tự đăng nhập Facebook/Taobao">Đăng nhập FB/Taobao</button>
       <button id="btn-new" class="ghost">Cuộc mới</button>
       <button id="btn-data" class="ghost">Nhật ký</button>

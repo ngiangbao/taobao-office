@@ -8,10 +8,10 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "vendor": "node scripts/vendor.mjs",
-    "dist:linux": "npm run vendor && electron-builder --linux AppImage deb --publish never",
-    "dist:win": "npm run vendor && electron-builder --win nsis --publish never",
-    "dist:mac": "npm run vendor && electron-builder --mac dmg --publish never"
+    "prepare:office": "node scripts/prepare-office.mjs",
+    "dist:linux": "npm run prepare:office && electron-builder --linux AppImage deb --publish never",
+    "dist:win": "npm run prepare:office && electron-builder --win nsis --publish never",
+    "dist:mac": "npm run prepare:office && electron-builder --mac dmg --publish never"
   },
   "build": {
     "appId": "vn.taobaooffice.app",
@@ -33,7 +33,20 @@
     "mac": {
       "category": "public.app-category.business",
       "target": "dmg"
-    }
+    },
+    "extraResources": [
+      {
+        "from": "office",
+        "to": "office",
+        "filter": [
+          "**/*",
+          "!.git",
+          "!**/*.map",
+          "!node_modules/.cache/**",
+          "!.next/cache/**"
+        ]
+      }
+    ]
   },
   "devDependencies": {
     "electron": "^45.1.0",

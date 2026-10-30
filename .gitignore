@@ -1,3 +1,6 @@
 node_modules/
 dist/
-renderer/vendor/
+office/node_modules/
+office/.next/
+office/data/
+.DS_Store

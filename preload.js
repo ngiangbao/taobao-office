@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('api', {
   reset: () => ipcRenderer.invoke('chat:reset'),
   saveFile: (name, data) => ipcRenderer.invoke('file:save', { name, data }),
   openLogin: () => ipcRenderer.invoke('login:open'),
+  officeUrl: () => ipcRenderer.invoke('office:url'),
+  onOfficeReady: (cb) => ipcRenderer.on('office:ready', (_, u) => cb(u)),
   openData: () => ipcRenderer.invoke('log:open'),
   onEvent: (cb) => ipcRenderer.on('claude:event', (_, ev) => cb(ev)),
 });

@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { runClaude, findClaude } = require('./lib/claude');
+const { startOffice, writeHookSettings } = require('./lib/office');
 
 function findChrome() {
   const c = process.platform === 'win32'
@@ -17,7 +18,7 @@ const DEFAULT_CFG = {
   tone: 'thân thiện, xưng "shop", gọi khách là "bạn"', browser: 'playwright', claudePath: '',
   groups: [],
 };
-let dataDir, cfgPath, sessionId = null, running = null, win;
+let dataDir, cfgPath, sessionId = null, running = null, win, office = null, hooksFile = null;
 
 const loadCfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(fs.readFileSync(cfgPath, 'utf8')) }; } catch { return { ...DEFAULT_CFG }; } };
 
@@ -31,12 +32,13 @@ function createWindow() {
   win.loadFile('renderer/index.html');
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   dataDir = path.join(app.getPath('userData'), 'workspace');
   fs.mkdirSync(path.join(dataDir, 'uploads'), { recursive: true });
   cfgPath = path.join(dataDir, 'config.json');
   try { sessionId = fs.readFileSync(path.join(dataDir, 'session.txt'), 'utf8').trim() || null; } catch {}
 
+  ipcMain.handle('office:url', () => office?.url || null);
   ipcMain.handle('cfg:get', () => ({ cfg: loadCfg(), claude: findClaude(loadCfg().claudePath) }));
   ipcMain.handle('cfg:set', (_, c) => { fs.writeFileSync(cfgPath, JSON.stringify(c, null, 2)); return true; });
   ipcMain.handle('login:open', () => {
@@ -58,7 +60,7 @@ app.whenReady().then(() => {
     const full = files?.length ? `${text}\n\n[Ảnh đính kèm: ${files.join(', ')}]` : text;
     try {
       running = runClaude({
-        text: full, cfg: loadCfg(), dataDir, sessionId,
+        text: full, cfg: loadCfg(), dataDir, sessionId, hooksFile,
         onEvent: (ev) => {
           if (ev.session_id && ev.type === 'system') { sessionId = ev.session_id; fs.writeFileSync(path.join(dataDir, 'session.txt'), sessionId); }
           win?.webContents.send('claude:event', ev);
@@ -71,5 +73,11 @@ app.whenReady().then(() => {
     } catch (e) { running = null; return { ok: false, error: e.message }; }
   });
   createWindow();
+  try {
+    office = await startOffice(app, dataDir);
+    hooksFile = writeHookSettings(office.dir, office.port, dataDir);
+    win?.webContents.send('office:ready', office.url);
+  } catch (e) { console.error('Không chạy được văn phòng:', e); }
 });
+app.on('before-quit', () => { office?.child.kill(); });
 app.on('window-all-closed', () => app.quit());
