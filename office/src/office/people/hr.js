@@ -337,7 +337,7 @@ export function setup() {
   hr = new (class extends Staff {
     step() {
       if (this.chore) return;   // (the party runs her)
-      const m = minutes(), on = !replay.on && m >= FROM && m < TO;
+      const m = minutes(), on = false;   // Taobao Office: không có chị HR (không bao giờ vào ca, nên mô hình 3D luôn ẩn); bàn và máy chấm công vẫn còn
       if (on && this.offstage && !this.coming) {
         if (!this.seen) { this.offstage = false; this.pos.set(SEAT.x, SEAT.z); this.face = this.faceTarget = SEAT.face; this.spot = SEAT; this.pose = 'sit'; this.anim = 'type'; }
         else {

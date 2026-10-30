@@ -484,7 +484,7 @@ function drawMembers() {
   };
   add({ ...meP(), name: `${tr('chat.boss')} (${tr('chat.you')})` }, tr('chat.memberYou'));
   for (const s of [...sessions.values()].sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0))) add(faceOf(s.id, dn(s)), `${statusOf(s)} · 📁 ${folderOf(s)}`, s.link);
-  for (const k of ['reception', 'hr', 'accountant', 'cleaner']) { const p = who(k); if (p) add(p, tr('chat.memberStaff')); }
+  for (const k of (window.parent !== window ? ['reception', 'accountant', 'cleaner'] : ['reception', 'hr', 'accountant', 'cleaner'])) { const p = who(k); if (p) add(p, tr('chat.memberStaff')); }
   membersEl.replaceChildren(el('b', 'zc-mem-h', `${tr('chat.membersTitle')} (${rows.length})`), ...rows, el('p', 'zc-mem-note', tr('chat.note')));
 }
 const ib = (name, title, fn, cls = '') => { const b = el('button', `zc-ib ${cls}`); b.type = 'button'; b.title = title; b.append(icon(name)); if (fn) b.addEventListener('click', fn); else { b.disabled = true; b.classList.add('is-deco'); } return b; };

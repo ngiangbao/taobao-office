@@ -187,7 +187,7 @@ export function createChatEngine(ctx) {
     // a reply to one of theirs: that person answers it
     if (r && r.from !== 'me' && !named.some((m) => m.id === r.from) && who(r.from) && !r.from.startsWith('__')) say(r.from, tr('chat.reply.any'), { delay: rand(1200, 3500), reply: quote });
     const reply2 = (key, n = 1) => some(n).forEach((id, i) => say(id, tr(`chat.reply.${key}`), { delay: rand(1500, 4000) + i * 2500 }));
-    if (/họp|meeting|stand-?up/.test(low)) { ctx.act?.('meeting'); say('hr', tr('chat.life.meeting'), { delay: 700 }); reply2('meeting', 2); }
+    if (!ctx.quiet?.() && /họp|meeting|stand-?up/.test(low)) { ctx.act?.('meeting'); say('hr', tr('chat.life.meeting'), { delay: 700 }); reply2('meeting', 2); }
     else if (/trà sữa|tra sua|milk ?tea|bubble tea/.test(low)) { ctx.act?.('tea'); reply2('milkTea', 3); }
     else if (/về (nhà|đây|trước)|go(ing)? home|bye/.test(low)) reply2('goHome', 2);
     else if (/giỏi|tốt lắm|cảm ơn|cám ơn|good job|well done|thank/.test(low)) reply2('praise', 2);
@@ -203,9 +203,9 @@ export function createChatEngine(ctx) {
   function clock() {
     const d = new Date(ctx.now()), day = d.toDateString(), wd = d.getDay(), once = (k) => { if (st.days[k] === day) return false; st.days[k] = day; save(); return true; };
     if (wd % 6 && hm(d) >= 750 && hm(d) < 830 && once('morning')) say('reception', tr('chat.life.morning'), { react: ['❤️', '👍'], reacts: 3, answer: [{ key: 'hello', chance: 0.7 }] });
-    if (wd === 1 && hm(d) >= 820 && hm(d) < 855 && once('standupRemind')) remind('hr', tr('chat.life.standupTitle'), at(d, 9, 0), 'week');
+    if (wd === 1 && hm(d) >= 820 && hm(d) < 855 && once('standupRemind')) !ctx.quiet?.() && remind('hr', tr('chat.life.standupTitle'), at(d, 9, 0), 'week');
     if (wd % 6 && hm(d) >= 1045 && hm(d) < 1130 && once('lunch')) poll(anyone() || 'reception', tr('chat.life.lunchPoll'), tr('chat.life.lunchOpts', null, 'list'));
-    if (wd === 5 && hm(d) >= 1530 && hm(d) < 1555 && once('teaRemind')) remind('hr', tr('chat.life.teaTitle'), at(d, 16, 0), 'week');
+    if (wd === 5 && hm(d) >= 1530 && hm(d) < 1555 && once('teaRemind')) !ctx.quiet?.() && remind('hr', tr('chat.life.teaTitle'), at(d, 16, 0), 'week');
     // a reminder that has come round: the app's own line for it
     for (const m of st.msgs) if (m.kind === 'remind' && !m.remind.done && m.remind.at <= ctx.now()) { m.remind.done = true; update(m); system(tr('chat.sys.remindNow', { title: m.remind.title })); }
   }

@@ -86,6 +86,7 @@ export function setOpen(on) { chat.open = on; if (on && chat.unread) { chat.unre
 
 /** Someone in the office says something (the office's life, from the module where it happens; on the Mac only). */
 export function chatSay(from, text, opts = {}) {
+  if (from === 'hr' && typeof window !== 'undefined' && window.parent !== window) return;   // Taobao Office: không có chị HR trong app
   if (replay.on || (!text && opts.sticker == null && !opts.photo)) return;
   if (engine) { engine.say(from, text, opts); return; }
   if (!state.isLocal) return;   // (a phone shows the conversation; the Mac's page tells the office's life)
