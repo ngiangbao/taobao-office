@@ -500,6 +500,11 @@ function build() {
   headSub = el('small', 'zc-sub'); headAv = el('span', 'zc-head-av zc-pc');
   const title = el('div', 'zc-title'), sub = el('span', 'zc-subline'); sub.append(icon('users'), headSub);
   title.append(el('b', null, tr('chat.group')), sub);
+  if (window.parent !== window) {   // Taobao Office: bấm chuột phải hoặc bấm đúp vào tên khung chat để đổi tên (app hiện hộp nhập)
+    title.title = 'Bấm chuột phải để đổi tên khung chat';
+    const ask = (e) => { e.preventDefault(); window.parent.postMessage({ tbo: 'rename-chat', name: window.__chatName?.() || '' }, '*'); };
+    title.addEventListener('contextmenu', ask); title.addEventListener('dblclick', ask);
+  }
   const members = () => { membersEl.hidden = !membersEl.hidden; if (!membersEl.hidden) drawMembers(); };
   head.append(ib('back', tr('chat.close'), () => toggle(false), 'zc-back zc-mo'), headAv, title,
     ib('search', '', null, 'zc-pc'), ib('call', ''), ib('video', ''), ib('panel', tr('chat.membersTitle'), members, 'zc-pc'), ib('menu', tr('chat.membersTitle'), members, 'zc-mo'), ib('x', tr('chat.close'), () => toggle(false), 'zc-pc zc-close'));

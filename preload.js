@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('api', {
   skillsExportJson: (d) => ipcRenderer.invoke('skills:export-json', d),
   skillsImport: (d) => ipcRenderer.invoke('skills:import', d),
   onSkills: (fn) => ipcRenderer.on('skills:update', () => fn()),
+  renameChat: (d) => ipcRenderer.invoke('chat:rename', d),
   renameAgent: (d) => ipcRenderer.invoke('agents:rename', d),
   agentBySid: (sid) => ipcRenderer.invoke('agents:by-sid', sid),
   renameCustomer: (d) => ipcRenderer.invoke('customers:rename', d),

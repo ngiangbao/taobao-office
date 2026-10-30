@@ -26,7 +26,7 @@ const api = window.api || (() => {
     deleteLocalCustomers: async (codes) => ({ ok: true, deleted: codes.length }),
     ordersList: async () => ({ items: [], statuses: ['Đã đặt hàng', 'Đã về'], sync: {} }), ordersSave: async () => ({ ok: true, items: [] }), ordersDelete: async () => ({ ok: true, items: [] }), ordersImport: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersImportFile: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersExport: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersTsv: async () => '', ordersScript: async () => '', ordersWebhookTest: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), ordersOpenSheet: async () => false, openInventory: async () => ({ ok: false }),
     exportCustomers: async () => ({ ok: false, error: 'Xuất Excel chỉ có trong app desktop.' }),
-    renameCustomer: async () => true, renameAgent: async () => ({ ok: true }), skillsList: async () => [{ id: 'a1', name: 'Báo giá', role: 'quote', roleLabel: 'Báo giá', skills: [{ id: 's1', title: 'Báo giá bằng VNĐ', text: 'Luôn báo giá bằng VNĐ, không báo tệ.', at: Date.now(), source: 'owner', version: 2 }] }, { id: 'a2', name: 'Chăm sóc khách', role: 'cskh', roleLabel: 'Chăm sóc khách', skills: [] }], skillsSave: async () => ({ ok: true, agents: [] }), skillsRemove: async () => ({ ok: true, agents: [] }), skillsReviewNow: async () => ({ ok: true, reviewed: 0 }), skillsExportJson: async () => ({ canceled: true }), skillsImport: async () => ({ canceled: true }), onSkills: () => {}, agentBySid: async () => null, pauseCustomer: async () => true, refreshCustomer: async () => true, customerProfile: async () => '# Hồ sơ khách Lan\n- Xưng hô: chị Lan\n- Size: M\n- Thích: màu be, dáng ngắn',
+    renameCustomer: async () => true, renameAgent: async () => ({ ok: true }), renameChat: async () => ({ ok: true }), skillsList: async () => [{ id: 'a1', name: 'Báo giá', role: 'quote', roleLabel: 'Báo giá', skills: [{ id: 's1', title: 'Báo giá bằng VNĐ', text: 'Luôn báo giá bằng VNĐ, không báo tệ.', at: Date.now(), source: 'owner', version: 2 }] }, { id: 'a2', name: 'Chăm sóc khách', role: 'cskh', roleLabel: 'Chăm sóc khách', skills: [] }], skillsSave: async () => ({ ok: true, agents: [] }), skillsRemove: async () => ({ ok: true, agents: [] }), skillsReviewNow: async () => ({ ok: true, reviewed: 0 }), skillsExportJson: async () => ({ canceled: true }), skillsImport: async () => ({ canceled: true }), onSkills: () => {}, agentBySid: async () => null, pauseCustomer: async () => true, refreshCustomer: async () => true, customerProfile: async () => '# Hồ sơ khách Lan\n- Xưng hô: chị Lan\n- Size: M\n- Thích: màu be, dáng ngắn',
     onCustomers: () => {}, listRevenue: async () => ({ total: 936800, items: [{ id: 'a1', t: new Date().toISOString(), amount: 436800, name: 'Lan', code: 'KH-7F3K9', note: 'cọc áo khoác be', source: 'agent' }] }),
     addRevenue: async () => ({ ok: true }), voidRevenue: async () => true, inboxManual: async () => ({ ok: true, code: 'KH-NEW01', created: true }), inboxPoll: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), onInbox: () => {},
     listApprovals: async () => ({ limit: 12, today: 3, items: [{ id: 'p1', num: 7, status: 'pending', agentName: 'Đăng bài', kind: 'bai_dang', target: 'https://www.facebook.com/groups/vi-du', text: 'Áo khoác lông cừu be về hàng, size S-M-L, ib shop nhé 💕', files: [], hash: 'h1', t: Date.now() }, { id: 'p2', num: 6, status: 'done', agentName: 'Tìm khách', kind: 'binh_luan', target: 'https://www.facebook.com/groups/vi-du/posts/1', text: 'Shop có mẫu này ạ, bạn ib shop nha', files: [], result: 'ĐÃ ĐĂNG: ok', t: Date.now() - 3600e3 }] }),
@@ -312,7 +312,8 @@ $('#s-login').onclick = async () => {
 window.addEventListener('message', (ev) => {
   if (ev.source !== frame.contentWindow) return;
   const d = ev.data || {};
-  if (d.tbo === 'rename-agent' && d.sid) askRename({ sid: d.sid, name: String(d.name || '') });
+  if (d.tbo === 'rename-chat') askRename({ chat: true, name: String(d.name || '') }, 'Đổi tên khung chat (để trống = tên mặc định)');
+  else if (d.tbo === 'rename-agent' && d.sid) askRename({ sid: d.sid, name: String(d.name || '') });
   else if (d.tbo === 'open-settings') openSettings();
   else if (d.tbo === 'open-inventory') api.openInventory().then((r) => { if (!r?.ok) openSettings('inventory'); }); // chưa nhập link kho: mở thẳng mục Kho hàng
   else if (d.tbo === 'office-state') renderOfficeSettings(d.groups || []);
@@ -321,11 +322,11 @@ window.addEventListener('message', (ev) => {
 // ---------- Đổi tên agent (chuột phải vào agent trong cột bên trái của văn phòng); Electron không có prompt() nên dùng hộp riêng ----------
 const dlgRn = $('#dlg-rename'), rnForm = $('#renameform');
 let rnTarget = null;
-function askRename(target, title = 'Đổi tên agent') { rnTarget = target; $('#rn-title').textContent = title; $('#rn-err').textContent = ''; $('#rn-input').value = target.name || ''; dlgRn.showModal(); $('#rn-input').select(); }
+function askRename(target, title = 'Đổi tên agent') { rnTarget = target; $('#rn-title').textContent = title; $('#rn-err').textContent = ''; $('#rn-input').value = target.name || ''; $('#rn-input').required = !target.chat; dlgRn.showModal(); $('#rn-input').select(); }
 $('#rn-cancel').onclick = () => dlgRn.close();
 rnForm.onsubmit = async (e) => {
-  e.preventDefault(); const name = $('#rn-input').value.trim(); if (!name || !rnTarget) return;
-  const r = rnTarget.code ? { ok: await api.renameCustomer({ code: rnTarget.code, name }) } : await api.renameAgent({ sid: rnTarget.sid, name });
+  e.preventDefault(); const name = $('#rn-input').value.trim(); if ((!name && !rnTarget?.chat) || !rnTarget) return;
+  const r = rnTarget.chat ? await api.renameChat({ name }) : rnTarget.code ? { ok: await api.renameCustomer({ code: rnTarget.code, name }) } : await api.renameAgent({ sid: rnTarget.sid, name });
   if (!r.ok) { $('#rn-err').textContent = r.error || 'Không đổi được tên.'; return; }
   dlgRn.close();
 };

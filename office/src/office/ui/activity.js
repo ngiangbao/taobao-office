@@ -228,10 +228,21 @@ export const fmtUsd = (v) => `$${v >= 100 ? Math.round(v) : v.toFixed(2)}`;
 const KPIS = [['work', 'clipboard'], ['customers', 'users'], ['revenue', 'coin']];   // nhãn: activity.kpi.<key>
 const fmtVnd = (v) => (v >= 1e9 ? `${num(v / 1e9, 2)} tỷ` : v >= 1e6 ? `${num(v / 1e6, 1)}tr` : `${num(v)}₫`);   // thẻ hẹp: rút gọn từ 1 triệu, số chính xác nằm ở chú giải
 let shopJson = '';
+// Tên khung chat do chủ shop đặt (chuột phải vào tên khung chat hoặc nút Nhóm chat để đổi); rỗng = tên mặc định
+const chatDefaults = new Map();
+export function applyChatName(custom) {
+  const name = String(custom || '').trim();
+  const targets = [...document.querySelectorAll('.zc-title > b'), document.querySelector('#btn-chat .lbl')].filter(Boolean);
+  for (const el of targets) { if (!chatDefaults.has(el)) chatDefaults.set(el, el.textContent); el.textContent = name || chatDefaults.get(el); }
+  document.getElementById('zchat')?.setAttribute('aria-label', name || chatDefaults.get(targets[0]) || '');
+}
+window.__chatName = () => document.querySelector('.zc-title > b')?.textContent || '';
 async function pollShop() {
   try {
     const r = await fetch('/api/shop', { cache: 'no-store' }); if (!r.ok) return;
-    const t = await r.text(); if (t === shopJson) return;
+    const t = await r.text();
+    try { applyChatName(JSON.parse(t).chatName); } catch { /* chưa có */ }   // (cả khi số liệu không đổi: khung chat có thể vừa được dựng)
+    if (t === shopJson) return;
     shopJson = t; state.shop = JSON.parse(t); renderHud();
     const brand = document.getElementById('brand-name'); if (brand && state.shop.shopName) brand.textContent = state.shop.shopName; // nhãn góc trái = tên cửa hàng
   } catch { /* chưa có số liệu */ }

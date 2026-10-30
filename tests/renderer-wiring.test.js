@@ -15,3 +15,14 @@ test('mọi nút id có onclick trong app.js thì phần tử đó phải có tr
   const ids = new Set([...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
   for (const m of js.matchAll(/\$\('#([\w-]+)'\)\.onclick\s*=/g)) assert.ok(ids.has(m[1]), `thiếu #${m[1]} trong index.html`);
 });
+
+test('mọi kênh IPC trong preload.js đều có handler ở main.js và ngược lại', () => {
+  const pre = fs.readFileSync(path.join(__dirname, '..', 'preload.js'), 'utf8'), main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
+  const invoked = new Set([...pre.matchAll(/invoke\('([^']+)'/g)].map((m) => m[1])), handled = new Set([...main.matchAll(/ipcMain\.handle\('([^']+)'/g)].map((m) => m[1]));
+  assert.deepEqual([...invoked].filter((x) => !handled.has(x)), [], 'gọi mà không có handler');
+  assert.deepEqual([...handled].filter((x) => !invoked.has(x)), [], 'handler mà không ai gọi');
+});
+test('đổi tên khung chat: app lưu chatName vào shop-stats.json để văn phòng đọc', () => {
+  const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8'), office = fs.readFileSync(path.join(__dirname, '..', 'office', 'src', 'office', 'ui', 'activity.js'), 'utf8');
+  assert.match(main, /chatName: loadCfg\(\)\.chatName/); assert.match(main, /ipcMain\.handle\('chat:rename'/); assert.match(office, /applyChatName\(JSON\.parse\(t\)\.chatName\)/);
+});

@@ -42,6 +42,7 @@ const DEFAULT_CFG = {
   autoOffMinutes: 60, // lâu không dùng app (không gõ, không giao việc) thì tạm dừng việc tự chạy nền (quét bảng tin, đọc hộp thư, nhắc khách) để khỏi tốn token; 0 = không tự nghỉ
   browserFull: true, // agent thường được điều khiển Chrome đầy đủ (bấm, gõ); tắt thì chỉ xem và cuộn. Đăng/nhắn vẫn dặn phải qua đề xuất chờ duyệt
   skillsAuto: true, // Trợ lý riêng tự rà soát lời chủ shop và cập nhật kỹ năng cho từng agent (mỗi agent tối đa 1 lần/6 giờ, chỉ khi có ít nhất 3 tin mới)
+  chatName: '', // tên khung chat của văn phòng do chủ shop đặt (rỗng = tên mặc định)
   followupEnabled: true, ordersAutoRefresh: true, fanpageUrl: '',
   // Lịch đăng TÁCH RIÊNG từng kênh (mặc định TẮT): công tắc tự đăng, chờ sau khi agent soạn xong (phút, 0 = ngay), cách bài cuối cùng của kênh (phút), khung giờ
   fanpageAuto: false, fanpageDelayMinutes: 5, fanpageGapMinutes: 1, fanpageFromHour: 8, fanpageToHour: 22,
@@ -93,7 +94,7 @@ const pushAgents = () => send('agents:update', agents.list().map((a) => ({ ...a,
 function writeStats() {
   try {
     fs.mkdirSync(path.join(dataDir, 'office'), { recursive: true });
-    fs.writeFileSync(path.join(dataDir, 'office', 'shop-stats.json'), JSON.stringify({ working: dispatcher?.busyCount() || 0, customers: customers.all().length, revenue: revenue.total(), shopName: loadCfg().shopName, week: weekStats(customers.all(), revenue.list()), at: Date.now() }));
+    fs.writeFileSync(path.join(dataDir, 'office', 'shop-stats.json'), JSON.stringify({ working: dispatcher?.busyCount() || 0, customers: customers.all().length, revenue: revenue.total(), shopName: loadCfg().shopName, chatName: loadCfg().chatName || '', week: weekStats(customers.all(), revenue.list()), at: Date.now() }));
   } catch { /* thư mục chưa sẵn sàng */ }
 }
 function custList() {
@@ -568,6 +569,11 @@ app.whenReady().then(async () => {
       fs.writeFileSync(filePath, buffer, { mode: 0o600 });
       return { ok: true, filePath, count: rows.length };
     } catch (error) { return { ok: false, error: error.message }; }
+  });
+  ipcMain.handle('chat:rename', (_, d) => { // đổi tên khung chat của văn phòng; để trống = về tên mặc định
+    const name = String(d?.name ?? '').replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 30);
+    fs.writeFileSync(cfgPath, JSON.stringify({ ...loadCfg(), chatName: name }, null, 2)); writeStats();
+    return { ok: true, name };
   });
   ipcMain.handle('agents:rename', (_, d) => { const a = agents.all().find((x) => x.sid === d?.sid || x.id === d?.id); if (!a) return { ok: false, error: 'Không thấy agent này.' }; const r = agents.renameChecked(a.id, d.name); if (r.ok) pushAgents(); return r; });
   ipcMain.handle('agents:by-sid', (_, sid) => { const a = agents.all().find((x) => x.sid === sid); return a ? { id: a.id, name: a.name, kind: a.kind || 'team' } : null; });
