@@ -48,7 +48,7 @@ const DEFAULT_CFG = {
   chromeIdleMinutes: 15, // Chrome dùng chung được tắt hẳn sau bấy nhiêu phút không dùng (0 = không tự tắt)
   commentScan: false, commentMinutes: 15, commentFromHour: 8, commentToHour: 22, commentPerScan: 3, // Trả lời comment: quét bảng tin định kỳ (mặc định TẮT)
   commentAutoPost: false, commentAutoMax: 8, // tự đăng bình luận không cần duyệt từng cái (mặc định TẮT, có hạn mức mỗi ngày)
-  publishGapSeconds: 45, // giãn cách tối thiểu giữa hai lần đăng, như người thật
+  publishGapMinutes: 1, // giãn cách tối thiểu giữa hai lần đăng
   refreshTokens: 100000, sleepHours: 24, // hội thoại dài quá ngưỡng thì làm mới có nhớ; nghỉ quá bấy nhiêu giờ thì hiện là "đang ngủ"
 };
 const DEFAULT_AGENTS = [
@@ -61,7 +61,16 @@ const children = new Map(); // agentId -> process đang chạy
 const introducingAgents = new Set();
 const ICON = path.join(__dirname, 'renderer', 'icon.png');
 
-const loadCfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(fs.readFileSync(cfgPath, 'utf8')) }; } catch { return { ...DEFAULT_CFG }; } };
+const loadCfg = () => {
+  try {
+    const saved = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    if (saved.publishGapMinutes == null && saved.publishGapSeconds != null) {
+      saved.publishGapMinutes = Math.ceil(Math.max(0, Number(saved.publishGapSeconds) || 0) / 60);
+    }
+    delete saved.publishGapSeconds;
+    return { ...DEFAULT_CFG, ...saved };
+  } catch { return { ...DEFAULT_CFG }; }
+};
 const extMode = () => ['claude', 'mine'].includes(loadCfg().chromeMode); // dùng extension Claude in Chrome (Chrome thật của chủ shop)
 const send = (ch, v) => win?.webContents.send(ch, v);
 // Nghỉ khi lâu không dùng: agent (tiến trình claude) vốn tắt ngay sau mỗi việc; phần có thể tự chạy nền là quét bảng tin, đọc hộp thư, nhắc khách

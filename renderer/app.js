@@ -241,7 +241,7 @@ form.addEventListener('submit', async (e) => {
     $('#s-groups-msg').textContent = `Đã lưu ${cfg.groups.length} nhóm. Agent sẽ dùng danh sách này khi soạn đề xuất đăng bài.`;
     return;
   }
-  for (const k of ['autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentFromHour', 'commentToHour', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapSeconds', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
+  for (const k of ['autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentFromHour', 'commentToHour', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapMinutes', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
   cfg.postAutoDelayMinutes = Math.max(1, Math.floor(Number(form.elements.postAutoDelayMinutes.value) || 5));
   for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'model', 'chromeMode', 'fanpageUrl', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
   for (const k of ['commentScan', 'commentAutoPost', 'postAutoPost', 'browserFull', 'followupEnabled', 'ordersAutoRefresh']) cfg[k] = form.elements[k].value === '1';

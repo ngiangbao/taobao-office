@@ -8,7 +8,7 @@ const cfg = {
   groupPostFromHour: 8,
   groupPostToHour: 22,
   groupPostGapMinutes: 5,
-  publishGapSeconds: 45,
+  publishGapMinutes: 1,
 };
 const date = (hour, minute = 0) => new Date(2026, 9, 31, hour, minute);
 const target = { kind: 'bai_dang', target: 'https://www.facebook.com/groups/shop/posts/123?ref=share' };
@@ -46,4 +46,11 @@ test('giữ khoảng cách giữa bài nhóm và hoãn đến khung giờ kế t
   assert.equal(scheduled.toDateString(), nextDay.toDateString());
   assert.equal(scheduled.getHours(), 8);
   assert.equal(scheduled.getMinutes(), 0);
+});
+
+test('giãn cách chung giữa các lần đăng được tính bằng phút cho cả bài fanpage và bài nhóm', () => {
+  const now = date(10).getTime();
+  const fanpage = { kind: 'bai_dang', target: 'https://www.facebook.com/shop' };
+  assert.equal(nextPublishTime(fanpage, cfg, now, now, 0), now + 60e3);
+  assert.equal(nextPublishTime(target, cfg, now, now, now), now + 5 * 60e3);
 });

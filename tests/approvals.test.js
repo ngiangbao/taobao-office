@@ -29,7 +29,7 @@ async function setup(runImpl, cfg = {}, { withMsgs = false } = {}) {
   const runs = [], published = [];
   const run = async (agent, text, opts) => { runs.push({ agent, text, opts }); return runImpl(agent, text, opts, runs); };
   const publisher = async (item) => { published.push(item); return { text: 'ĐÃ ĐĂNG: https://www.facebook.com/groups/x/posts/1' }; };
-  const full = { publishGapSeconds: 0, photoSearchSeconds: 0.15, ...cfg };
+  const full = { publishGapMinutes: 0, photoSearchSeconds: 0.15, ...cfg };
   const d = createDispatcher({ officeUrl: () => `http://127.0.0.1:${srv.address().port}/`, agents, customers, revenue, approvals, publisher, toJpeg: async () => JPEG, run, uploadsDir: path.join(dir, 'uploads'), onStatus() {}, history: null, getCfg: () => full });
   const idle = async () => { for (let i = 0; i < 60; i++) { await new Promise((r) => setTimeout(r, 25)); if (!d.anyBusy()) { await new Promise((r) => setTimeout(r, 50)); if (!d.anyBusy()) return; } } };
   const env = { dir, agents, approvals, customers, post, search, quote, runs, published, posts, msgs, d, idle, srv, close: () => { d.stop(); srv.closeAllConnections?.(); srv.close(); fs.rmSync(dir, { recursive: true, force: true }); } };
@@ -131,7 +131,7 @@ test('đề xuất sai (đích không phải Facebook) bị chặn ngay và báo
 });
 
 test('Dừng tất cả huỷ cả các bài đã duyệt nhưng chưa kịp đăng', async () => {
-  const t = await setup(async () => ({ text: '' }), { publishGapSeconds: 0 });
+  const t = await setup(async () => ({ text: '' }), { publishGapMinutes: 0 });
   const mk = (n) => t.approvals.create({ agentId: 'a', agentName: 'Đăng bài', kind: 'bai_dang', target: 'https://www.facebook.com/groups/g', text: 'bài ' + n });
   const a = mk(1), b = mk(2);
   t.d.cancelAll();            // bấm Dừng tất cả TRƯỚC khi các bài được xếp hàng đăng

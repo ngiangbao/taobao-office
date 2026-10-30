@@ -68,7 +68,7 @@
           <label>Khi agent soạn bài đăng<select name="postAutoPost" data-bool><option value="0">Chờ tôi duyệt từng bài (khuyên dùng)</option><option value="1">Agent tự đăng sau thời gian chờ</option></select></label>
           <div class="grid">
             <label>Fanpage: đăng sau (phút)<input name="postAutoDelayMinutes" type="number" min="1" step="1"></label>
-            <label>Giãn cách chung giữa hai lần đăng (giây)<input name="publishGapSeconds" type="number" min="0"></label>
+            <label>Giãn cách chung giữa hai lần đăng (phút)<input name="publishGapMinutes" type="number" min="0" max="1440" step="1"></label>
           </div>
           <p class="hint">Công tắc tự đăng áp dụng cho cả fanpage và nhóm. Thời gian chờ riêng cho bài đăng nhóm và giờ đăng được đặt trong mục “Đăng nhóm”. Bài vẫn phải đạt các giới hạn an toàn.</p>
           <hr>

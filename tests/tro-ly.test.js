@@ -75,7 +75,7 @@ async function setup(runImpl, cfg = {}) {
   const agents = createAgents(dir), approvals = createApprovals(dir), style = createStyle(dir, ROLES);
   const assistant = agents.add({ name: 'Trợ lý riêng', role: 'assistant' }), commenter = agents.add({ name: 'Trả lời comment', role: 'commenter' }), cskh = agents.add({ name: 'Chăm sóc khách', role: 'cskh' });
   const published = [];
-  const full = { publishGapSeconds: 0, postAutoDelayMinutes: 5, ...cfg };
+  const full = { publishGapMinutes: 0, postAutoDelayMinutes: 5, ...cfg };
   let d;
   const autoApprove = (agent, a) => {
     if (agent.role === 'post') {
