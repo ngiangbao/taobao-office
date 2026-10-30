@@ -22,3 +22,4 @@ Chép nguyên bản (bỏ thư mục docs/, tests/, .github/). Giấy phép: off
 - `src/shared/chat-engine.js`: trong app (`ctx.quiet`), sự kiện `prompt` không còn đăng lại lời nhắc của agent dưới tên chủ shop (tin hiện hai lần) và không có tin "ack" tự động.
 - `src/office/ui/activity.js`: bấm chuột phải vào một agent trong cột trái (khi nhúng trong app) gửi `{tbo:"rename-agent"}` cho app để hiện hộp đổi tên.
 - `src/office/interact/place-cards.js`: bấm vào tên lửa / bệ phóng không còn mở bảng "Bệ phóng · Ra mắt" mà phóng tên lửa luôn.
+- `ActivityPanel.tsx`, `activity.js`, `activity.css`: nút "Cần chú ý" bỏ chấm đỏ; cả nút chuyển đỏ (class `urgent`) chỉ khi có thông báo khẩn cấp trong 1 giờ qua.

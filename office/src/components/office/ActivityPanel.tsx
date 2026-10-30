@@ -13,7 +13,7 @@ export default async function ActivityPanel() {
       <div className="feed-controls">
         <div className="seg" role="group" aria-label={t('ui.activityPanel.filter')}>
           <button type="button" id="flt-all" aria-pressed="true"><span data-icon="list"></span><span>{t('ui.activityPanel.all')}</span></button>
-          <button type="button" id="flt-att" aria-pressed="false"><i className="red-dot"></i><span>{t('ui.activityPanel.attention')}</span><b id="att-count" hidden></b></button>
+          <button type="button" id="flt-att" aria-pressed="false"><span>{t('ui.activityPanel.attention')}</span><b id="att-count" hidden></b></button>
         </div>
         <button type="button" className="clear-notifications" id="clear-notifications" aria-label={t('ui.activityPanel.clearNotifications')} title={t('ui.activityPanel.clearNotifications')}><span data-icon="x"></span>{t('ui.activityPanel.clearNotifications')}</button>
       </div>

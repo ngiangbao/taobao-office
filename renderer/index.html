@@ -64,32 +64,45 @@
         </section>
         <section data-sec="fanpage" hidden>
           <h3>Đăng fanpage</h3>
-          <h4>Duyệt hay tự đăng</h4>
-          <label>Khi agent soạn bài đăng<select name="postAutoPost" data-bool><option value="0">Chờ tôi duyệt từng bài (khuyên dùng)</option><option value="1">Agent tự đăng sau thời gian chờ</option></select></label>
-          <div class="grid">
-            <label>Fanpage: đăng sau (phút)<input name="postAutoDelayMinutes" type="number" min="1" step="1"></label>
-            <label>Giãn cách chung giữa hai lần đăng (phút)<input name="publishGapMinutes" type="number" min="0" max="1440" step="1"></label>
-          </div>
-          <p class="hint">Công tắc tự đăng áp dụng cho cả fanpage và nhóm. Thời gian chờ riêng cho bài đăng nhóm và giờ đăng được đặt trong mục “Đăng nhóm”. Bài vẫn phải đạt các giới hạn an toàn.</p>
-          <hr>
           <h4>Fanpage của tôi</h4>
           <label>Link fanpage (để đăng bài lên Trang của chính bạn)<input name="fanpageUrl" type="url" placeholder="https://www.facebook.com/ten-trang-cua-ban"></label>
           <p class="hint">Agent “Đăng bài” được đề xuất bài cho fanpage này; khi đăng, người đăng sẽ đăng <b>với tư cách Trang</b> (không phải trang cá nhân). Tài khoản Facebook trong Chrome phải là quản trị viên của Trang. Chưa thử trên Facebook thật nên hãy duyệt tay vài bài đầu.</p>
+          <hr>
+          <h4>Duyệt hay tự đăng</h4>
+          <label>Khi agent soạn xong bài đăng fanpage<select name="fanpageAuto" data-bool><option value="0">Chờ tôi duyệt từng cái (khuyên dùng)</option><option value="1">Agent tự đăng theo lịch bên dưới</option></select></label>
+          <div class="grid">
+            <label>Tự đăng sau (phút) kể từ khi agent soạn xong (0 = ngay)<input name="fanpageDelayMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Mỗi bài cách bài cuối cùng của kênh này ít nhất (phút)<input name="fanpageGapMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Chỉ đăng từ giờ (0–23)<input name="fanpageFromHour" type="number" min="0" max="23" step="1"></label>
+            <label>đến giờ (0–24)<input name="fanpageToHour" type="number" min="0" max="24" step="1"></label>
+          </div>
+          <p class="hint">Cài đặt này <b>chỉ áp dụng cho bài đăng fanpage</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
+          <p class="hint err" id="s-sched-fanpage" aria-live="polite"></p>
         </section>
         <section data-sec="newsfeed" hidden>
           <h3>Bình luận newsfeed</h3>
-          <p class="hint">Agent “Trả lời comment” lướt bảng tin Facebook theo chu kỳ, thấy khách đang tìm món shop có thì soạn bình luận báo khách. Mặc định TẮT. Bình luận chờ bạn duyệt, trừ khi bạn bật riêng chế độ tự đăng bình luận. Cần đã đăng nhập Facebook trong Chrome của app.</p>
+          <p class="hint">Agent “Trả lời comment” lướt bảng tin Facebook theo chu kỳ, thấy khách đang tìm món shop có thì soạn bình luận báo khách. Cần đã đăng nhập Facebook trong Chrome của app.</p>
+          <h4>Quét bảng tin</h4>
           <label>Tự quét bảng tin<select name="commentScan" data-bool><option value="0">Tắt</option><option value="1">Bật</option></select></label>
-          <label>Quét mỗi (phút, tối thiểu 5)<input name="commentMinutes" type="number" min="5" step="1"></label>
-          <label>Chỉ quét từ giờ<input name="commentFromHour" type="number" min="0" max="23" step="1"></label>
-          <label>đến giờ<input name="commentToHour" type="number" min="0" max="24" step="1"></label>
-          <label>Tối đa số bình luận đề xuất mỗi lượt<input name="commentPerScan" type="number" min="1" max="5" step="1"></label>
-          <label>Tự đăng bình luận không cần duyệt từng cái<select name="commentAutoPost" data-bool><option value="0">Tắt (khuyên dùng: tôi duyệt từng bình luận)</option><option value="1">Bật (có giới hạn bên dưới)</option></select></label>
-          <label>Hạn mức tự đăng mỗi ngày<input name="commentAutoMax" type="number" min="0" max="50" step="1"></label>
-          <p class="hint">Giới hạn khi tự đăng bình luận: dưới 300 ký tự, không link, không số điện thoại, không @tên, không bình luận hai lần vào một bài và chỉ trong khung giờ trên. Nút “Dừng tất cả” sẽ tắt luôn tự quét. Bình luận có an toàn đến đâu cũng nên xem lại vài ngày đầu trước khi bật tự đăng.</p>
+          <div class="grid">
+            <label>Quét mỗi (phút, tối thiểu 5)<input name="commentMinutes" type="number" min="5" step="1"></label>
+            <label>Tối đa số bình luận đề xuất mỗi lượt<input name="commentPerScan" type="number" min="1" max="5" step="1"></label>
+          </div>
+          <hr>
+          <h4>Duyệt hay tự đăng</h4>
+          <label>Khi agent soạn xong bình luận newsfeed<select name="commentAutoPost" data-bool><option value="0">Chờ tôi duyệt từng cái (khuyên dùng)</option><option value="1">Agent tự đăng theo lịch bên dưới</option></select></label>
+          <div class="grid">
+            <label>Tự đăng sau (phút) kể từ khi agent soạn xong (0 = ngay)<input name="commentDelayMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Mỗi bài cách bài cuối cùng của kênh này ít nhất (phút)<input name="commentGapMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Chỉ đăng từ giờ (0–23)<input name="commentFromHour" type="number" min="0" max="23" step="1"></label>
+            <label>đến giờ (0–24)<input name="commentToHour" type="number" min="0" max="24" step="1"></label>
+          </div>
+          <p class="hint">Cài đặt này <b>chỉ áp dụng cho bình luận newsfeed</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
+          <p class="hint err" id="s-sched-comment" aria-live="polite"></p>
+          <label>Hạn mức bình luận tự đăng mỗi ngày<input name="commentAutoMax" type="number" min="0" max="50" step="1"></label>
+          <p class="hint">Khung giờ ở trên dùng cho cả việc quét bảng tin lẫn đăng bình luận. Giới hạn khi tự đăng bình luận: dưới 300 ký tự, không link, không số điện thoại, không @tên, không bình luận hai lần vào một bài. Nút “Dừng tất cả” tắt luôn tự quét và mọi chế độ tự đăng.</p>
           <button type="button" id="s-comment-scan">Quét ngay một lượt</button>
           <p id="s-comment-status" class="hint" aria-live="polite"></p>
-
         </section>
         <section data-sec="inventory" hidden>
           <h3>Kho hàng</h3>
@@ -106,14 +119,18 @@
         </section>
         <section data-sec="groups" hidden>
           <h3>Đăng nhóm</h3>
-          <p class="hint">Agent “Đăng bài” dùng danh sách nhóm này để soạn đề xuất. Khi bật tự đăng trong mục “Đăng fanpage”, các lịch dưới đây chỉ áp dụng cho bài đăng nhóm; bài đã duyệt cũng chờ đúng khung giờ và khoảng cách.</p>
+          <p class="hint">Agent “Đăng bài” dùng danh sách nhóm bên dưới để soạn đề xuất đăng nhóm.</p>
+          <h4>Duyệt hay tự đăng</h4>
+          <label>Khi agent soạn xong bài đăng nhóm<select name="groupAuto" data-bool><option value="0">Chờ tôi duyệt từng cái (khuyên dùng)</option><option value="1">Agent tự đăng theo lịch bên dưới</option></select></label>
           <div class="grid">
-            <label>Tự đăng bài sau (phút)<input name="groupPostDelayMinutes" type="number" min="1" max="1440" step="1"></label>
-            <label>Khoảng cách giữa các lần đăng nhóm (phút)<input name="groupPostGapMinutes" type="number" min="0" max="1440" step="1"></label>
-            <label>Bắt đầu đăng từ giờ (0–23)<input name="groupPostFromHour" type="number" min="0" max="23" step="1"></label>
-            <label>Dừng đăng lúc giờ (0–24)<input name="groupPostToHour" type="number" min="0" max="24" step="1"></label>
+            <label>Tự đăng sau (phút) kể từ khi agent soạn xong (0 = ngay)<input name="groupPostDelayMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Mỗi bài cách bài cuối cùng của kênh này ít nhất (phút)<input name="groupPostGapMinutes" type="number" min="0" max="1440" step="1"></label>
+            <label>Chỉ đăng từ giờ (0–23)<input name="groupPostFromHour" type="number" min="0" max="23" step="1"></label>
+            <label>đến giờ (0–24)<input name="groupPostToHour" type="number" min="0" max="24" step="1"></label>
           </div>
-          <p class="hint">Khung giờ dùng giờ địa phương của máy, áp dụng mỗi ngày. Có thể đặt giờ qua đêm, ví dụ 22 đến 6. Nếu ngoài khung giờ, bài sẽ chờ đến đầu khung giờ tiếp theo; hai mốc giờ không được trùng nhau.</p>
+          <p class="hint">Cài đặt này <b>chỉ áp dụng cho bài đăng nhóm</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
+          <p class="hint err" id="s-sched-group" aria-live="polite"></p>
+          <hr>
           <h4>Danh sách nhóm được phép đăng</h4>
           <p class="hint">Dán liên kết Google Sheets công khai có cột tên nhóm và link nhóm Facebook. Bảng cần cho phép “Bất kỳ ai có liên kết đều có thể xem”; có thể đặt tiêu đề cột ở dòng đầu.</p>
           <label>Địa chỉ Google Sheets<input name="groupsSheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit?usp=sharing"></label>

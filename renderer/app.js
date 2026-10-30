@@ -169,6 +169,28 @@ async function openSettings(sec = curSec) { await fillSettings(); showSection(se
 dlgS.querySelectorAll('.s-nav button').forEach((b) => (b.onclick = () => showSection(b.dataset.nav)));
 $('#s-close').onclick = () => dlgS.close();
 dlgS.addEventListener('click', (e) => { if (e.target === dlgS) dlgS.close(); }); // bấm ra ngoài thì đóng
+// Lịch đăng tách riêng từng kênh (fanpage, nhóm, bình luận newsfeed): mỗi kênh một công tắc, thời gian chờ, khoảng cách và khung giờ
+const SCHEDULES = {
+  fanpage: { auto: 'fanpageAuto', fields: [['fanpageDelayMinutes', 0, 1440], ['fanpageGapMinutes', 0, 1440], ['fanpageFromHour', 0, 23], ['fanpageToHour', 0, 24]], from: 'fanpageFromHour', to: 'fanpageToHour' },
+  group: { auto: 'groupAuto', fields: [['groupPostDelayMinutes', 0, 1440], ['groupPostGapMinutes', 0, 1440], ['groupPostFromHour', 0, 23], ['groupPostToHour', 0, 24]], from: 'groupPostFromHour', to: 'groupPostToHour' },
+  comment: { auto: 'commentAutoPost', fields: [['commentDelayMinutes', 0, 1440], ['commentGapMinutes', 0, 1440], ['commentFromHour', 0, 23], ['commentToHour', 0, 24]], from: 'commentFromHour', to: 'commentToHour' },
+};
+const SECTION_CHANNEL = { fanpage: 'fanpage', groups: 'group', newsfeed: 'comment' };
+function readSchedule(cfg, channel, strict) { // strict: kênh đang mở, báo lỗi khi nhập sai; không strict: giữ giá trị cũ nếu ô không hợp lệ
+  const sc = SCHEDULES[channel], msg = $(`#s-sched-${channel}`);
+  msg.textContent = '';
+  cfg[sc.auto] = form.elements[sc.auto].value === '1';
+  for (const [name, min, max] of sc.fields) {
+    const input = form.elements[name], value = Number(input.value);
+    if (input.value === '' || !Number.isInteger(value) || value < min || value > max) {
+      if (!strict) continue;
+      msg.textContent = `Giá trị “${input.closest('label').firstChild.textContent.trim()}” phải là số nguyên từ ${min} đến ${max}.`; input.focus(); return false;
+    }
+    cfg[name] = value;
+  }
+  if (strict && cfg[sc.from] === cfg[sc.to]) { msg.textContent = 'Giờ bắt đầu và giờ kết thúc phải khác nhau.'; form.elements[sc.to].focus(); return false; }
+  return true;
+}
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const { cfg } = await api.getCfg();
@@ -186,28 +208,12 @@ form.addEventListener('submit', async (e) => {
       : `Không kết nối/đồng bộ được: ${result.error}`;
     return;
   }
+  if (curSec !== 'sync') { // lịch đăng của kênh đang mở được kiểm tra chặt; các kênh khác giữ nguyên nếu ô không hợp lệ
+    for (const ch of Object.keys(SCHEDULES)) if (SECTION_CHANNEL[curSec] !== ch) readSchedule(cfg, ch, false);
+    if (SECTION_CHANNEL[curSec] && !readSchedule(cfg, SECTION_CHANNEL[curSec], true)) return;
+  }
   if (curSec === 'groups') {
     const sheetUrl = form.elements.groupsSheetUrl.value.trim();
-    const groupSettings = [
-      ['groupPostDelayMinutes', 1, 1440],
-      ['groupPostGapMinutes', 0, 1440],
-      ['groupPostFromHour', 0, 23],
-      ['groupPostToHour', 0, 24],
-    ];
-    for (const [name, min, max] of groupSettings) {
-      const input = form.elements[name], value = Number(input.value);
-      if (!Number.isInteger(value) || value < min || value > max) {
-        $('#s-groups-msg').classList.add('err'); $('#s-groups-msg').textContent = `Giá trị “${input.closest('label').firstChild.textContent.trim()}” phải là số nguyên từ ${min} đến ${max}.`;
-        input.focus();
-        return;
-      }
-      cfg[name] = value;
-    }
-    if (cfg.groupPostFromHour === cfg.groupPostToHour) {
-      $('#s-groups-msg').classList.add('err'); $('#s-groups-msg').textContent = 'Giờ bắt đầu và giờ kết thúc phải khác nhau.';
-      form.elements.groupPostToHour.focus();
-      return;
-    }
     cfg.groupsSheetUrl = sheetUrl;
     try { await api.setCfg(cfg); }
     catch (error) {
@@ -241,10 +247,9 @@ form.addEventListener('submit', async (e) => {
     $('#s-groups-msg').textContent = `Đã lưu ${cfg.groups.length} nhóm. Agent sẽ dùng danh sách này khi soạn đề xuất đăng bài.`;
     return;
   }
-  for (const k of ['autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentFromHour', 'commentToHour', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'publishGapMinutes', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
-  cfg.postAutoDelayMinutes = Math.max(1, Math.floor(Number(form.elements.postAutoDelayMinutes.value) || 5));
+  for (const k of ['autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
   for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'model', 'chromeMode', 'fanpageUrl', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
-  for (const k of ['commentScan', 'commentAutoPost', 'postAutoPost', 'browserFull', 'followupEnabled', 'ordersAutoRefresh']) cfg[k] = form.elements[k].value === '1';
+  for (const k of ['commentScan', 'browserFull', 'followupEnabled', 'ordersAutoRefresh']) cfg[k] = form.elements[k].value === '1';
   cfg.ordersSheetUrl = $('#o-url').value.trim(); cfg.ordersWebhookUrl = $('#o-hook').value.trim(); cfg.ordersWebhookToken = $('#o-token').value; cfg.ordersSheetName = $('#o-sheetname').value.trim() || 'khách order'; cfg.ordersAutoAppend = $('#o-auto').value === '1';
   cfg.shopName = form.elements.shopName.value.trim().slice(0, 40) || 'Cửa hàng của tôi';
   document.title = cfg.shopName;

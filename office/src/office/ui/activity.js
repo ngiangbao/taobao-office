@@ -86,6 +86,7 @@ export function renderFeed() {
   }
   const att = state.feed.filter((e) => ATT.has(e.type) && nowMs() - e.ts < 3600e3).length;
   $('att-count').hidden = !att; $('att-count').textContent = att;
+  $('flt-att').classList.toggle('urgent', att > 0);   // Taobao Office: cả nút chuyển đỏ chỉ khi có thông báo khẩn cấp (không còn chấm đỏ)
 }
 let feedQueued = false;
 export function queueFeed() { if (feedQueued) return; feedQueued = true; requestAnimationFrame(() => { feedQueued = false; renderFeed(); if (state.selectedId && tab === 'act') renderActivity(); }); }

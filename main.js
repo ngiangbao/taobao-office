@@ -20,7 +20,7 @@ const { createHistory } = require('./lib/history');
 const { isPackagedApp } = require('./lib/runtime');
 const { weekStats } = require('./lib/stats');
 const { createCustomers, mergeLocalOrderCustomers, linkOrderCustomers } = require('./lib/customers');
-const { isGroupPost, withinGroupPostWindow, nextGroupPostTime } = require('./lib/post-schedule');
+const schedule = require('./lib/post-schedule');
 const { createRevenue, parseVnd } = require('./lib/revenue');
 const { createInbox, READER_PROMPT } = require('./lib/inbox');
 const { readInventory, forAgent } = require('./lib/inventory');
@@ -42,13 +42,16 @@ const DEFAULT_CFG = {
   autoOffMinutes: 60, // lâu không dùng app (không gõ, không giao việc) thì tạm dừng việc tự chạy nền (quét bảng tin, đọc hộp thư, nhắc khách) để khỏi tốn token; 0 = không tự nghỉ
   browserFull: true, // agent thường được điều khiển Chrome đầy đủ (bấm, gõ); tắt thì chỉ xem và cuộn. Đăng/nhắn vẫn dặn phải qua đề xuất chờ duyệt
   skillsAuto: true, // Trợ lý riêng tự rà soát lời chủ shop và cập nhật kỹ năng cho từng agent (mỗi agent tối đa 1 lần/6 giờ, chỉ khi có ít nhất 3 tin mới)
-  followupEnabled: true, ordersAutoRefresh: true, fanpageUrl: '', postAutoPost: false, postAutoDelayMinutes: 5, // tự đăng fanpage sau thời gian chờ (chỉ khi chủ shop bật)
-  groupPostDelayMinutes: 5, groupPostGapMinutes: 5, groupPostFromHour: 8, groupPostToHour: 22,
+  followupEnabled: true, ordersAutoRefresh: true, fanpageUrl: '',
+  // Lịch đăng TÁCH RIÊNG từng kênh (mặc định TẮT): công tắc tự đăng, chờ sau khi agent soạn xong (phút, 0 = ngay), cách bài cuối cùng của kênh (phút), khung giờ
+  fanpageAuto: false, fanpageDelayMinutes: 5, fanpageGapMinutes: 1, fanpageFromHour: 8, fanpageToHour: 22,
+  groupAuto: false, groupPostDelayMinutes: 5, groupPostGapMinutes: 5, groupPostFromHour: 8, groupPostToHour: 22,
+  commentDelayMinutes: 1, commentGapMinutes: 1,
   ordersSheetUrl: '', ordersWebhookUrl: '', ordersWebhookToken: '', ordersSheetName: 'khách order', ordersAutoAppend: true, // bảng đơn khách trên Google Sheets: khách mới tự thêm vào dòng cuối
   chromeIdleMinutes: 15, // Chrome dùng chung được tắt hẳn sau bấy nhiêu phút không dùng (0 = không tự tắt)
   commentScan: false, commentMinutes: 15, commentFromHour: 8, commentToHour: 22, commentPerScan: 3, // Trả lời comment: quét bảng tin định kỳ (mặc định TẮT)
   commentAutoPost: false, commentAutoMax: 8, // tự đăng bình luận không cần duyệt từng cái (mặc định TẮT, có hạn mức mỗi ngày)
-  publishGapMinutes: 1, // giãn cách tối thiểu giữa hai lần đăng
+  publishGapMinutes: 1, // giãn cách chung rất ngắn giữa hai lần đăng bất kỳ (không hiện trong Cài đặt)
   refreshTokens: 100000, sleepHours: 24, // hội thoại dài quá ngưỡng thì làm mới có nhớ; nghỉ quá bấy nhiêu giờ thì hiện là "đang ngủ"
 };
 const DEFAULT_AGENTS = [
@@ -68,6 +71,11 @@ const loadCfg = () => {
       saved.publishGapMinutes = Math.ceil(Math.max(0, Number(saved.publishGapSeconds) || 0) / 60);
     }
     delete saved.publishGapSeconds;
+    // bản cũ dùng chung một công tắc/thời gian chờ cho cả fanpage và nhóm: chuyển sang cài đặt riêng từng kênh
+    if (saved.fanpageAuto === undefined && saved.postAutoPost !== undefined) saved.fanpageAuto = !!saved.postAutoPost;
+    if (saved.groupAuto === undefined && saved.postAutoPost !== undefined) saved.groupAuto = !!saved.postAutoPost;
+    if (saved.fanpageDelayMinutes === undefined && saved.postAutoDelayMinutes !== undefined) saved.fanpageDelayMinutes = saved.postAutoDelayMinutes;
+    delete saved.postAutoPost; delete saved.postAutoDelayMinutes;
     return { ...DEFAULT_CFG, ...saved };
   } catch { return { ...DEFAULT_CFG }; }
 };
@@ -660,7 +668,7 @@ app.whenReady().then(async () => {
   });
   ipcMain.handle('agents:remove', (_, id) => { children.get(id)?.kill(); agents.remove(id); pushAgents(); return true; });
   ipcMain.handle('agents:reset', (_, id) => { if (dispatcher.isBusy(id)) return false; const a = agents.reset(id); pushAgents(); if (a) introduce(a); return true; });
-  ipcMain.handle('agents:stop', () => { dispatcher?.stopAll(); const c0 = loadCfg(); if (c0.commentScan || c0.postAutoPost) { fs.writeFileSync(cfgPath, JSON.stringify({ ...c0, commentScan: false, postAutoPost: false }, null, 2)); dispatcher?.sys('⏹ Đã tắt tự động quét bảng tin và tự đăng bài; các bài đang chờ giờ tự đăng chuyển về chờ bạn duyệt. Bật lại trong Cài đặt khi cần.'); } for (const c of children.values()) c.kill(); return true; });
+  ipcMain.handle('agents:stop', () => { dispatcher?.stopAll(); const c0 = loadCfg(); if (c0.commentScan || c0.fanpageAuto || c0.groupAuto || c0.commentAutoPost) { fs.writeFileSync(cfgPath, JSON.stringify({ ...c0, commentScan: false, fanpageAuto: false, groupAuto: false, commentAutoPost: false }, null, 2)); dispatcher?.sys('⏹ Đã tắt tự động quét bảng tin và mọi chế độ tự đăng (fanpage, nhóm, bình luận); các bài đang chờ giờ tự đăng chuyển về chờ bạn duyệt. Bật lại trong Cài đặt khi cần.'); } for (const c of children.values()) c.kill(); return true; });
   ipcMain.handle('login:open', async () => browser.open(dataDir, ['https://www.facebook.com/', 'https://www.taobao.com/', 'https://www.1688.com/']));
 
   createWindow();
@@ -675,14 +683,15 @@ app.whenReady().then(async () => {
       officeUrl: () => office.url, agents, run: runAgent, uploadsDir: path.join(dataDir, 'uploads'), history,
       killAgent: (id) => children.get(id)?.kill(),
       customers, revenue, approvals, style, skills, onSkills: () => send('skills:update', true), onNewCustomer: (c) => appender.enqueue({ 'ID khách': c.code, 'Tên Facebook khách hàng': c.name }, { key: `cust:${c.code}`, once: true }), onStyle: () => send('style:update', style.all()),
-      autoApprove: (agent, a) => {
-        const cfg = loadCfg();
-        if (agent.role === 'post') {
-          if (!cfg.postAutoPost) return { ok: false, reason: 'chưa bật tự đăng bài' };
-          const delay = Math.max(1, Math.floor(Number(isGroupPost(cfg, a) ? cfg.groupPostDelayMinutes : cfg.postAutoDelayMinutes) || 5));
-          if (!approvals.scheduleAutoPost(a.id, Date.now() + delay * 60e3)) return { ok: false, reason: 'không đặt được lịch tự đăng' };
+      autoApprove: (agent, a) => { // tự đăng theo từng kênh; chỉ agent Đăng bài (bài) và Trả lời comment (bình luận), chỉ khi chủ shop đã bật kênh đó
+        const cfg = loadCfg(), channel = schedule.channelOf(cfg, a);
+        if (!channel || (agent.role === 'post') !== (a.kind === 'bai_dang')) return { ok: false, reason: 'nơi đăng không thuộc fanpage hay nhóm trong danh sách' };
+        const s = schedule.settings(cfg, channel);
+        if (!s.auto) return { ok: false, reason: `chưa bật tự đăng ${s.label}` };
+        if (s.delay > 0) {
+          if (!approvals.scheduleAutoPost(a.id, Date.now() + s.delay * 60e3)) return { ok: false, reason: 'không đặt được lịch tự đăng' };
           pushApprovals();
-          return { ok: true, scheduled: true, delayMinutes: delay };
+          return { ok: true, scheduled: true, delayMinutes: s.delay };
         }
         const g = autoPostGuard(cfg, approvals, a);
         if (!g.ok) return g;
@@ -699,34 +708,31 @@ app.whenReady().then(async () => {
       autoPostTickRunning = true;
       try {
         const cfg = loadCfg();
-        if (!cfg.postAutoPost) {
-          approvals.clearPendingAutoPosts();
-          return;
-        }
         for (const approval of approvals.pendingAutoPosts()) {
-          if (isGroupPost(cfg, approval) && !withinGroupPostWindow(cfg)) {
-            const at = nextGroupPostTime(cfg);
-            approvals.scheduleAutoPost(approval.id, at);
-            pushApprovals();
-            dispatcher.sys(`🕒 Đề xuất #${approval.num} ngoài giờ đăng nhóm; sẽ đăng từ ${new Date(at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}.`);
+          const channel = schedule.channelOf(cfg, approval), s = channel && schedule.settings(cfg, channel);
+          if (!s || !s.auto) { // kênh này đã tắt tự đăng (hoặc nơi đăng không còn hợp lệ): quay về chờ duyệt tay
+            approvals.clearAutoPost(approval.id); pushApprovals();
+            dispatcher.sys(`🖐️ Đề xuất #${approval.num} chờ bạn duyệt (${s ? `đã tắt tự đăng ${s.label}` : 'nơi đăng không thuộc fanpage hay nhóm trong danh sách'}).`);
+            continue;
+          }
+          if (!schedule.withinWindow(s)) {
+            const at = schedule.nextWindowStart(s);
+            approvals.scheduleAutoPost(approval.id, at); pushApprovals();
+            dispatcher.sys(`🕒 Đề xuất #${approval.num} ngoài giờ đăng ${s.label}; sẽ đăng từ ${new Date(at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}.`);
             continue;
           }
           const guard = autoPostGuard(cfg, approvals, approval);
           if (!guard.ok) {
-            approvals.clearAutoPost(approval.id);
-            pushApprovals();
+            approvals.clearAutoPost(approval.id); pushApprovals();
             dispatcher.sys(`🖐️ Đề xuất #${approval.num} chờ bạn duyệt (${guard.reason}).`);
             continue;
           }
           try {
             const item = approvals.approve(approval.id, approval.hash, true);
-            pushApprovals();
-            dispatcher.publishApproved(item);
-            const delay = Math.max(1, Math.floor(Number(isGroupPost(cfg, approval) ? cfg.groupPostDelayMinutes : cfg.postAutoDelayMinutes) || 5));
-            dispatcher.sys(`🤖 Tự đăng đề xuất #${approval.num} sau ${delay} phút chờ.`);
+            pushApprovals(); dispatcher.publishApproved(item);
+            dispatcher.sys(`🤖 Tự đăng đề xuất #${approval.num} (${s.label}) sau ${s.delay} phút chờ.`);
           } catch (error) {
-            approvals.clearAutoPost(approval.id);
-            pushApprovals();
+            approvals.clearAutoPost(approval.id); pushApprovals();
             dispatcher.sys(`⚠️ Không thể tự đăng đề xuất #${approval.num}: ${error.message}`);
           }
         }
@@ -735,7 +741,11 @@ app.whenReady().then(async () => {
     const autoPostTimer = setInterval(processDueAutoPosts, 1000);
     autoPostTimer.unref();
     processDueAutoPosts();
-    for (const approval of approvals.all().filter((item) => item.status === 'approved')) dispatcher.publishApproved(approval);
+    for (const approval of approvals.all().filter((item) => item.status === 'approved')) { // bài đã duyệt mà app tắt trước khi đăng: chỉ đăng nốt nếu mới duyệt (dưới 12 giờ), cũ hơn thì để chủ shop duyệt lại
+      if (Date.now() - (approval.approvedAt || approval.t) > 12 * 3600e3) { approvals.setStatus(approval.id, 'failed', 'Đã duyệt từ hơn 12 giờ trước nhưng app tắt trước khi đăng. Hãy tạo lại đề xuất nếu vẫn muốn đăng.'); continue; }
+      dispatcher.publishApproved(approval);
+    }
+    pushApprovals();
     scanner = createScanner({
       getCfg: () => { const c = loadCfg(); return isDormant() ? { ...c, commentScan: false } : c; }, busy: () => dispatcher.anyBusy(), log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
       run: async (reason) => {

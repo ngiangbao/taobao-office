@@ -273,3 +273,19 @@ test('Dừng tất cả: bài đang chờ giờ tự đăng được huỷ lịc
     assert.equal(t.approvals.get(it.id).autoPostAt, undefined, 'lịch tự đăng bị huỷ'); assert.equal(t.approvals.get(it.id).status, 'pending', 'chờ chủ shop duyệt tay');
   } finally { t.close(); }
 });
+
+test('bài nhóm phải chờ tới khung giờ không chặn bài fanpage và bình luận; kênh nào lịch kênh đó', async () => {
+  const FAN = 'https://www.facebook.com/trang-cua-shop', GROUP = 'https://www.facebook.com/groups/abc';
+  const h = new Date().getHours();
+  const t = await setup(async () => ({ text: '' }), { fanpageUrl: FAN, groups: [{ url: GROUP }], groupPostFromHour: (h + 2) % 24, groupPostToHour: (h + 3) % 24, fanpageGapMinutes: 0, commentGapMinutes: 0, publishGapMinutes: 0 });
+  try {
+    const mk = (kind, target, text) => t.approvals.create({ agentId: 'a', agentName: 'x', kind, target, text });
+    const g = mk('bai_dang', GROUP + '/', 'Bài nhóm'), f = mk('bai_dang', FAN, 'Bài fanpage'), c = mk('binh_luan', FAN + '/posts/1', 'Shop có nha');
+    for (const x of [g, f, c]) t.approvals.approve(x.id, x.hash);
+    t.d.publishApproved(t.approvals.get(g.id));                 // nhóm: ngoài khung giờ, đợi
+    await t.d.publishApproved(t.approvals.get(f.id));           // fanpage: không bị chặn
+    await t.d.publishApproved(t.approvals.get(c.id));
+    assert.deepEqual(t.published.map((x) => x.text).sort(), ['Bài fanpage', 'Shop có nha']);
+    assert.equal(t.approvals.get(g.id).status, 'approved', 'bài nhóm vẫn chờ tới giờ của nhóm, chưa đăng');
+  } finally { t.close(); }
+});
