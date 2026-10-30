@@ -211,3 +211,21 @@ test('nhập đơn khách không ghi đè khách đang có: giữ tên chủ sho
     assert.equal(linkOrderCustomers(orders, customers).created, 0, 'nhập lại không tạo thêm');
   } finally { fs2.rmSync(d, { recursive: true, force: true }); }
 });
+
+test('khách cũ có sẵn từ bảng đơn nhắn Messenger lần đầu: dùng lại khách đó, không tạo trùng; trùng tên nhiều người thì tạo riêng', () => {
+  const fs2 = require('node:fs'), os2 = require('node:os'), path2 = require('node:path');
+  const { createAgents } = require('../lib/agents'), { createCustomers, linkOrderCustomers } = require('../lib/customers'), { createOrders } = require('../lib/orders');
+  const d = fs2.mkdtempSync(path2.join(os2.tmpdir(), 'tbo-old-')); try {
+    const agents = createAgents(d), customers = createCustomers(d, agents), orders = createOrders(d);
+    orders.add({ fbName: 'Hoa Nguyễn', sku: 'MU041' }); orders.add({ fbName: 'Mai Lê', sku: 'A' }); linkOrderCustomers(orders, customers);
+    const hoa = customers.all().find((c) => c.name === 'Hoa Nguyễn'), agentsBefore = agents.all().length;
+    const first = customers.ensure({ key: 't_9001', name: 'hoa nguyễn' });
+    assert.equal(first.created, false); assert.equal(first.customer.code, hoa.code, 'đúng khách cũ (mã KH cũ)');
+    assert.equal(agents.all().length, agentsBefore, 'không tạo agent mới');
+    assert.equal(customers.ensure({ key: 't_9001', name: 'Hoa Nguyễn' }).customer.code, hoa.code, 'những lần sau khớp theo mã cuộc trò chuyện');
+    assert.equal(customers.ensure({ key: 't_777', name: 'Người Lạ' }).created, true, 'người chưa có thì tạo mới');
+    // hai khách trùng tên trong bảng đơn: không đoán
+    customers.mergeSynced({ code: 'KH-DUP01', name: 'Lan', createdAt: 1 }); customers.mergeSynced({ code: 'KH-DUP02', name: 'Lan', createdAt: 1 });
+    assert.equal(customers.ensure({ key: 't_lan', name: 'Lan' }).created, true, 'trùng tên: tạo riêng để chủ shop gộp tay');
+  } finally { fs2.rmSync(d, { recursive: true, force: true }); }
+});
