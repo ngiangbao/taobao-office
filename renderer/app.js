@@ -73,6 +73,10 @@ $('#btn-attach').onclick = () => $('#file').click();
 $('#file').onchange = (e) => { attach(e.target.files); e.target.value = ''; };
 $('#btn-stop').onclick = () => api.stop();
 $('#btn-new').onclick = async () => { await api.reset(); log.innerHTML = ''; add('bot', 'Đã bắt đầu cuộc trò chuyện mới.'); };
+$('#btn-login').onclick = async () => {
+  const r = await (api.openLogin ? api.openLogin() : { ok: false, error: 'Chỉ có trong app desktop.' });
+  add(r.ok ? 'bot' : 'err', r.ok ? 'Đã mở Chrome của app. Bạn hãy tự đăng nhập Facebook và Taobao (tự giải CAPTCHA nếu có), xong thì ĐÓNG cửa sổ Chrome đó rồi quay lại đây. Đóng Chrome để Claude dùng được hồ sơ này.' : r.error);
+};
 $('#btn-data').onclick = () => api.openData();
 document.querySelectorAll('.quick button').forEach((b) => (b.onclick = () => { input.value = b.dataset.q; input.focus(); }));
 

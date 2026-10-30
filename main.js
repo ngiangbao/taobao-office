@@ -1,7 +1,16 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 const { runClaude, findClaude } = require('./lib/claude');
+
+function findChrome() {
+  const c = process.platform === 'win32'
+    ? [process.env.PROGRAMFILES + '\\Google\\Chrome\\Application\\chrome.exe', process.env['PROGRAMFILES(X86)'] + '\\Google\\Chrome\\Application\\chrome.exe', process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe']
+    : process.platform === 'darwin' ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
+    : ['/usr/bin/google-chrome-stable', '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
+  return c.find((p) => p && fs.existsSync(p)) || null;
+}
 
 const DEFAULT_CFG = {
   rate: 3600, shipPerKg: 25000, servicePct: 5, maxPostsPerDay: 12,
@@ -30,6 +39,13 @@ app.whenReady().then(() => {
 
   ipcMain.handle('cfg:get', () => ({ cfg: loadCfg(), claude: findClaude(loadCfg().claudePath) }));
   ipcMain.handle('cfg:set', (_, c) => { fs.writeFileSync(cfgPath, JSON.stringify(c, null, 2)); return true; });
+  ipcMain.handle('login:open', () => {
+    if (running) return { ok: false, error: 'Claude đang làm việc, hãy chờ xong rồi đăng nhập.' };
+    const chrome = findChrome();
+    if (!chrome) return { ok: false, error: 'Không tìm thấy Google Chrome. Hãy cài Chrome.' };
+    spawn(chrome, ['--user-data-dir=' + path.join(dataDir, 'chrome-profile'), '--no-first-run', '--no-default-browser-check', 'https://www.facebook.com/', 'https://www.taobao.com/'], { detached: true, stdio: 'ignore' }).unref();
+    return { ok: true };
+  });
   ipcMain.handle('log:open', () => shell.openPath(dataDir));
   ipcMain.handle('chat:reset', () => { sessionId = null; try { fs.unlinkSync(path.join(dataDir, 'session.txt')); } catch {} return true; });
   ipcMain.handle('file:save', (_, { name, data }) => {

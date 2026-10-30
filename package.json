@@ -9,9 +9,9 @@
   "scripts": {
     "start": "electron .",
     "vendor": "node scripts/vendor.mjs",
-    "dist:linux": "npm run vendor && electron-builder --linux AppImage deb",
-    "dist:win": "npm run vendor && electron-builder --win nsis",
-    "dist:mac": "npm run vendor && electron-builder --mac dmg"
+    "dist:linux": "npm run vendor && electron-builder --linux AppImage deb --publish never",
+    "dist:win": "npm run vendor && electron-builder --win nsis --publish never",
+    "dist:mac": "npm run vendor && electron-builder --mac dmg --publish never"
   },
   "build": {
     "appId": "vn.taobaooffice.app",
