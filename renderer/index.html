@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taobao Office</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <section class="office">
+    <canvas id="office"></canvas>
+    <div class="hud"><span id="status" class="pill">Đang rảnh</span><span id="where" class="where"></span></div>
+  </section>
+  <section class="chat">
+    <header>
+      <b>Taobao Office</b>
+      <span class="spacer"></span>
+      <button id="btn-new" class="ghost">Cuộc mới</button>
+      <button id="btn-data" class="ghost">Nhật ký</button>
+      <button id="btn-cfg" class="ghost">Cài đặt</button>
+    </header>
+    <div id="log" class="log"></div>
+    <div class="quick">
+      <button data-q="Báo giá món trong ảnh tôi vừa gửi: tìm trên Taobao và tính giá theo công thức.">Báo giá từ ảnh</button>
+      <button data-q="Tìm trong các nhóm đã lưu những bài khách đang cần mua (cần mua, ai order, tìm mẫu này...), soạn comment nháp cho từng bài, chưa comment.">Tìm khách</button>
+      <button data-q="Soạn bài đăng cho ảnh đính kèm, mỗi nhóm một bản hơi khác nhau, rồi chờ tôi duyệt.">Soạn bài đăng nhóm</button>
+      <button data-q="Duyệt. Hãy đăng/comment đúng như bản nháp ở trên.">✔ Duyệt</button>
+    </div>
+    <div id="chips" class="chips"></div>
+    <form id="form" class="composer">
+      <input id="file" type="file" accept="image/*" multiple hidden>
+      <button type="button" id="btn-attach" class="ghost" title="Đính kèm ảnh">📎</button>
+      <textarea id="input" rows="2" placeholder="Nhập yêu cầu... (Enter để gửi, Shift+Enter xuống dòng)"></textarea>
+      <button id="btn-send" type="submit">Gửi</button>
+      <button id="btn-stop" type="button" class="danger" hidden>Dừng</button>
+    </form>
+  </section>
+</div>
+
+<dialog id="dlg">
+  <form method="dialog" id="cfgform">
+    <h3>Cài đặt shop</h3>
+    <div class="grid">
+      <label>Tỷ giá (VNĐ/¥)<input name="rate" type="number" step="any"></label>
+      <label>Phí cân (VNĐ/kg)<input name="shipPerKg" type="number" step="any"></label>
+      <label>Phí dịch vụ (%)<input name="servicePct" type="number" step="any"></label>
+      <label>Tối đa bài/ngày<input name="maxPostsPerDay" type="number"></label>
+    </div>
+    <label>Giọng văn của shop<input name="tone" type="text"></label>
+    <label>Nhóm Facebook (mỗi dòng: Tên | link | ghi chú)<textarea name="groups" rows="6"></textarea></label>
+    <div class="grid">
+      <label>Điều khiển trình duyệt
+        <select name="browser"><option value="playwright">Chrome riêng của app (khuyên dùng)</option><option value="chrome">Tiện ích Claude in Chrome</option></select>
+      </label>
+      <label>Đường dẫn lệnh claude (để trống = tự tìm)<input name="claudePath" type="text"></label>
+    </div>
+    <p id="claudeinfo" class="hint"></p>
+    <menu><button value="cancel" class="ghost">Hủy</button><button id="save" value="ok">Lưu</button></menu>
+  </form>
+</dialog>
+<script type="module" src="app.js"></script>
+</body>
+</html>
