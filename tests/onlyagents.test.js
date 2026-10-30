@@ -43,3 +43,17 @@ test('agent của app luôn có chỗ ngồi (ngồi chơi), không bị "rời 
     assert.ok(!/rời khỏi|left the group/i.test(after), 'rời đi lặng lẽ');
   } finally { o.child.kill(); fs.rmSync(data, { recursive: true, force: true }); }
 });
+
+test('tin của chủ shop chỉ hiện một lần: lời nhắc gửi cho agent không bị văn phòng đăng lại', async () => {
+  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'tbo-o-'));
+  fs.mkdirSync(path.join(data, 'office'), { recursive: true });
+  fs.writeFileSync(path.join(data, 'office', 'agent-names.json'), JSON.stringify({ 'agent-a': 'Chăm sóc khách' }));
+  const o = await startOffice({ isPackaged: false }, data);
+  try {
+    const hook = (ev, extra = {}) => fetch(o.url + 'event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: 'agent-a', hook_event_name: ev, cwd: data, ...extra }) });
+    await hook('SessionStart'); await hook('UserPromptSubmit', { prompt: '@Chăm sóc khách nếu có khách chủ động nhắn tin hỏi thì bạn sẽ trả lời thế nào' });
+    await new Promise((r) => setTimeout(r, 2500));
+    const msgs = (await (await fetch(o.url + 'api/chat')).json()).msgs;
+    assert.equal(msgs.filter((m) => m.from === 'me').length, 0, 'văn phòng không tự đăng lại lời nhắc dưới tên chủ shop');
+  } finally { o.child.kill(); fs.rmSync(data, { recursive: true, force: true }); }
+});
