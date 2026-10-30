@@ -12,7 +12,6 @@ export default {
   openOnPhone: 'Open on your phone',
   empty: {
     att: 'Nothing has needed your attention in the last hour.',
-    type: 'No activity of this type yet.',
     all: 'Waiting for the first activity…',
   },
   doing: {

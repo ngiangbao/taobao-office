@@ -78,12 +78,7 @@ export default {
     filter: 'Filter activity',
     all: 'All',
     attention: 'Needs attention',
-    types: 'Activity type',
-    cmd: 'Commands',
-    edit: 'Edits',
-    read: 'Reads',
-    web: 'Web',
-    agent: 'Subagents',
+    clearNotifications: 'Clear notices',
     empty: 'Waiting for the first activity…',
   },
   cameraToolbar: {

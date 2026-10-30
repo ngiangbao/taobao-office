@@ -236,6 +236,7 @@ export default {
     project: 'Dự án',
     cost: 'Chi phí',
     total: 'Tổng',
+    summary: 'Tổng chi phí Claude hôm nay: {total}.',
     morning: ['Chào cả nhà, kế toán tới rồi đây!', 'Chào buổi sáng, hôm nay tiết kiệm nha!'],
     print: ['In báo cáo chi phí hôm nay đã.', 'Máy in ơi, chạy nhanh lên nào.'],
     report: ['Báo cáo chi phí Claude hôm nay đây sếp, tổng {total} ạ.', 'Sếp ơi, chi phí hôm nay là {total} ạ.'],

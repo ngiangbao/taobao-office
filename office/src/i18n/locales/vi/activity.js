@@ -11,7 +11,6 @@ export default {
   openOnPhone: 'Mở trên điện thoại',
   empty: {
     att: 'Không có gì cần chú ý trong một giờ qua.',
-    type: 'Chưa có hoạt động thuộc loại này.',
     all: 'Chờ hoạt động đầu tiên…',
   },
   doing: {

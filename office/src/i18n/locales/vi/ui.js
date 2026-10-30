@@ -78,12 +78,7 @@ export default {
     filter: 'Lọc hoạt động',
     all: 'Tất cả',
     attention: 'Cần chú ý',
-    types: 'Loại hoạt động',
-    cmd: 'Xử lý',
-    edit: 'Ghi chép',
-    read: 'Xem',
-    web: 'Tìm hàng',
-    agent: 'Trợ lý',
+    clearNotifications: 'Xóa thông báo',
     empty: 'Chờ hoạt động đầu tiên…',
   },
   cameraToolbar: {

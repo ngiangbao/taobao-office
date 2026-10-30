@@ -2,6 +2,12 @@
 /* activity column */
 .act-head { all: unset; display: block; padding: 18px 16px 12px; }
 .seg { display: flex; gap: 6px; margin: 0 16px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.feed-controls { display: flex; align-items: stretch; gap: 8px; margin: 0 16px; }
+.feed-controls .seg { flex: 1; min-width: 0; margin: 0; }
+.clear-notifications { all: unset; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--muted); font-size: .75rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.clear-notifications:hover { color: var(--ink); border-color: var(--line-2); }
+.clear-notifications:focus-visible { outline: 2px solid var(--accent); }
+.clear-notifications svg { width: 14px; height: 14px; }
 .seg button { all: unset; flex: 1; height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 9px; border: 1px solid transparent; font-size: .8rem; font-weight: 600; color: var(--muted); cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-line); color: var(--ink); }
 .seg button:focus-visible { outline: 2px solid var(--accent); }

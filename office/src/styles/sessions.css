@@ -125,13 +125,6 @@
 .kpi--cost { background: linear-gradient(160deg, rgba(239, 138, 95, .1), rgba(239, 138, 95, .02) 70%), var(--card); border-color: rgba(239, 138, 95, .22); }
 .kpi--cost .kpi-ic { color: var(--accent); }
 .kpi--cost b small { margin-right: 2px; font-size: .7em; font-weight: 600; color: var(--muted); }
-.type-chips { display: flex; gap: 6px; margin: 10px 16px 4px; overflow-x: auto; scrollbar-width: none; }
-.type-chips::-webkit-scrollbar { display: none; }
-.type-chips button { all: unset; flex: none; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line-2); font-size: .72rem; font-weight: 600; color: var(--muted); cursor: pointer; }
-.type-chips button svg { width: 12px; height: 12px; }
-.type-chips button:hover { color: var(--ink); }
-.type-chips button[aria-pressed="true"] { color: var(--ink); border-color: var(--accent-line); background: var(--accent-soft); }
-.type-chips button:focus-visible { outline: 2px solid var(--accent); }
 .fg { list-style: none; margin: 0 0 6px; }
 .fg-card { all: unset; box-sizing: border-box; width: 100%; display: grid; gap: 7px; padding: 10px 11px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); cursor: pointer; transition: border-color .15s, background .15s; }
 .fg-card:hover { border-color: var(--line-2); background: var(--card-2); }
@@ -194,4 +187,4 @@
 .pop-seg button[aria-pressed="true"] { color: var(--ink); background: var(--accent-soft); border-color: var(--accent-line); }
 .pop-seg button:focus-visible { outline: 2px solid var(--accent); }
 @media (max-width: 1280px) { #btn-look .lbl { display: none; } #btn-look { width: 38px; padding: 0; justify-content: center; } }
-@media (max-width: 720px) { .pop { position: fixed; left: 10px; right: 10px; top: 58px; width: auto; } .tb-clock { display: none; } .kpis { display: none; } .type-chips { display: none; } }
+@media (max-width: 720px) { .pop { position: fixed; left: 10px; right: 10px; top: 58px; width: auto; } .tb-clock { display: none; } .kpis { display: none; } }

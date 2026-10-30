@@ -250,6 +250,7 @@ export default {
     project: 'Project',
     cost: 'API price',
     total: 'Total',
+    summary: "Today's Claude cost: {total}.",
     morning: ['Morning all, accounts is in!', 'Good morning, let’s keep it lean today!'],
     print: ["Printing today's cost report.", 'Come on, printer.'],
     report: ["Here's today's API cost report, {total} in all.", 'Today came to {total}, boss.'],

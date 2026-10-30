@@ -23,9 +23,6 @@ const ATT = new Set(['wait', 'ask', 'fail', 'cired']);
 export const cap = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t);
 // Consecutive events from the same session (or subagent) within four minutes share one card; alerts stand alone
 // with their actions, so "needs you" never hides inside a group.
-const KIND = { cmd: ['bash', 'test', 'testok', 'testfail', 'deploy', 'commit', 'push', 'cired', 'cigreen'], edit: ['edit', 'write'], read: ['read', 'grep', 'glob', 'skill'], web: ['web', 'fetch', 'mcp'], agent: ['agent', 'substart', 'substop'] };
-const typeFilter = new Set();
-const kindOk = (e) => !typeFilter.size || [...typeFilter].some((k) => KIND[k].includes(e.type));
 function lineOf(e) {
   const ln = el('span', 'fg-line'), ic = el('span', 'fi-ico');
   ic.append(icon(TYPE_ICON[e.type] || 'sparkle')); if (TYPE_TONE[e.type]) ic.dataset.tone = TYPE_TONE[e.type];
@@ -73,9 +70,9 @@ function alertCard(e) {
 export function renderFeed() {
   const list = $('feed-list');
   const latest = new Map(); for (const e of state.feed) latest.set(e.sess, e.id);
-  const rows = state.feed.filter((e) => (feedFilter === 'all' || ATT.has(e.type)) && kindOk(e)).slice(-90).reverse();
+  const rows = state.feed.filter((e) => feedFilter === 'all' || ATT.has(e.type)).slice(-90).reverse();
   list.replaceChildren();
-  if (!rows.length) list.append(el('li', 'fi-empty', tr(feedFilter === 'att' ? 'activity.empty.att' : typeFilter.size ? 'activity.empty.type' : 'activity.empty.all')));
+  if (!rows.length) list.append(el('li', 'fi-empty', tr(feedFilter === 'att' ? 'activity.empty.att' : 'activity.empty.all')));
   const groups = [];
   for (const e of rows) {
     const g = groups[groups.length - 1], att = ATT.has(e.type);
@@ -279,10 +276,9 @@ export function setup() {
   state.isLocal = false;
   state.hovered = null; state.hoverAt = 0;
   toastEl = $('toast');
-  $('type-chips').addEventListener('click', (ev) => {
-    const b = ev.target.closest('[data-k]'); if (!b) return;
-    if (typeFilter.has(b.dataset.k)) typeFilter.delete(b.dataset.k); else typeFilter.add(b.dataset.k);
-    b.setAttribute('aria-pressed', String(typeFilter.has(b.dataset.k))); renderFeed();
+  $('clear-notifications').addEventListener('click', () => {
+    state.feed = state.feed.filter((e) => !ATT.has(e.type));
+    queueFeed();
   });
   $('feed-list').addEventListener('click', (ev) => {
     const im = ev.target.closest('[data-img]');
