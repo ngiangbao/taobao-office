@@ -420,7 +420,11 @@ app.whenReady().then(async () => {
     } catch (error) { return { ok: false, error: error.message }; }
     finally { fs.rmSync(tmp, { recursive: true, force: true }); }
   });
-  const assistant = () => agents.all().find((a) => a.role === 'assistant');
+  const assistant = () => { // thiếu thì tự tạo lại (máy mới, hoặc lỡ xoá)
+    let a = agents.all().find((x) => x.role === 'assistant');
+    if (!a) { try { agents.ensureDefaults(DEFAULT_AGENTS.filter((x) => x.role === 'assistant')); pushAgents(); } catch {} a = agents.all().find((x) => x.role === 'assistant'); }
+    return a;
+  };
   const memFile = () => { const a = assistant(); return a && path.join(a.dir, 'bo-nho.md'); };
   ipcMain.handle('assistant:get', () => { let memory = ''; try { memory = fs.readFileSync(memFile(), 'utf8'); } catch {} return { memory, style: style.all() }; });
   ipcMain.handle('assistant:memory', (_, d) => { // nhập bộ nhớ dán từ khung chat Claude khác
@@ -584,7 +588,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('skills:save', (_, d) => { try { skills.upsert(d.agentId, { title: d.title, text: d.text, source: 'owner' }); return { ok: true, agents: skillsPub() }; } catch (e) { return { ok: false, error: e.message }; } });
   ipcMain.handle('skills:remove', (_, d) => { skills.remove(d.agentId, d.id); return { ok: true, agents: skillsPub() }; });
   const runReview = async (force) => {
-    const assistantAgent = agents.all().find((a) => a.role === 'assistant');
+    const assistantAgent = assistant();
     if (!assistantAgent || !dispatcher) return { ok: false, error: 'Chưa có agent Trợ lý riêng.' };
     const todo = skillReview.due(teamAgents(), skills, history, { force });
     if (!todo.length) return { ok: true, reviewed: 0 };
