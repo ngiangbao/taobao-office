@@ -97,3 +97,32 @@ test('mất mạng: chỉ dùng bản lưu của CHÍNH bảng đang cấu hình
   assert.equal((await readInventory(A, path.join(dir, 'a'), down)).stale, true, 'cùng bảng: dùng bản lưu');
   await assert.rejects(readInventory(B, path.join(dir, 'a'), down), /mất mạng/, 'bảng khác: không dùng bản lưu của bảng A');
 });
+
+test('kho từ file Excel trên máy + mẫu mới xếp cuối phân loại; xuất Excel giữ định dạng, ảnh cũ đúng dòng, bảng gốc không bị sửa', async (t) => {
+  const { exportWithAdded, mergeAdded } = require('../lib/inventory');
+  const { createStockAdded, parseDirectives } = require('../lib/stock-added');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kho-them-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, 'kho.xlsx'); await makeBook(file);
+  const before = fs.readFileSync(file);
+  const { adds, rest } = parseDirectives('Xong. [[THEM_KHO ma="AC010" ten="Khăn len" loai="Áo choàng vai" mau="Kem" size="Đồng size" gia_te="20,5" gia_ban="199.000" link="https://detail.1688.com/offer/9.html" anh="x.png"]] Hết');
+  assert.equal(rest, 'Xong.  Hết'.replace('  ', ' ') && rest); assert.equal(adds[0].priceCny, 20.5); assert.equal(adds[0].price, 199000);
+  const store = createStockAdded(dir);
+  fs.writeFileSync(path.join(dir, 'x.png'), PNG);
+  const r = store.add([...adds, { sku: 'AC001', name: 'trùng', type: 'x' }, { sku: 'ZZ1', name: 'Nón mới', type: 'Nón', priceCny: 5, price: 50000 }], { existing: new Set(['ac001']), agentName: 'Tìm hàng', copyImage: (src, sku, to) => { fs.mkdirSync(to, { recursive: true }); fs.copyFileSync(path.join(dir, src), path.join(to, `${sku}.png`)); return `${sku}.png`; } });
+  assert.deepEqual(r.added.map((x) => x.sku), ['AC010', 'ZZ1']); assert.equal(r.skipped[0].why, 'mã đã có trong kho');
+  // đọc kho từ file: mẫu mới nằm ngay sau dòng cuối của phân loại "Áo choàng vai"
+  const stock = await readInventory({ inventoryFile: file }, path.join(dir, 'kho'), undefined, { added: store.list(), addedImgDir: store.imgDir });
+  assert.deepEqual(stock.items.map((i) => i.sku), ['AC001', 'AC004', 'AC010', 'ZZ1']);
+  assert.equal(stock.items[2].moi, true); assert.ok(fs.existsSync(path.join(dir, 'kho', 'anh', 'AC010.png')));
+  assert.equal(forAgent(stock).sanPham[2].moi, true);
+  // xuất Excel
+  const out = path.join(dir, 'ra.xlsx');
+  await exportWithAdded(file, store.list(), out, { addedImgDir: store.imgDir });
+  const re = await parseWorkbook(out, { imagesDir: path.join(dir, 'ra-anh') });
+  assert.deepEqual(re.items.map((i) => i.sku), ['AC001', 'AC004', 'AC010', 'ZZ1']);
+  assert.equal(re.items[0].image, 'AC001.png', 'ảnh cũ vẫn ở đúng dòng');
+  assert.equal(re.items[2].image, 'AC010.png', 'ảnh mẫu mới ở đúng dòng'); assert.equal(re.items[2].price, 199000); assert.equal(re.items[2].priceCny, 20.5);
+  assert.deepEqual(fs.readFileSync(file), before, 'bảng gốc không bị sửa');
+  assert.deepEqual(mergeAdded([{ sku: 'A', type: 'x' }], [{ sku: 'A', type: 'x' }]).length, 1);
+});

@@ -106,7 +106,10 @@
         </section>
         <section data-sec="inventory" hidden>
           <h3>Kho hàng</h3>
-          <p class="hint">Dán link Google Sheets danh mục hàng của shop (đặt quyền “Bất kỳ ai có liên kết đều có thể xem”). App chỉ đọc, không sửa bảng tính, và chỉ lấy trang tính có cột Mã SP và Tên sản phẩm; trang danh sách khách order không bao giờ được đọc. Dữ liệu và ảnh được tải mới mỗi lần gọi @Kho hàng.</p>
+          <p class="hint">Có hai cách đưa kho vào app: <b>nhập file Excel</b> từ máy (app giữ một bản sao trên máy này, không đưa ra ngoài), hoặc dán <b>link Google Sheets</b> (đặt quyền “Bất kỳ ai có liên kết đều có thể xem”). Đã nhập file thì app dùng file; bỏ file thì quay lại dùng link. App không sửa bảng gốc, chỉ lấy trang tính có cột Mã SP và Tên sản phẩm; trang danh sách khách order không bao giờ được đọc.</p>
+          <div class="row"><button type="button" id="s-inv-view">Xem kho hàng</button><button type="button" id="s-inv-import" class="ghost">Nhập từ file Excel…</button><button type="button" id="s-inv-clear" class="ghost">Bỏ file Excel, dùng link</button><button type="button" id="s-inv-export" class="ghost">Xuất Excel (kèm mẫu mới)</button></div>
+          <p id="s-inv-file" class="hint" aria-live="polite"></p>
+          <p class="hint">Khi agent <b>Tìm hàng</b> tìm được mẫu mới và bạn đồng ý lưu, mẫu được thêm vào <b>dòng cuối của đúng phân loại</b> trong kho (bảng gốc và link Google không bị sửa; bấm “Xuất Excel” để có file đúng định dạng bảng của bạn kèm mẫu mới, rồi dán/nhập lại vào Google Sheets nếu muốn).</p>
           <label>Link Google Sheets kho hàng<input name="inventorySheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit"></label>
           <label>Tên trang tính (để trống: tự tìm trang có cột Mã SP)<input name="inventoryTab" type="text" placeholder="DS Nón"></label>
           <label>Khi tôi gửi ảnh sản phẩm vào khung chat
@@ -303,6 +306,12 @@
       <tbody id="lc-rows"></tbody>
     </table>
   </div>
+</dialog>
+
+<dialog id="dlg-stock" class="wide">
+  <div class="hist-head"><h3>Kho hàng</h3><input id="k-q" type="search" placeholder="Tìm theo mã, tên, màu…"><select id="k-type" aria-label="Lọc theo loại"></select><button id="k-export" class="ghost">Xuất Excel</button><button id="k-close" class="ghost">Đóng</button></div>
+  <p id="k-info" class="hint" aria-live="polite"></p>
+  <div id="k-list" class="hist-list"></div>
 </dialog>
 
 <dialog id="dlg-orders" class="wide">

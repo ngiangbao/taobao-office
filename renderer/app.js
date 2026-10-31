@@ -147,6 +147,51 @@ $('#s-inventory-check').onclick = async () => {
     status.textContent = result.ok ? `Đọc được ${result.items} mã sản phẩm (${result.images} có ảnh) ở trang “${result.sheet}”, ${result.types} loại.${result.stale ? ' Lưu ý: chưa tải mới được, đang dùng bản đã lưu.' : ''} Bấm Lưu thay đổi để dùng với @Kho hàng.` : result.error;
   } catch (error) { status.textContent = `Chưa đọc được kho: ${error.message}`; }
 };
+// ---- Kho hàng trên máy: xem, nhập Excel, xuất ----
+const dlgK = $('#dlg-stock');
+let stockData = null;
+const vndK = (n) => (n == null ? '' : Number(n).toLocaleString('vi-VN'));
+function renderStock() {
+  const q = fold($('#k-q').value), type = $('#k-type').value, box = $('#k-list'); box.replaceChildren();
+  const rows = (stockData?.items || []).filter((i) => (!type || (i.type || '(chưa phân loại)') === type) && (!q || fold([i.sku, i.name, i.colors, i.type, i.size].join(' ')).includes(q)));
+  if (!rows.length) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = 'Không có mã nào khớp.'; box.append(p); return; }
+  const io = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => { for (const e of entries) if (e.isIntersecting) { io.unobserve(e.target); api.inventoryImage(e.target.dataset.sku).then((u) => { if (u) e.target.src = u; }); } }) : null;
+  for (const i of rows.slice(0, 400)) {
+    const row = document.createElement('div'); row.className = 'stock-row' + (i.moi ? ' moi' : '');
+    const img = document.createElement('img'); img.alt = ''; img.width = 56; img.height = 56; img.dataset.sku = i.sku;
+    if (i.hasImage) { if (io) io.observe(img); else api.inventoryImage(i.sku).then((u) => { if (u) img.src = u; }); }
+    const info = document.createElement('div');
+    const t = document.createElement('b'); t.textContent = `${i.sku} · ${i.name || '(chưa có tên)'}`;
+    const m = document.createElement('div'); m.className = 'hint'; m.textContent = [i.type || '(chưa phân loại)', i.colors, i.size, i.priceCny != null ? `${i.priceCny} tệ` : '', i.price != null ? `${vndK(i.price)} ₫` : ''].filter(Boolean).join(' · ');
+    info.append(t, m);
+    row.append(img, info);
+    if (i.moi) { const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = 'Mẫu mới'; const del = document.createElement('button'); del.type = 'button'; del.className = 'ghost'; del.textContent = 'Bỏ khỏi kho'; del.onclick = async () => { if (!confirm(`Bỏ mẫu ${i.sku} khỏi kho?`)) return; await api.inventoryRemoveAdded(i.sku); openStock(); }; row.append(tag, del); }
+    box.append(row);
+  }
+  if (rows.length > 400) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = `Đang hiện 400/${rows.length} mã; hãy lọc theo loại hoặc tìm kiếm để thu hẹp.`; box.append(p); }
+}
+async function openStock() {
+  $('#k-info').textContent = 'Đang đọc kho…'; $('#k-list').replaceChildren(); if (!dlgK.open) dlgK.showModal();
+  const r = await api.inventoryView();
+  if (!r.ok) { stockData = null; $('#k-info').textContent = r.error; return; }
+  stockData = r;
+  const sel = $('#k-type'), cur = sel.value; sel.replaceChildren(new Option('Tất cả loại', ''));
+  for (const [t, n] of Object.entries(r.types)) sel.append(new Option(`${t} (${n})`, t));
+  sel.value = [...sel.options].some((o) => o.value === cur) ? cur : '';
+  $('#k-info').textContent = `${r.items.length} mã · trang “${r.sheet}” · nguồn: ${r.source === 'file' ? 'file Excel trên máy' : 'link Google Sheets'}${r.added ? ` · ${r.added} mẫu mới do agent thêm` : ''}${r.stale ? ` · chưa tải mới được (${r.staleReason}), đang dùng bản đã lưu` : ''}.`;
+  renderStock();
+}
+$('#k-q').oninput = renderStock; $('#k-type').onchange = renderStock; $('#k-close').onclick = () => dlgK.close();
+const exportStock = async (say) => { say('Đang xuất…'); const r = await api.inventoryExport(); say(r.canceled ? '' : r.ok ? `Đã xuất file kèm ${r.added} mẫu mới: ${r.path}` : r.error); };
+$('#k-export').onclick = () => exportStock((t) => { $('#k-info').textContent = t; });
+$('#s-inv-view').onclick = () => openStock();
+$('#s-inv-export').onclick = () => exportStock((t) => { $('#s-inv-file').textContent = t; });
+$('#s-inv-import').onclick = async () => {
+  const st = $('#s-inv-file'); st.textContent = 'Đang đọc file…';
+  const r = await api.inventoryImportFile();
+  st.textContent = r.canceled ? '' : r.ok ? `Đã nhập: ${r.items} mã (${r.images} có ảnh), ${r.types} loại, trang “${r.sheet}”. Từ giờ app dùng file này thay cho link.` : r.error;
+};
+$('#s-inv-clear').onclick = async () => { await api.inventoryClearFile(); $('#s-inv-file').textContent = 'Đã bỏ file Excel; app dùng lại link Google Sheets (nếu có).'; };
 async function fillSettings() {
   const { cfg, claude } = await api.getCfg();
   for (const el of form.elements) if (el.name) el.value = el.hasAttribute('data-bool') ? (cfg[el.name] ? '1' : '0') : (cfg[el.name] ?? '');
@@ -315,7 +360,7 @@ window.addEventListener('message', (ev) => {
   if (d.tbo === 'rename-chat') askRename({ chat: true, name: String(d.name || '') }, 'Đổi tên khung chat (để trống = tên mặc định)');
   else if (d.tbo === 'rename-agent' && d.sid) askRename({ sid: d.sid, name: String(d.name || '') });
   else if (d.tbo === 'open-settings') openSettings();
-  else if (d.tbo === 'open-inventory') api.openInventory().then((r) => { if (!r?.ok) openSettings('inventory'); }); // chưa nhập link kho: mở thẳng mục Kho hàng
+  else if (d.tbo === 'open-inventory') api.openInventory().then((r) => { if (r?.ok) openStock(); else openSettings('inventory'); }); // chưa nhập link kho: mở thẳng mục Kho hàng
   else if (d.tbo === 'office-state') renderOfficeSettings(d.groups || []);
   else if (d.tbo === 'office-ready' && dlgS.open && curSec === 'office') askOffice(); // văn phòng vừa tải lại (ví dụ sau khi đổi ngôn ngữ)
 });
