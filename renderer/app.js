@@ -163,7 +163,7 @@ function renderStock() {
     if (i.hasImage) { if (io) io.observe(img); else api.inventoryImage(i.sku).then((u) => { if (u) img.src = u; }); }
     const info = document.createElement('div');
     const t = document.createElement('b'); t.textContent = `${i.sku} · ${i.name || '(chưa có tên)'}`;
-    const m = document.createElement('div'); m.className = 'hint'; m.textContent = [i.type || '(chưa phân loại)', i.colors, i.size, i.priceCny != null ? `${i.priceCny} tệ` : '', i.price != null ? `${vndK(i.price)} ₫` : ''].filter(Boolean).join(' · ');
+    const m = document.createElement('div'); m.className = 'hint'; m.textContent = [i.type || '(chưa phân loại)', i.colors, i.size, i.priceCny != null ? `${i.priceCny} tệ` : '', i.price != null ? `${vndK(i.price)} ₫` : '', i.onHand != null ? `Tồn: ${i.onHand}` : ''].filter(Boolean).join(' · ');
     info.append(t, m);
     row.append(img, info);
     if (i.moi) { const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = 'Mẫu mới'; const del = document.createElement('button'); del.type = 'button'; del.className = 'ghost'; del.textContent = 'Bỏ khỏi kho'; del.onclick = async () => { if (!confirm(`Bỏ mẫu ${i.sku} khỏi kho?`)) return; await api.inventoryRemoveAdded(i.sku); openStock(); }; row.append(tag, del); }
@@ -179,7 +179,7 @@ async function openStock() {
   const sel = $('#k-type'), cur = sel.value; sel.replaceChildren(new Option('Tất cả loại', ''));
   for (const [t, n] of Object.entries(r.types)) sel.append(new Option(`${t} (${n})`, t));
   sel.value = [...sel.options].some((o) => o.value === cur) ? cur : '';
-  $('#k-info').textContent = `${r.items.length} mã · trang “${r.sheet}” · nguồn: ${r.source === 'file' ? 'file Excel trên máy' : 'link Google Sheets'}${r.added ? ` · ${r.added} mẫu mới do agent thêm` : ''}${r.stale ? ` · chưa tải mới được (${r.staleReason}), đang dùng bản đã lưu` : ''}.`;
+  $('#k-info').textContent = `${r.items.length} mã · trang “${r.sheet}” · nguồn: ${r.source === 'file' ? 'file Excel trên máy' : r.source === 'kiotviet' ? 'KiotViet' : 'link Google Sheets'}${r.added ? ` · ${r.added} mẫu mới do agent thêm` : ''}${r.stale ? ` · chưa tải mới được (${r.staleReason}), đang dùng bản đã lưu` : ''}.`;
   renderStock();
 }
 $('#k-q').oninput = renderStock; $('#k-type').onchange = renderStock; $('#k-close').onclick = () => dlgK.close();
@@ -205,7 +205,7 @@ $('#s-groups-file').onclick = async () => { // nhập danh sách nhóm từ file
 async function fillSettings() {
   const { cfg, claude } = await api.getCfg();
   for (const el of form.elements) if (el.name) el.value = el.hasAttribute('data-bool') ? (cfg[el.name] ? '1' : '0') : (cfg[el.name] ?? '');
-  renderGroupList(cfg.groups || []); fillOrdersSettings();
+  renderGroupList(cfg.groups || []); fillOrdersSettings(); fillKiotviet();
   $('#s-groups-msg').textContent = '';
   form.elements.syncClientSecret.value = '';
   const syncStatus = await api.syncStatus();
@@ -518,22 +518,22 @@ const kvDescribe = (s) => `${s.configured ? 'Đã cấu hình.' : 'Chưa cấu h
 async function fillKiotviet() {
   const s = await api.kiotvietStatus();
   $('#kv-retailer').value = s.retailer || ''; $('#kv-id').value = s.clientId || ''; $('#kv-secret').value = ''; $('#kv-minutes').value = s.minutes ?? 10;
-  $('#kv-secret').placeholder = s.hasSecret ? 'đã lưu (nhập mới để thay)' : ''; kvSay(kvDescribe(s));
+  $('#kv-secret').placeholder = s.hasSecret ? 'đã lưu (nhập mới để thay)' : ''; $('#kv-cust').checked = s.syncCustomers !== false; $('#kv-inv').checked = !!s.inventory; kvSay(kvDescribe(s));
 }
 $('#kv-save').onclick = async () => {
   kvSay('Đang kiểm tra kết nối…');
-  const r = await api.kiotvietSave({ retailer: $('#kv-retailer').value, clientId: $('#kv-id').value, secret: $('#kv-secret').value, minutes: $('#kv-minutes').value });
+  const r = await api.kiotvietSave({ retailer: $('#kv-retailer').value, clientId: $('#kv-id').value, secret: $('#kv-secret').value, minutes: $('#kv-minutes').value, syncCustomers: $('#kv-cust').checked, inventory: $('#kv-inv').checked });
   if (r.ok) { $('#kv-secret').value = ''; $('#kv-secret').placeholder = 'đã lưu (nhập mới để thay)'; }
-  kvSay(r.ok ? `Kết nối được: gian hàng có ${r.customers} khách. Bấm “Đồng bộ ngay” để kéo về.` : r.error, !r.ok);
+  kvSay(r.ok ? `Kết nối được: gian hàng có ${r.customers} khách. Bấm “Đồng bộ ngay” để kéo khách và đơn về${$('#kv-inv').checked ? '; kho hàng đọc trực tiếp từ KiotViet mỗi lần xem hoặc gọi @Kho hàng' : ''}.` : r.error, !r.ok);
 };
 const kvRun = async (full) => {
   kvSay(full ? 'Đang tải lại toàn bộ từ KiotViet…' : 'Đang đồng bộ…');
   const r = await api.kiotvietSync({ full });
   kvSay(r.ok ? `Xong: ${r.customers} khách, ${r.invoices} hóa đơn, ${r.orders} đơn đặt hàng (${r.rows} dòng đơn).` : r.error, !r.ok);
 };
+$('#kv-view').onclick = () => openStock();
 $('#kv-sync').onclick = () => kvRun(false); $('#kv-full').onclick = () => kvRun(true);
 async function fillOrdersSettings() {
-  fillKiotviet();
   const { cfg } = await api.getCfg();
   $('#o-url').value = cfg.ordersSheetUrl || ''; $('#o-hook').value = cfg.ordersWebhookUrl || ''; $('#o-token').value = cfg.ordersWebhookToken || '';
   $('#o-sheetname').value = cfg.ordersSheetName || 'khách order'; $('#o-auto').value = cfg.ordersAutoAppend === false ? '0' : '1'; $('#o-msg').textContent = '';

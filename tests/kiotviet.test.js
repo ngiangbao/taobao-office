@@ -60,3 +60,16 @@ test('KiotViet: sai mã API thì báo lỗi dễ hiểu', async () => {
   await assert.rejects(kv.test(), /Client ID\/Client Secret/);
   await assert.rejects(createKiotViet({ getConfig: () => ({}) }).test(), /Chưa nhập đủ/);
 });
+
+test('KiotViet: sản phẩm thành kho hàng (nhóm hàng, màu/size, giá, tồn cộng mọi chi nhánh, ảnh) và agent Kho hàng thấy số tồn', async (t) => {
+  const { mapProduct } = require('../lib/kiotviet-map');
+  const { readInventory, forAgent } = require('../lib/inventory');
+  const m = mapProduct({ code: 'SP01', fullName: 'Áo khoác be - M', categoryName: 'Áo khoác', basePrice: 350000, isActive: true, images: ['https://cdn.example/a.jpg'],
+    attributes: [{ attributeName: 'Màu', attributeValue: 'Be' }, { attributeName: 'Size', attributeValue: 'M' }], inventories: [{ onHand: 3 }, { onHand: 4 }] });
+  assert.deepEqual([m.sku, m.type, m.colors, m.size, m.price, m.onHand, m.imageUrl], ['SP01', 'Áo khoác', 'Be', 'M', 350000, 7, 'https://cdn.example/a.jpg']);
+  assert.equal(mapProduct({ name: 'không mã' }), null);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tbo-kvinv-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const stock = await readInventory({ kiotvietInventory: true }, dir, undefined, { loader: async () => [m, { ...m, sku: 'SP02', type: 'Quần', onHand: 0 }], added: [{ sku: 'MOI1', name: 'Mẫu mới', type: 'Áo khoác' }] });
+  assert.equal(stock.source, 'kiotviet'); assert.deepEqual(stock.items.map((i) => i.sku), ['SP01', 'MOI1', 'SP02'], 'mẫu mới nằm cuối nhóm Áo khoác');
+  const a = forAgent(stock).sanPham; assert.equal(a[0].ton, 7); assert.equal(a[2].ton, 0); assert.equal('ton' in a[1], false);
+});
