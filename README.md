@@ -1,7 +1,17 @@
 # Chie House
 
+**Tiếng Việt** · [English](README.en.md)
+
 Ứng dụng desktop (Windows / macOS / Linux) cho shop order Taobao: chat với Claude, Claude điều khiển trình duyệt
 để báo giá, soạn bài đăng nhóm và tìm khách cần mua. Bên cạnh khung chat là văn phòng 3D (của dự án My Office) cho thấy Claude đang làm gì.
+
+![Văn phòng 3D của Chie House](docs/screenshots/van-phong.png)
+
+| Kho hàng (file Excel trên máy) | Khách hàng và đơn |
+|---|---|
+| ![Cài đặt kho hàng](docs/screenshots/cai-dat-kho-hang.png) | ![Cài đặt khách hàng](docs/screenshots/cai-dat-khach-hang.png) |
+
+*Ảnh chụp dùng dữ liệu mẫu, không phải dữ liệu thật của shop.*
 
 ## Cách hoạt động
 - **Chỉ một khung chat: nhóm chat của văn phòng.** Bạn gõ vào đó (hoặc gửi ảnh), app đọc tin và giao cho đúng agent. Gọi đích danh bằng `@Tên`.
