@@ -341,7 +341,7 @@ app.whenReady().then(async () => {
   });
   const firstRun = !fs.existsSync(path.join(dataDir, 'agents.json'));
   agents = createAgents(dataDir);
-  agents.ensureDefaults([{ name: 'Kho hàng', role: 'inventory' }]);
+  agents.ensureDefaults(DEFAULT_AGENTS.filter((a) => ['inventory', 'assistant'].includes(a.role))); // Kho hàng và Trợ lý riêng luôn có, kể cả khi lần chạy đầu bị tắt giữa chừng
   history = createHistory(dataDir);
   customers = createCustomers(dataDir, agents);
   revenue = createRevenue(dataDir);
@@ -801,10 +801,14 @@ app.whenReady().then(async () => {
     writeStats(); setInterval(writeStats, 5000);
     send('office:ready', office.url);
     if (firstRun) {
-      const made = agents.ensureDefaults(DEFAULT_AGENTS);
+      agents.ensureDefaults(DEFAULT_AGENTS);
       if (findClaude(loadCfg().claudePath)) {
-        (async () => { for (const a of made) await introduce(a); })(); // chào lần lượt, không chạy 5 tiến trình cùng lúc
+        (async () => { for (const a of agents.all().filter((x) => !x.started)) await introduce(a); })(); // chào lần lượt, không chạy 5 tiến trình cùng lúc
       }
+    }
+    else if (findClaude(loadCfg().claudePath)) {
+      const fresh = agents.all().filter((a) => ['inventory', 'assistant'].includes(a.role) && !a.started && !introducingAgents.has(a.id));
+      (async () => { for (const a of fresh) await introduce(a); })();
     }
     pushAgents();
   } catch (e) { console.error('Không chạy được văn phòng:', e); send('office:error', String(e.message || e)); }
