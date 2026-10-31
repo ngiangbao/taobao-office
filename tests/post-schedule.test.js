@@ -79,3 +79,11 @@ test('đăng bằng tài khoản cá nhân: trang cá nhân (kể cả profile.p
   assert.equal(ownKind({ profileUrl: 'https://www.facebook.com/ten.ban' }, 'https://www.facebook.com/ten.ban.khac'), null, 'không khớp tiền tố tên');
   assert.equal(normalizeUrl('https://www.facebook.com/ten.ban/?ref=x'), 'https://www.facebook.com/ten.ban');
 });
+
+test('chủ shop tự bấm duyệt thì đăng ngay: bỏ qua khung giờ và khoảng cách của kênh (bài tự đăng vẫn phải chờ)', () => {
+  const { nextPublishTime } = require('../lib/post-schedule');
+  const h = new Date().getHours(), cfg = { groups: [{ url: 'https://www.facebook.com/groups/g1' }], publishGapMinutes: 0, groupPostFromHour: (h + 2) % 24, groupPostToHour: (h + 4) % 24, groupPostGapMinutes: 30 };
+  const item = { kind: 'bai_dang', target: 'https://www.facebook.com/groups/g1' }, now = Date.now(), last = { any: now - 1000, byChannel: { group: now - 1000 } };
+  assert.ok(nextPublishTime(item, cfg, now, last) - now > 60e3, 'bài tự đăng chờ');
+  assert.ok(nextPublishTime(item, cfg, now, last, { manual: true }) - now <= 1000, 'bài chủ shop duyệt tay đăng ngay');
+});

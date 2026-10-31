@@ -751,7 +751,7 @@ app.whenReady().then(async () => {
       if (d.decision === 'reject') { approvals.reject(d.id); pushApprovals(); return { ok: true }; }
       if (!dispatcher) return { ok: false, error: 'Văn phòng chưa sẵn sàng.' };
       const item = approvals.approve(d.id, d.hash); // khoá nội dung đã duyệt
-      pushApprovals(); dispatcher.publishApproved(item); return { ok: true };
+      pushApprovals(); dispatcher.publishApproved(item, { manual: true }); return { ok: true };
     } catch (e) { return { ok: false, error: e.message }; }
   });
   ipcMain.handle('history:query', (_, o) => history.query(o || {}));
@@ -868,7 +868,7 @@ app.whenReady().then(async () => {
     processDueAutoPosts();
     for (const approval of approvals.all().filter((item) => item.status === 'approved')) { // bài đã duyệt mà app tắt trước khi đăng: chỉ đăng nốt nếu mới duyệt (dưới 12 giờ), cũ hơn thì để chủ shop duyệt lại
       if (Date.now() - (approval.approvedAt || approval.t) > 12 * 3600e3) { approvals.setStatus(approval.id, 'failed', 'Đã duyệt từ hơn 12 giờ trước nhưng app tắt trước khi đăng. Hãy tạo lại đề xuất nếu vẫn muốn đăng.'); continue; }
-      dispatcher.publishApproved(approval);
+      dispatcher.publishApproved(approval, { manual: !approval.auto });
     }
     pushApprovals();
     scanner = createScanner({
