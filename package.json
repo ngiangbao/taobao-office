@@ -40,6 +40,14 @@
       "target": "nsis",
       "icon": "build/icon.ico"
     },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Taobao Office",
+      "runAfterFinish": true
+    },
     "mac": {
       "category": "public.app-category.business",
       "icon": "build/icon.png",
