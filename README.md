@@ -15,7 +15,7 @@
 - **Lịch sử chat lưu mãi mãi** trên máy (`history/YYYY-MM.jsonl`), xem và tìm kiếm bằng nút "Lịch sử".
   Xoá được từng tin: rê chuột lên tin trong cửa sổ Lịch sử rồi bấm ✕. Tin nhắn bị **thu hồi** trong nhóm chat
   (rê chuột lên bong bóng của bạn → nút Thu hồi) cũng dừng ngay việc agent đang làm và biến khỏi lịch sử.
-- **Tự cập nhật** từ GitHub Releases (Windows, Linux AppImage). macOS chưa ký nên phải cập nhật tay.
+- **Tự cập nhật** từ GitHub Releases (Windows, Linux AppImage). macOS chưa ký nên phải cập nhật tay; lần đầu mở: chuột phải vào app → Mở, hoặc vào Cài đặt hệ thống → Quyền riêng tư & Bảo mật → “Vẫn mở”. Nếu macOS báo “đã hỏng” và không có nút đó, chạy trong Terminal: `xattr -cr "/Applications/Taobao Office.app"` rồi mở lại.
 
 ## Hàng chờ duyệt: agent không thể tự đăng
 - **Khóa bằng kỹ thuật, không chỉ lời dặn.** Agent thường chỉ xem, điều hướng và cuộn trang: các công cụ bấm, gõ, điền form, tải file, chạy mã và kể cả phím Enter đều bị khóa (`--disallowedTools`, thắng cả cấu hình trong `~/.claude` của bạn). Đã kiểm chứng bằng Claude thật.
