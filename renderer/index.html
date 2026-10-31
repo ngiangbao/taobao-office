@@ -35,7 +35,7 @@
       <button type="button" data-nav="cust">Khách hàng</button>
       <hr class="s-sep">
       <button type="button" data-nav="fanpage">Đăng bài của tôi</button>
-      <button type="button" data-nav="groups">Đăng nhóm</button>
+      <button type="button" data-nav="groups">Đăng nhóm khác</button>
       <button type="button" data-nav="newsfeed">Bình luận newsfeed</button>
       <hr class="s-sep">
       <button type="button" data-nav="assistant">Trợ lý riêng</button>
@@ -122,8 +122,8 @@
           <p class="hint">Lưu thay đổi rồi thử: “@Kho hàng gửi ảnh mã AC001”, “@Kho hàng nón len màu kem giá bao nhiêu?”, hoặc gửi một ảnh sản phẩm để đối chiếu.</p>
         </section>
         <section data-sec="groups" hidden>
-          <h3>Đăng nhóm</h3>
-          <p class="hint">Agent “Đăng bài” dùng danh sách nhóm bên dưới để soạn đề xuất đăng nhóm.</p>
+          <h3>Đăng nhóm khác</h3>
+          <p class="hint">Các nhóm Facebook <b>không phải do bạn tạo</b> (nhóm bán hàng, nhóm cộng đồng…). Agent “Đăng bài” dùng danh sách bên dưới để soạn đề xuất; khi đăng, người đăng dùng <b>chính Facebook cá nhân của bạn</b> đang đăng nhập trong Chrome. Nhóm do bạn tạo thì nhập ở mục “Đăng bài của tôi”.</p>
           <h4>Duyệt hay tự đăng</h4>
           <label>Khi agent soạn xong bài đăng nhóm<select name="groupAuto" data-bool><option value="0">Chờ tôi duyệt từng cái (khuyên dùng)</option><option value="1">Agent tự đăng theo lịch bên dưới</option></select></label>
           <div class="grid">
@@ -132,12 +132,13 @@
             <label>Chỉ đăng từ giờ (0–23)<input name="groupPostFromHour" type="number" min="0" max="23" step="1"></label>
             <label>đến giờ (0–24)<input name="groupPostToHour" type="number" min="0" max="24" step="1"></label>
           </div>
-          <p class="hint"><b>Tự đăng sau</b>: số phút chờ kể từ khi agent soạn xong (0 = đăng ngay). <b>Mỗi bài cách nhau</b>: số phút tối thiểu kể từ bài cuối cùng của kênh này. Cài đặt này <b>chỉ áp dụng cho bài đăng nhóm</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
+          <p class="hint"><b>Tự đăng sau</b>: số phút chờ kể từ khi agent soạn xong (0 = đăng ngay). <b>Mỗi bài cách nhau</b>: số phút tối thiểu kể từ bài cuối cùng của kênh này. Cài đặt này <b>chỉ áp dụng cho bài đăng các nhóm khác</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
           <p class="hint err" id="s-sched-group" aria-live="polite"></p>
           <hr>
           <h4>Danh sách nhóm được phép đăng</h4>
-          <p class="hint">Dán liên kết Google Sheets công khai có cột tên nhóm và link nhóm Facebook. Bảng cần cho phép “Bất kỳ ai có liên kết đều có thể xem”; có thể đặt tiêu đề cột ở dòng đầu.</p>
-          <label>Địa chỉ Google Sheets<input name="groupsSheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit?usp=sharing"></label>
+          <p class="hint">Nhập danh sách nhóm (cột tên nhóm + cột link nhóm Facebook, có thể đặt tiêu đề cột ở dòng đầu) bằng một trong hai cách: <b>file Excel/CSV trên máy</b>, hoặc <b>liên kết Google</b> (Google Sheets, hoặc file .xlsx lưu trên Google Drive; đặt quyền “Bất kỳ ai có liên kết đều có thể xem”).</p>
+          <div class="row"><button type="button" id="s-groups-file" class="ghost">Nhập từ file Excel / CSV…</button></div>
+          <label>Liên kết Google Sheets hoặc Google Drive<input name="groupsSheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit?usp=sharing"></label>
           <p id="s-groups-msg" class="hint" aria-live="polite"></p>
           <div id="s-groups-list" class="group-list" aria-live="polite"></div>
         </section>

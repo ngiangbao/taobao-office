@@ -27,7 +27,7 @@ const { readInventory, forAgent, exportWithAdded, parseWorkbook: parseStockBook 
 const { createStockAdded, fold: foldStock } = require('./lib/stock-added');
 const { fetchBest: fetchBestImage } = require('./lib/hires-image');
 const { pageImages } = require('./lib/page-images');
-const { importGroups } = require('./lib/google-sheets');
+const { importGroups, importGroupsFromDrive, driveFileUrl, parseGroupsXlsx, parseGroupsCsv } = require('./lib/google-sheets');
 const { buildCustomerRows, createCustomerWorkbook } = require('./lib/customer-export');
 const { createGooglePrivateSync, spreadsheetId } = require('./lib/google-private-sync');
 const crypto = require('node:crypto');
@@ -231,7 +231,7 @@ async function runPublisher(item) {
   const mcpFile = extMode() ? null : browser.mcpConfig(app, dataDir, 'app') /* Chrome chỉ mở khi agent gọi công cụ trình duyệt; chế độ extension Claude thì dùng Chrome thật của chủ shop */;
   const dir = path.join(dataDir, 'agents', '_publisher'); fs.mkdirSync(dir, { recursive: true });
   const own = schedule.ownKind(loadCfg(), item.target);
-  const text = `ĐỀ XUẤT #${item.num} ĐÃ ĐƯỢC CHỦ SHOP DUYỆT.\nLoại: ${KINDS[item.kind]}\nĐích (mở đúng link này): ${item.target}\n${own === 'profile' ? 'ĐÂY LÀ TRANG CÁ NHÂN CỦA CHỦ SHOP: đăng lên dòng thời gian bằng chính tài khoản cá nhân đang đăng nhập (ô "Bạn đang nghĩ gì?" trên trang này). KHÔNG chuyển sang Trang/fanpage nào khác. Nếu không thấy ô đăng bài trên đúng trang này, DỪNG và báo.\n' : own === 'mygroup' ? 'ĐÂY LÀ NHÓM CÔNG KHAI DO CHỦ SHOP TẠO: đăng bằng chính tài khoản cá nhân đang đăng nhập; KHÔNG chuyển sang Trang/fanpage. Nếu không đăng được vào nhóm này, DỪNG và báo.\n' : ''}Nội dung cần đăng, NGUYÊN VĂN (không sửa, không thêm):\n\"\"\"\n${item.text}\n\"\"\"\n${item.files?.length ? `Ảnh cần đính kèm (tải lên bằng browser_file_upload): ${item.files.join(', ')}` : 'Không có ảnh.'}`;
+  const text = `ĐỀ XUẤT #${item.num} ĐÃ ĐƯỢC CHỦ SHOP DUYỆT.\nLoại: ${KINDS[item.kind]}\nĐích (mở đúng link này): ${item.target}\n${own === null && schedule.channelOf(loadCfg(), item) === 'group' ? 'ĐÂY LÀ NHÓM FACEBOOK KHÁC (không phải do chủ shop tạo): đăng bằng chính tài khoản cá nhân đang đăng nhập, KHÔNG chuyển sang Trang/fanpage. Nếu nhóm bật duyệt bài và Facebook báo bài đang chờ quản trị viên duyệt thì báo "đã gửi, chờ quản trị viên nhóm duyệt". Không đăng được thì DỪNG và báo.\n' : ''}${own === 'profile' ? 'ĐÂY LÀ TRANG CÁ NHÂN CỦA CHỦ SHOP: đăng lên dòng thời gian bằng chính tài khoản cá nhân đang đăng nhập (ô "Bạn đang nghĩ gì?" trên trang này). KHÔNG chuyển sang Trang/fanpage nào khác. Nếu không thấy ô đăng bài trên đúng trang này, DỪNG và báo.\n' : own === 'mygroup' ? 'ĐÂY LÀ NHÓM CÔNG KHAI DO CHỦ SHOP TẠO: đăng bằng chính tài khoản cá nhân đang đăng nhập; KHÔNG chuyển sang Trang/fanpage. Nếu không đăng được vào nhóm này, DỪNG và báo.\n' : ''}Nội dung cần đăng, NGUYÊN VĂN (không sửa, không thêm):\n\"\"\"\n${item.text}\n\"\"\"\n${item.files?.length ? `Ảnh cần đính kèm (tải lên bằng browser_file_upload): ${item.files.join(', ')}` : 'Không có ảnh.'}`;
   let result = '', error = '';
   const { child, done } = runClaude({
     text, cfg, dataDir, hooksFile: null, mcpFile,
@@ -506,8 +506,18 @@ app.whenReady().then(async () => {
   ipcMain.handle('claude:check', (_, custom) => checkClaude(custom));
   ipcMain.handle('cfg:set', (_, c) => { fs.writeFileSync(cfgPath, JSON.stringify(c, null, 2)); win?.setTitle(loadCfg().shopName); writeStats(); return true; });
   ipcMain.handle('groups:import', async (_, url) => {
-    try { return { ok: true, groups: await importGroups(url) }; }
+    try { return { ok: true, groups: driveFileUrl(url) ? await importGroupsFromDrive(url) : await importGroups(url) }; }
     catch (e) { return { ok: false, error: e.message }; }
+  });
+  ipcMain.handle('groups:import-file', async () => { // danh sách nhóm từ file Excel (.xlsx) hoặc .csv trên máy
+    try {
+      const r = await dialog.showOpenDialog(win, { title: 'Chọn file danh sách nhóm (tên nhóm + link nhóm)', properties: ['openFile'], filters: [{ name: 'Excel hoặc CSV', extensions: ['xlsx', 'csv'] }] });
+      if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
+      const f = r.filePaths[0];
+      if (fs.statSync(f).size > 10 * 1024 * 1024) throw new Error('Tệp quá lớn (tối đa 10 MB).');
+      const groups = /\.csv$/i.test(f) ? parseGroupsCsv(fs.readFileSync(f, 'utf8')) : await parseGroupsXlsx(f);
+      return { ok: true, groups, file: path.basename(f) };
+    } catch (e) { return { ok: false, error: e.message }; }
   });
   syncCloud = async () => {
     if (dispatcher?.anyBusy()) throw new Error('Đang có agent làm việc; hãy đồng bộ lại khi các agent đã xong.');

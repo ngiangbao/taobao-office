@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('api', {
   inventoryClearFile: () => ipcRenderer.invoke('inventory:clear-file'),
   inventoryRemoveAdded: (sku) => ipcRenderer.invoke('inventory:remove-added', sku),
   inventoryExport: () => ipcRenderer.invoke('inventory:export'),
+  importGroupsFile: () => ipcRenderer.invoke('groups:import-file'),
   checkInventory: (settings) => ipcRenderer.invoke('inventory:check', settings),
   assistantGet: () => ipcRenderer.invoke('assistant:get'),
   assistantMemory: (d) => ipcRenderer.invoke('assistant:memory', d),

@@ -29,3 +29,17 @@ test('chỉ lấy dữ liệu từ URL Google Sheets công khai hợp lệ', asy
   assert.deepEqual(groups, [{ name: 'Đồ nữ', url: 'https://www.facebook.com/groups/123' }]);
   await assert.rejects(() => importGroups('https://example.com/spreadsheets/d/abcdefghij123456/edit', async () => new Response('')), /Chỉ chấp nhận liên kết Google Sheets/);
 });
+
+test('danh sách nhóm từ file Excel và link tệp Google Drive', async (t) => {
+  const { parseGroupsXlsx, driveFileUrl } = require('../lib/google-sheets');
+  const ExcelJS = require('exceljs'), wb = new ExcelJS.Workbook(), ws = wb.addWorksheet('Nhóm');
+  ws.addRow(['Tên nhóm', 'Link nhóm', 'Ghi chú']);
+  ws.addRow(['Order hàng Trung Quốc', 'https://www.facebook.com/groups/orderhang']);
+  ws.addRow(['Thời trang nữ', { text: 'bấm vào nhóm', hyperlink: 'https://www.facebook.com/groups/thoitrangnu' }]);
+  const buf = Buffer.from(await wb.xlsx.writeBuffer());
+  const groups = await parseGroupsXlsx(buf);
+  assert.deepEqual(groups.map((g) => g.name), ['Order hàng Trung Quốc', 'Thời trang nữ']);
+  assert.equal(groups[1].url, 'https://www.facebook.com/groups/thoitrangnu');
+  assert.equal(driveFileUrl('https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view?usp=sharing'), 'https://drive.google.com/uc?export=download&id=1AbCdEfGhIjKlMnOp');
+  assert.equal(driveFileUrl('https://evil.example/file/d/1AbCdEfGhIjKlMnOp/view'), null);
+});

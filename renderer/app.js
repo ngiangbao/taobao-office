@@ -10,7 +10,7 @@ const api = window.api || (() => {
   return {
     getCfg: async () => ({ cfg: { shopName: 'Lan Fashion', rate: 3600, shipPerKg: 25000, servicePct: 5, tone: '', browser: 'playwright', claudePath: '', groupsSheetUrl: '', groups: [] }, claude: null }),
     setCfg: async () => true, openData: async () => {}, openLogin: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }),
-    importGroups: async () => ({ ok: false, error: 'Đọc Google Sheets chỉ có trong app desktop.' }),
+    importGroups: async () => ({ ok: false, error: 'Đọc Google Sheets chỉ có trong app desktop.' }), importGroupsFile: async () => ({ ok: false, canceled: true }),
     syncStatus: async () => ({ connected: false, email: '' }),
     connectSync: async () => ({ ok: false, error: 'Đồng bộ riêng tư chỉ có trong app desktop.' }),
     syncNow: async () => ({ ok: false, error: 'Đồng bộ riêng tư chỉ có trong app desktop.' }),
@@ -192,6 +192,16 @@ $('#s-inv-import').onclick = async () => {
   st.textContent = r.canceled ? '' : r.ok ? `Đã nhập: ${r.items} mã (${r.images} có ảnh), ${r.types} loại, trang “${r.sheet}”. Từ giờ app dùng file này thay cho link.` : r.error;
 };
 $('#s-inv-clear').onclick = async () => { await api.inventoryClearFile(); $('#s-inv-file').textContent = 'Đã bỏ file Excel; app dùng lại link Google Sheets (nếu có).'; };
+$('#s-groups-file').onclick = async () => { // nhập danh sách nhóm từ file Excel/CSV trên máy
+  const msg = $('#s-groups-msg'); msg.classList.remove('err'); msg.textContent = 'Đang đọc file…';
+  const r = await api.importGroupsFile();
+  if (r.canceled) { msg.textContent = ''; return; }
+  if (!r.ok) { msg.classList.add('err'); msg.textContent = r.error; return; }
+  const { cfg } = await api.getCfg(); cfg.groups = r.groups;
+  try { await api.setCfg(cfg); } catch (error) { msg.classList.add('err'); msg.textContent = `Không lưu được danh sách nhóm: ${error.message}`; return; }
+  renderGroupList(cfg.groups);
+  msg.textContent = `Đã nhập ${r.groups.length} nhóm từ “${r.file}”. Agent sẽ dùng danh sách này khi soạn đề xuất đăng nhóm.`;
+};
 async function fillSettings() {
   const { cfg, claude } = await api.getCfg();
   for (const el of form.elements) if (el.name) el.value = el.hasAttribute('data-bool') ? (cfg[el.name] ? '1' : '0') : (cfg[el.name] ?? '');
