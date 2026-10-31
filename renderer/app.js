@@ -190,9 +190,8 @@ $('#s-inv-export').onclick = () => exportStock((t) => { $('#s-inv-file').textCon
 $('#s-inv-import').onclick = async () => {
   const st = $('#s-inv-file'); st.textContent = 'Đang đọc file…';
   const r = await api.inventoryImportFile();
-  st.textContent = r.canceled ? '' : r.ok ? `Đã nhập: ${r.items} mã (${r.images} có ảnh), ${r.types} loại, trang “${r.sheet}”. Từ giờ app dùng file này thay cho link.` : r.error;
+  st.textContent = r.canceled ? '' : r.ok ? `Đã nhập: ${r.items} mã (${r.images} có ảnh), ${r.types} loại, trang “${r.sheet}”. Từ giờ app dùng file này (dán link mới và Lưu thay đổi nếu muốn dùng lại link).` : r.error;
 };
-$('#s-inv-clear').onclick = async () => { await api.inventoryClearFile(); $('#s-inv-file').textContent = 'Đã bỏ file Excel; app dùng lại link Google Sheets (nếu có).'; };
 $('#s-groups-file').onclick = async () => { // nhập danh sách nhóm từ file Excel/CSV trên máy
   const msg = $('#s-groups-msg'); msg.classList.remove('err'); msg.textContent = 'Đang đọc file…';
   const r = await api.importGroupsFile();
@@ -304,6 +303,7 @@ form.addEventListener('submit', async (e) => {
     return;
   }
   for (const k of ['autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
+  if (form.elements.inventorySheetUrl.value.trim() && form.elements.inventorySheetUrl.value.trim() !== String(cfg.inventorySheetUrl || '').trim()) cfg.inventoryFile = ''; // dán link kho mới thì quay lại dùng link
   for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'model', 'chromeMode', 'fanpageUrl', 'profileUrl', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
   for (const k of ['commentScan', 'browserFull', 'followupEnabled', 'ordersAutoRefresh']) cfg[k] = form.elements[k].value === '1';
   cfg.ordersSheetUrl = $('#o-url').value.trim(); cfg.ordersWebhookUrl = $('#o-hook').value.trim(); cfg.ordersWebhookToken = $('#o-token').value; cfg.ordersSheetName = $('#o-sheetname').value.trim() || 'khách order'; cfg.ordersAutoAppend = $('#o-auto').value === '1';

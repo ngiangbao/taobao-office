@@ -490,7 +490,6 @@ app.whenReady().then(async () => {
       return { ok: true, ...info };
     } catch (error) { return { ok: false, error: error.message }; }
   });
-  ipcMain.handle('inventory:clear-file', () => { fs.writeFileSync(cfgPath, JSON.stringify({ ...loadCfg(), inventoryFile: '' }, null, 2)); return { ok: true }; });
   ipcMain.handle('inventory:remove-added', (_, sku) => ({ ok: stockAdded.remove(sku) }));
   ipcMain.handle('inventory:export', async () => {
     try {
