@@ -25,3 +25,4 @@ Chép nguyên bản (bỏ thư mục docs/, tests/, .github/). Giấy phép: off
 - `ActivityPanel.tsx`, `activity.js`, `activity.css`: nút "Cần chú ý" bỏ chấm đỏ; cả nút chuyển đỏ (class `urgent`) chỉ khi có thông báo khẩn cấp trong 1 giờ qua.
 - `people/hr.js`, `shared/chat-engine.js`, `ui/group-chat.js`, `ui/group-chat-view.js`: bỏ chị HR (mô hình 3D luôn ẩn, không nhắc họp/trà, không có trong danh sách thành viên và không nhắn trong chat); bàn và máy chấm công giữ nguyên.
 - `ui/activity.js` (`applyChatName`), `ui/group-chat-view.js`: tên khung chat do chủ shop đặt (chuột phải hoặc bấm đúp vào tên khung chat); app lưu `chatName` vào shop-stats.json, văn phòng đọc ở /api/shop và đổi cả tên nút Nhóm chat.
+- `src/office/ui/activity.js`, `src/styles/sessions.css`: nút ✕ xóa agent hiện khi rê chuột vào agent trong cột trái (khi nhúng trong app), gửi `{tbo:"delete-agent"}` cho app; app hỏi xác nhận rồi xóa.

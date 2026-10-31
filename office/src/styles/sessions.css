@@ -188,3 +188,9 @@
 .pop-seg button:focus-visible { outline: 2px solid var(--accent); }
 @media (max-width: 1280px) { #btn-look .lbl { display: none; } #btn-look { width: 38px; padding: 0; justify-content: center; } }
 @media (max-width: 720px) { .pop { position: fixed; left: 10px; right: 10px; top: 58px; width: auto; } .tb-clock { display: none; } .kpis { display: none; } }
+
+/* Taobao Office: nút xóa agent trong danh sách bên trái */
+.ri-li { position: relative; }
+.ri-del { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: inherit; font-size: 13px; line-height: 24px; cursor: pointer; opacity: 0; z-index: 2; }
+.ri-li:hover .ri-del, .ri-del:focus-visible { opacity: .75; background: rgba(20, 22, 28, .85); }
+.ri-del:hover { opacity: 1; background: rgba(192, 57, 43, .9); color: #fff; }

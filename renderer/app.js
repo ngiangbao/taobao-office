@@ -359,6 +359,7 @@ window.addEventListener('message', (ev) => {
   const d = ev.data || {};
   if (d.tbo === 'rename-chat') askRename({ chat: true, name: String(d.name || '') }, 'Đổi tên khung chat (để trống = tên mặc định)');
   else if (d.tbo === 'rename-agent' && d.sid) askRename({ sid: d.sid, name: String(d.name || '') });
+  else if (d.tbo === 'delete-agent' && d.sid) deleteAgentBySid(String(d.sid), (t) => { if (t) say(t); });
   else if (d.tbo === 'open-settings') openSettings();
   else if (d.tbo === 'open-inventory') api.openInventory().then((r) => { if (r?.ok) openStock(); else openSettings('inventory'); }); // chưa nhập link kho: mở thẳng mục Kho hàng
   else if (d.tbo === 'office-state') renderOfficeSettings(d.groups || []);
@@ -369,14 +370,15 @@ const dlgRn = $('#dlg-rename'), rnForm = $('#renameform');
 let rnTarget = null;
 function askRename(target, title = 'Đổi tên hoặc xóa agent') { rnTarget = target; $('#rn-del').hidden = !target.sid; $('#rn-title').textContent = title; $('#rn-err').textContent = ''; $('#rn-input').value = target.name || ''; $('#rn-input').required = !target.chat; dlgRn.showModal(); $('#rn-input').select(); }
 $('#rn-cancel').onclick = () => dlgRn.close();
-$('#rn-del').onclick = async () => { // xóa agent đang chọn (chuột phải vào agent ở cột bên trái của văn phòng)
-  const info = rnTarget?.sid && await api.agentBySid(rnTarget.sid);
-  if (!info) { $('#rn-err').textContent = 'Không thấy agent này.'; return; }
-  if (info.kind === 'customer') { $('#rn-err').textContent = 'Agent của khách được quản lý ở danh sách khách.'; return; }
-  if (['inventory', 'assistant'].includes(info.role)) { $('#rn-err').textContent = `${info.name} là agent hệ thống, app luôn giữ lại nên không xóa được.`; return; }
-  if (!confirm(`Xóa agent ${info.name}? Hội thoại và kỹ năng của agent này sẽ không dùng được nữa.`)) return;
-  await api.removeAgent(info.id); dlgRn.close();
-};
+async function deleteAgentBySid(sid, say) { // xóa agent đang chọn (nút ✕ hoặc chuột phải vào agent ở cột bên trái của văn phòng)
+  const info = sid && await api.agentBySid(sid);
+  if (!info) return say('Không thấy agent này.');
+  if (info.kind === 'customer') return say('Agent của khách được quản lý ở danh sách khách.');
+  if (['inventory', 'assistant'].includes(info.role)) return say(`${info.name} là agent hệ thống, app luôn giữ lại nên không xóa được.`);
+  if (!confirm(`Xóa agent ${info.name}? Hội thoại và kỹ năng của agent này sẽ không dùng được nữa.`)) return say('');
+  await api.removeAgent(info.id); say(`Đã xóa agent ${info.name}.`); return true;
+}
+$('#rn-del').onclick = async () => { if (await deleteAgentBySid(rnTarget?.sid, (t) => { $('#rn-err').textContent = t; })) dlgRn.close(); };
 rnForm.onsubmit = async (e) => {
   e.preventDefault(); const name = $('#rn-input').value.trim(); if ((!name && !rnTarget?.chat) || !rnTarget) return;
   const r = rnTarget.chat ? await api.renameChat({ name }) : rnTarget.code ? { ok: await api.renameCustomer({ code: rnTarget.code, name }) } : await api.renameAgent({ sid: rnTarget.sid, name });

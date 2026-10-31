@@ -149,6 +149,10 @@ function railRow(s) {
   b.append(av, main, meta, ctx);
   const subList = el('ul', 'ri-subs'); subList.hidden = true;
   li.append(b, subList);
+  if (window.parent !== window) { // Taobao Office: nút ✕ hiện khi rê chuột vào agent; app hỏi lại trước khi xóa
+    const del = el('button', 'ri-del'); del.type = 'button'; del.title = 'Xóa agent'; del.setAttribute('aria-label', 'Xóa agent'); del.dataset.del = s.id; del.textContent = '✕';
+    li.append(del);
+  }
   const c = el('button', 'chip'); c.type = 'button'; c.dataset.sess = s.id;
   const cd = el('i'), cn = el('span'), cs = el('small');
   c.append(cd, cn, cs);
@@ -217,6 +221,8 @@ function renderRail() {
   for (const w of workers.values()) w.tagEl.classList.toggle('tag--on', w.id === state.selectedId);
 }
 function onListClick(ev) {
+  const del = ev.target.closest('.ri-del');
+  if (del) { ev.stopPropagation(); const s = sessions.get(del.dataset.del); if (s?.sid) window.parent.postMessage({ tbo: 'delete-agent', sid: s.sid, name: dn(s) }, '*'); return; }
   const g = ev.target.closest('.grp-btn');
   if (g) { if (g.dataset.g === 'rest') { restCollapsed = !restCollapsed; try { localStorage.setItem('office-rest-folded', restCollapsed ? '1' : '0'); } catch { /* storage blocked */ } renderRail(); } return; }
   const b = ev.target.closest('[data-sess]'); if (!b) return; if (b.dataset.agent) openFromRow(b); else toggleSession(b.dataset.sess);

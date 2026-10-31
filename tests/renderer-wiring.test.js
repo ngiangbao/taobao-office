@@ -31,3 +31,9 @@ test('hộp Chờ duyệt có nút mở ở thanh trên, mở là tải lại da
   assert.match(html, /id="btn-appr"/); assert.match(js, /\$\('#btn-appr'\)\.onclick\s*=[\s\S]{0,120}dlgA2\.showModal\(\)/);
   assert.match(html, /id="appr-n"/);
 });
+
+test('nút ✕ xóa agent ở cột trái của văn phòng: văn phòng gửi delete-agent, app xử lý', () => {
+  const act = fs.readFileSync(path.join(__dirname, '..', 'office', 'src', 'office', 'ui', 'activity.js'), 'utf8');
+  assert.match(act, /ri-del/); assert.match(act, /tbo: 'delete-agent'/);
+  assert.match(js, /d\.tbo === 'delete-agent'/); assert.match(js, /async function deleteAgentBySid/);
+});
