@@ -209,8 +209,9 @@ function renderRail() {
   }
   for (const [k] of GROUPS) { const g = grpEls[k]; g.n.textContent = count[k] || 0; g.li.hidden = !count[k] || (railFilter && railFilter !== k); }
   grpEls.rest.b.setAttribute('aria-expanded', String(!restCollapsed || !!q || railFilter === 'rest'));
-  for (const k of ['work', 'wait', 'rest']) { $('st-' + k).textContent = count[k] || 0; }
-  document.querySelector('.st[data-st="wait"]').classList.toggle('has', !!count.wait);
+  const embedded = window.parent !== window; // Taobao Office: trong app, ô "chờ duyệt" đếm đề xuất đăng bài/bình luận (app gửi số), bấm vào là mở hộp Chờ duyệt
+  for (const k of ['work', 'wait', 'rest']) { if (!(embedded && k === 'wait')) $('st-' + k).textContent = count[k] || 0; }
+  if (!embedded) document.querySelector('.st[data-st="wait"]').classList.toggle('has', !!count.wait);
   const ord = all.map((s) => s.id + s.status).join();
   if (ord !== railOrder) {
     railOrder = ord;
@@ -313,6 +314,10 @@ export function setup() {
     if (k === 'rest') { const ch = el('span', 'grp-chev'); ch.append(icon('chevron')); b.append(ch); } else b.disabled = true;
     li.append(b); return [k, { li, b, n }];
   }));
+  window.addEventListener('message', (e) => { // Taobao Office: app báo số đề xuất đang chờ duyệt
+    if (e.source !== window.parent || e.data?.tbo !== 'approvals-count') return;
+    const n = Math.max(0, Number(e.data.n) || 0); $('st-wait').textContent = n; document.querySelector('.st[data-st="wait"]').classList.toggle('has', n > 0);
+  });
   $('rail-list').addEventListener('click', onListClick);
   $('chips').addEventListener('click', onListClick);
   // Taobao Office: bấm chuột phải vào một agent trong danh sách thì app hiện hộp đổi tên (chỉ khi văn phòng được nhúng trong app)
@@ -327,6 +332,7 @@ export function setup() {
   $('sess-search').addEventListener('input', (e) => { query = e.target.value; renderRail(); });
   document.querySelector('.st-row').addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-st]'); if (!b) return;
+    if (b.dataset.st === 'wait' && window.parent !== window) { window.parent.postMessage({ tbo: 'open-approvals' }, '*'); return; }
     railFilter = railFilter === b.dataset.st ? null : b.dataset.st;
     for (const x of document.querySelectorAll('.st')) x.setAttribute('aria-pressed', String(x.dataset.st === railFilter));
     renderRail();

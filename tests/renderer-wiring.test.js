@@ -27,9 +27,11 @@ test('đổi tên khung chat: app lưu chatName vào shop-stats.json để văn 
   assert.match(main, /chatName: loadCfg\(\)\.chatName/); assert.match(main, /ipcMain\.handle\('chat:rename'/); assert.match(office, /applyChatName\(JSON\.parse\(t\)\.chatName\)/);
 });
 
-test('hộp Chờ duyệt có nút mở ở thanh trên, mở là tải lại danh sách', () => {
-  assert.match(html, /id="btn-appr"/); assert.match(js, /\$\('#btn-appr'\)\.onclick\s*=[\s\S]{0,120}dlgA2\.showModal\(\)/);
-  assert.match(html, /id="appr-n"/);
+test('hộp Chờ duyệt mở từ ô "chờ duyệt" trong văn phòng (không còn nút thứ hai ở thanh trên); số đếm gửi vào văn phòng', () => {
+  const act = fs.readFileSync(path.join(__dirname, '..', 'office', 'src', 'office', 'ui', 'activity.js'), 'utf8');
+  assert.doesNotMatch(html, /id="btn-appr"/);
+  assert.match(act, /tbo: 'open-approvals'/); assert.match(act, /approvals-count/);
+  assert.match(js, /d\.tbo === 'open-approvals'\) openApprovals\(\)/); assert.match(js, /tbo: 'approvals-count'/);
 });
 
 test('nút ✕ xóa agent ở cột trái của văn phòng: văn phòng gửi delete-agent, app xử lý', () => {

@@ -26,3 +26,4 @@ Chép nguyên bản (bỏ thư mục docs/, tests/, .github/). Giấy phép: off
 - `people/hr.js`, `shared/chat-engine.js`, `ui/group-chat.js`, `ui/group-chat-view.js`: bỏ chị HR (mô hình 3D luôn ẩn, không nhắc họp/trà, không có trong danh sách thành viên và không nhắn trong chat); bàn và máy chấm công giữ nguyên.
 - `ui/activity.js` (`applyChatName`), `ui/group-chat-view.js`: tên khung chat do chủ shop đặt (chuột phải hoặc bấm đúp vào tên khung chat); app lưu `chatName` vào shop-stats.json, văn phòng đọc ở /api/shop và đổi cả tên nút Nhóm chat.
 - `src/office/ui/activity.js`, `src/styles/sessions.css`: nút ✕ xóa agent hiện khi rê chuột vào agent trong cột trái (khi nhúng trong app), gửi `{tbo:"delete-agent"}` cho app; app hỏi xác nhận rồi xóa.
+- `src/office/ui/activity.js`: trong app, ô "chờ duyệt" đếm đề xuất của agent (app gửi `approvals-count`) và bấm vào là mở hộp Chờ duyệt của app (`open-approvals`) thay vì lọc danh sách.
