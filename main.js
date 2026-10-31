@@ -6,6 +6,7 @@ const { startOffice, writeHookSettings, testGate } = require('./lib/office');
 const { createApprovals, PUBLISHER_PROMPT, KINDS } = require('./lib/approvals');
 const { createAgents, TEMPLATES } = require('./lib/agents');
 const { createDispatcher } = require('./lib/dispatcher');
+const photos = require('./lib/photos');
 const { createStyle } = require('./lib/style');
 const { greeting } = require('./lib/greet');
 const { createSkills } = require('./lib/skills');
@@ -182,6 +183,7 @@ async function runAgent(agent, text, opts = {}) {
     try {
       const kho = path.join(agent.dir, 'kho');
       const stock = await readStock(cfg, kho);
+      photos.mirror(dataDir, path.join(kho, 'anh')); // ảnh kho cũng có ở thư mục ảnh sản phẩm dùng chung (Người đăng tải lên từ đó)
       // ảnh chủ shop gửi: chép vào thư mục của agent (agent bị giới hạn trong thư mục riêng) rồi đưa đường dẫn tương đối
       const mine = path.join(agent.dir, 'anh-chu-shop'); fs.rmSync(mine, { recursive: true, force: true });
       text = text.replace(/\[Ảnh đính kèm, hãy dùng Read để xem: ([^\]]+)\]/, (_, list) => {
@@ -237,10 +239,11 @@ async function runAgent(agent, text, opts = {}) {
 // Người đăng: chạy SAU KHI chủ shop duyệt; là lượt DUY NHẤT có quyền bấm/gõ trên trình duyệt, và chỉ nhận đúng nội dung đã duyệt
 async function runPublisher(item) {
   const cfg = loadCfg();
-  const mcpFile = extMode() ? null : browser.mcpConfig(app, dataDir, 'app') /* Chrome chỉ mở khi agent gọi công cụ trình duyệt; chế độ extension Claude thì dùng Chrome thật của chủ shop */;
+  const mcpFile = extMode() ? null : browser.mcpConfig(app, dataDir, 'app', { upload: true }) /* Chrome chỉ mở khi agent gọi công cụ trình duyệt; chế độ extension Claude thì dùng Chrome thật của chủ shop */;
+  const shared = (item.files || []).map((f) => photos.share(dataDir, f)).filter(Boolean); // ảnh đã duyệt: chép vào thư mục ảnh sản phẩm dùng chung để tải lên được
   const dir = path.join(dataDir, 'agents', '_publisher'); fs.mkdirSync(dir, { recursive: true });
   const own = schedule.ownKind(loadCfg(), item.target);
-  const text = `ĐỀ XUẤT #${item.num} ĐÃ ĐƯỢC CHỦ SHOP DUYỆT.\nLoại: ${KINDS[item.kind]}\nĐích (mở đúng link này): ${item.target}\n${own === null && schedule.channelOf(loadCfg(), item) === 'group' ? 'ĐÂY LÀ NHÓM FACEBOOK KHÁC (không phải do chủ shop tạo): đăng bằng chính tài khoản cá nhân đang đăng nhập, KHÔNG chuyển sang Trang/fanpage. Nếu nhóm bật duyệt bài và Facebook báo bài đang chờ quản trị viên duyệt thì báo "đã gửi, chờ quản trị viên nhóm duyệt". Không đăng được thì DỪNG và báo.\n' : ''}${own === 'profile' ? 'ĐÂY LÀ TRANG CÁ NHÂN CỦA CHỦ SHOP: đăng lên dòng thời gian bằng chính tài khoản cá nhân đang đăng nhập (ô "Bạn đang nghĩ gì?" trên trang này). KHÔNG chuyển sang Trang/fanpage nào khác. Nếu không thấy ô đăng bài trên đúng trang này, DỪNG và báo.\n' : own === 'mygroup' ? 'ĐÂY LÀ NHÓM CÔNG KHAI DO CHỦ SHOP TẠO: đăng bằng chính tài khoản cá nhân đang đăng nhập; KHÔNG chuyển sang Trang/fanpage. Nếu không đăng được vào nhóm này, DỪNG và báo.\n' : ''}Nội dung cần đăng, NGUYÊN VĂN (không sửa, không thêm):\n\"\"\"\n${item.text}\n\"\"\"\n${item.files?.length ? `Ảnh cần đính kèm (tải lên bằng browser_file_upload): ${item.files.join(', ')}` : 'Không có ảnh.'}`;
+  const text = `ĐỀ XUẤT #${item.num} ĐÃ ĐƯỢC CHỦ SHOP DUYỆT.\nLoại: ${KINDS[item.kind]}\nĐích (mở đúng link này): ${item.target}\n${own === null && schedule.channelOf(loadCfg(), item) === 'group' ? 'ĐÂY LÀ NHÓM FACEBOOK KHÁC (không phải do chủ shop tạo): đăng bằng chính tài khoản cá nhân đang đăng nhập, KHÔNG chuyển sang Trang/fanpage. Nếu nhóm bật duyệt bài và Facebook báo bài đang chờ quản trị viên duyệt thì báo "đã gửi, chờ quản trị viên nhóm duyệt". Không đăng được thì DỪNG và báo.\n' : ''}${own === 'profile' ? 'ĐÂY LÀ TRANG CÁ NHÂN CỦA CHỦ SHOP: đăng lên dòng thời gian bằng chính tài khoản cá nhân đang đăng nhập (ô "Bạn đang nghĩ gì?" trên trang này). KHÔNG chuyển sang Trang/fanpage nào khác. Nếu không thấy ô đăng bài trên đúng trang này, DỪNG và báo.\n' : own === 'mygroup' ? 'ĐÂY LÀ NHÓM CÔNG KHAI DO CHỦ SHOP TẠO: đăng bằng chính tài khoản cá nhân đang đăng nhập; KHÔNG chuyển sang Trang/fanpage. Nếu không đăng được vào nhóm này, DỪNG và báo.\n' : ''}Nội dung cần đăng, NGUYÊN VĂN (không sửa, không thêm):\n\"\"\"\n${item.text}\n\"\"\"\n${item.files?.length ? `Ảnh cần đính kèm (tải lên bằng browser_file_upload, đường dẫn đầy đủ): ${(shared.length ? shared : item.files).join(', ')}` : 'Không có ảnh.'}`;
   let result = '', error = '';
   const { child, done } = runClaude({
     text, cfg, dataDir, hooksFile: null, mcpFile,
@@ -907,7 +910,7 @@ app.whenReady().then(async () => {
           if (!urls.length && it.link1688 && await browser.up()) { try { urls.push(...await pageImages(it.link1688, browser.PORT)); } catch { /* không lấy được ảnh từ trang */ } } // đọc trang bằng Chrome riêng của app đang chạy
           if (urls.length) {
             const best = await fetchBestImage(urls, { sizeOf: (buf) => nativeImage.createFromBuffer(buf).getSize() });
-            if (best?.ext) { const name = `${safe}.${best.ext}`; fs.writeFileSync(path.join(to, name), best.buf); return name; }
+            if (best?.ext) { const name = `${safe}.${best.ext}`; fs.writeFileSync(path.join(to, name), best.buf); photos.share(dataDir, path.join(to, name), 'tim-hang'); return name; }
           }
           return '';
         } });
@@ -932,7 +935,7 @@ app.whenReady().then(async () => {
         try { const item = approvals.approve(a.id, a.hash, true); pushApprovals(); dispatcher.publishApproved(item); return { ok: true }; }
         catch (e) { return { ok: false, reason: e.message }; }
       },
-      publisher: runPublisher, toJpeg, onApprovals: pushApprovals, getCfg: loadCfg, paused: isDormant, onActivity: markActive, onCustomers: pushCustomers, onRevenue: writeStats,
+      photosDir: () => path.join(photos.dirOf(dataDir), 'kho'), publisher: runPublisher, toJpeg, onApprovals: pushApprovals, getCfg: loadCfg, paused: isDormant, onActivity: markActive, onCustomers: pushCustomers, onRevenue: writeStats,
       onStatus: () => { pushAgents(); writeStats(); }, log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
     });
     dispatcher.start();

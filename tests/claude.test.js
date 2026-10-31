@@ -32,3 +32,17 @@ test('model: mặc định haiku (tiết kiệm nhất), đổi được, "defau
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   })();
 });
+
+test('thư mục ảnh sản phẩm dùng chung: chép ảnh, lời dặn nhắc thư mục, tải ảnh chỉ cấu hình Người đăng', async () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), assert = require('node:assert/strict');
+  const photos = require('../lib/photos'), browser = require('../lib/browser');
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'tbo-photos-'));
+  const src = path.join(d, 'src'); fs.mkdirSync(src); fs.writeFileSync(path.join(src, 'AC001.jpg'), 'x'); fs.writeFileSync(path.join(src, 'ghi-chu.txt'), 'x');
+  const got = photos.share(d, path.join(src, 'AC001.jpg'));
+  assert.equal(got, path.join(d, 'anh-san-pham', 'AC001.jpg')); assert.ok(fs.existsSync(got));
+  assert.equal(photos.share(d, path.join(src, 'ghi-chu.txt')), ''); // chỉ chép ảnh
+  assert.equal(photos.mirror(d, src), 1); assert.ok(fs.existsSync(path.join(d, 'anh-san-pham', 'kho', 'AC001.jpg')));
+  const normal = JSON.parse(fs.readFileSync(browser.mcpConfig({ isPackaged: false }, d, 'app'), 'utf8')).mcpServers.playwright.args;
+  const up = JSON.parse(fs.readFileSync(browser.mcpConfig({ isPackaged: false }, d, 'app', { upload: true }), 'utf8')).mcpServers.playwright.args;
+  assert.ok(!normal.includes('--upload')); assert.ok(up.includes('--upload'));
+});
