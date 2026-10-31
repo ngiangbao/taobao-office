@@ -109,7 +109,7 @@ test('kho từ file Excel trên máy + mẫu mới xếp cuối phân loại; xu
   assert.equal(rest, 'Xong.  Hết'.replace('  ', ' ') && rest); assert.equal(adds[0].priceCny, 20.5); assert.equal(adds[0].price, 199000);
   const store = createStockAdded(dir);
   fs.writeFileSync(path.join(dir, 'x.png'), PNG);
-  const r = store.add([...adds, { sku: 'AC001', name: 'trùng', type: 'x' }, { sku: 'ZZ1', name: 'Nón mới', type: 'Nón', priceCny: 5, price: 50000 }], { existing: new Set(['ac001']), agentName: 'Tìm hàng', copyImage: (src, sku, to) => { fs.mkdirSync(to, { recursive: true }); fs.copyFileSync(path.join(dir, src), path.join(to, `${sku}.png`)); return `${sku}.png`; } });
+  const r = await store.add([...adds, { sku: 'AC001', name: 'trùng', type: 'x' }, { sku: 'ZZ1', name: 'Nón mới', type: 'Nón', priceCny: 5, price: 50000 }], { existing: new Set(['ac001']), agentName: 'Tìm hàng', copyImage: async (it, to) => { fs.mkdirSync(to, { recursive: true }); fs.copyFileSync(path.join(dir, it.imageSrc), path.join(to, `${it.sku}.png`)); return `${it.sku}.png`; } });
   assert.deepEqual(r.added.map((x) => x.sku), ['AC010', 'ZZ1']); assert.equal(r.skipped[0].why, 'mã đã có trong kho');
   // đọc kho từ file: mẫu mới nằm ngay sau dòng cuối của phân loại "Áo choàng vai"
   const stock = await readInventory({ inventoryFile: file }, path.join(dir, 'kho'), undefined, { added: store.list(), addedImgDir: store.imgDir });
@@ -125,4 +125,16 @@ test('kho từ file Excel trên máy + mẫu mới xếp cuối phân loại; xu
   assert.equal(re.items[2].image, 'AC010.png', 'ảnh mẫu mới ở đúng dòng'); assert.equal(re.items[2].price, 199000); assert.equal(re.items[2].priceCny, 20.5);
   assert.deepEqual(fs.readFileSync(file), before, 'bảng gốc không bị sửa');
   assert.deepEqual(mergeAdded([{ sku: 'A', type: 'x' }], [{ sku: 'A', type: 'x' }]).length, 1);
+});
+
+test('ảnh độ phân giải cao: đổi link thu nhỏ về ảnh gốc, chỉ nhận máy chủ ảnh Taobao/1688, chọn ảnh lớn nhất gần vuông', async () => {
+  const { upgradeUrl, fetchBest } = require('../lib/hires-image');
+  assert.equal(upgradeUrl('//gw.alicdn.com/bao/uploaded/i4/abc.jpg_460x460q90.jpg_.webp'), 'https://gw.alicdn.com/bao/uploaded/i4/abc.jpg');
+  assert.equal(upgradeUrl('https://cbu01.alicdn.com/img/ibank/O1CN01.220x220.jpg'), 'https://cbu01.alicdn.com/img/ibank/O1CN01.jpg');
+  assert.equal(upgradeUrl('https://evil.example/x.jpg'), ''); assert.equal(upgradeUrl('http://cbu01.alicdn.com.evil.com/x.jpg'), '');
+  const sizes = new Map([['A', [800, 800]], ['B', [1200, 1200]], ['C', [790, 5000]], ['D', [100, 100]]]);
+  const fake = async (u) => { const k = u.match(/\/([A-D])\.jpg$/)?.[1]; if (!k) return { ok: false }; return { ok: true, url: u, headers: { get: () => 'image/jpeg' }, arrayBuffer: async () => Buffer.from(k) }; };
+  const best = await fetchBest(['https://cbu01.alicdn.com/A.jpg_80x80.jpg', 'https://cbu01.alicdn.com/B.jpg', 'https://cbu01.alicdn.com/C.jpg', 'https://cbu01.alicdn.com/D.jpg', 'https://evil.example/E.jpg'], { fetchImpl: fake, sizeOf: (b) => ({ width: sizes.get(b.toString())[0], height: sizes.get(b.toString())[1] }) });
+  assert.equal(best.url, 'https://cbu01.alicdn.com/B.jpg'); assert.equal(best.width, 1200);
+  assert.equal(await fetchBest(['https://cbu01.alicdn.com/D.jpg'], { fetchImpl: fake, sizeOf: () => ({ width: 100, height: 100 }) }), null, 'ảnh quá nhỏ bị bỏ');
 });

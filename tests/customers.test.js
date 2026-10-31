@@ -251,3 +251,21 @@ test('@Khách chưa có agent: chủ shop gọi đích danh thì mới tạo age
     assert.equal(t.customers.dropIdleAgents(), 1); assert.equal(t.agents.get(old.id), undefined); assert.equal(t.customers.byCode('KH-OLD01').agentId, '');
   } finally { t.close(); }
 });
+
+test('Đăng bài nhờ Kho hàng xuất thông tin món: Kho hàng giao lại kèm đường dẫn ảnh đầy đủ', async () => {
+  let postRuns = 0;
+  const t = await setup(async (agent) => {
+    if (agent.role === 'post') return { text: postRuns++ === 0 ? 'Để mình lấy thông tin món.\n[[GIAO @Kho hàng]]xuất thông tin mã AC001 cho bài đăng[[/GIAO]]' : 'Đã có thông tin, soạn bài.' };
+    if (agent.role === 'inventory') return { text: 'Có mã AC001.\n[[GIAO @Đăng bài]]AC001 - Áo choàng - giá 145.000₫ - ảnh: kho/anh/AC001.png[[/GIAO]]' };
+    return { text: 'ok' };
+  });
+  try {
+    const kho = t.agents.add({ name: 'Kho hàng', role: 'inventory' }); t.agents.add({ name: 'Đăng bài', role: 'post' });
+    t.d.start(); await new Promise((r) => setTimeout(r, 300));
+    t.msgs.push({ id: 'k1', from: 'me', typed: true, kind: 'text', text: '@Đăng bài đăng bài về mã AC001 lên fanpage' });
+    await new Promise((r) => setTimeout(r, 2800)); await t.idle();
+    const back = t.runs.filter((r) => r.agent.role === 'post')[1];
+    assert.ok(back, 'Đăng bài nhận lại thông tin từ Kho hàng');
+    assert.ok(back.text.includes(`${kho.dir.replace(/\\/g, '/')}/kho/anh/AC001.png`), 'đường dẫn ảnh đã đầy đủ');
+  } finally { t.close(); }
+});

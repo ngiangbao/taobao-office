@@ -4,7 +4,7 @@
   "version": "1.0.7",
   "description": "Trợ lý order Taobao: chat với Claude, văn phòng 3D hiển thị việc đang làm",
   "main": "main.js",
-  "author": "Taobao Office <noreply@example.com>",
+  "author": "Chie House <noreply@example.com>",
   "homepage": "https://github.com/ngiangbao/taobao-office",
   "license": "MIT",
   "scripts": {
@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "vn.taobaooffice.app",
-    "productName": "Taobao Office",
+    "productName": "Chie House",
     "directories": {
       "buildResources": "build"
     },
@@ -34,7 +34,7 @@
       "category": "Office",
       "icon": "build/icon.png",
       "syncDesktopName": true,
-      "maintainer": "Taobao Office <noreply@example.com>"
+      "maintainer": "Chie House <noreply@example.com>"
     },
     "win": {
       "target": "nsis",
@@ -45,7 +45,7 @@
       "perMachine": false,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "Taobao Office",
+      "shortcutName": "Chie House",
       "runAfterFinish": true
     },
     "mac": {

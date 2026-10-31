@@ -811,10 +811,15 @@ $('#r-close').onclick = () => dlgR.close();
 
 // ---------- Chờ duyệt: agent chỉ đề xuất, bạn duyệt rồi mới đăng ----------
 const dlgA2 = $('#dlg-appr'), aList = $('#a-list');
-const KIND_VN = { bai_dang: 'Đăng bài vào nhóm', binh_luan: 'Bình luận vào bài viết' };
+const KIND_VN = { bai_dang: 'Đăng bài (fanpage hoặc nhóm)', binh_luan: 'Bình luận vào bài viết' };
 const ST_VN = { pending: 'Chờ duyệt', approved: 'Đã duyệt, đang xếp hàng', running: 'Đang đăng…', done: 'Đã đăng', failed: 'Chưa đăng được', rejected: 'Đã từ chối' };
 let apprData = { items: [], today: 0 };
+function updateApprBadge() { // số đề xuất đang chờ duyệt hiện trên nút ở thanh trên
+  const n = (apprData.items || []).filter((x) => x.status === 'pending').length, b = $('#appr-n');
+  b.textContent = n; b.hidden = !n; $('#btn-appr').classList.toggle('attn', n > 0);
+}
 function renderApprovals() {
+  updateApprBadge();
   if (!dlgA2.open) return;
   $('#a-limit').textContent = `Hôm nay đã đăng ${apprData.today} bài/bình luận`;
   aList.innerHTML = '';
@@ -846,4 +851,5 @@ function renderApprovals() {
 const loadApprovals = async () => { apprData = await api.listApprovals(); renderApprovals(); };
 api.onApprovals((d) => { apprData = d; renderApprovals(); });
 $('#a-close').onclick = () => dlgA2.close();
+$('#btn-appr').onclick = async () => { dlgA2.showModal(); $('#a-err').textContent = ''; await loadApprovals(); };
 loadApprovals();

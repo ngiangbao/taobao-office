@@ -26,3 +26,8 @@ test('đổi tên khung chat: app lưu chatName vào shop-stats.json để văn 
   const main = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8'), office = fs.readFileSync(path.join(__dirname, '..', 'office', 'src', 'office', 'ui', 'activity.js'), 'utf8');
   assert.match(main, /chatName: loadCfg\(\)\.chatName/); assert.match(main, /ipcMain\.handle\('chat:rename'/); assert.match(office, /applyChatName\(JSON\.parse\(t\)\.chatName\)/);
 });
+
+test('hộp Chờ duyệt có nút mở ở thanh trên, mở là tải lại danh sách', () => {
+  assert.match(html, /id="btn-appr"/); assert.match(js, /\$\('#btn-appr'\)\.onclick\s*=[\s\S]{0,120}dlgA2\.showModal\(\)/);
+  assert.match(html, /id="appr-n"/);
+});

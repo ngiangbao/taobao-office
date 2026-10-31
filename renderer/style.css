@@ -113,3 +113,6 @@ dialog.settings{max-width:94vw;max-height:92vh}.s-win>*{min-width:0}
 .stock-row img{width:56px;height:56px;object-fit:cover;border-radius:6px;background:#8882;flex:none}
 .stock-row>div{flex:1;min-width:0}.stock-row.moi{background:#2a8a4a14}
 .stock-row .tag{font-size:12px;color:#2a8a4a;white-space:nowrap}
+
+.badge{display:inline-block;min-width:18px;padding:0 6px;border-radius:9px;background:#c0392b;color:#fff;font-size:12px;line-height:18px;text-align:center;margin-left:4px}
+button.attn{border-color:#c0392b}
