@@ -367,8 +367,16 @@ window.addEventListener('message', (ev) => {
 // ---------- Đổi tên agent (chuột phải vào agent trong cột bên trái của văn phòng); Electron không có prompt() nên dùng hộp riêng ----------
 const dlgRn = $('#dlg-rename'), rnForm = $('#renameform');
 let rnTarget = null;
-function askRename(target, title = 'Đổi tên agent') { rnTarget = target; $('#rn-title').textContent = title; $('#rn-err').textContent = ''; $('#rn-input').value = target.name || ''; $('#rn-input').required = !target.chat; dlgRn.showModal(); $('#rn-input').select(); }
+function askRename(target, title = 'Đổi tên hoặc xóa agent') { rnTarget = target; $('#rn-del').hidden = !target.sid; $('#rn-title').textContent = title; $('#rn-err').textContent = ''; $('#rn-input').value = target.name || ''; $('#rn-input').required = !target.chat; dlgRn.showModal(); $('#rn-input').select(); }
 $('#rn-cancel').onclick = () => dlgRn.close();
+$('#rn-del').onclick = async () => { // xóa agent đang chọn (chuột phải vào agent ở cột bên trái của văn phòng)
+  const info = rnTarget?.sid && await api.agentBySid(rnTarget.sid);
+  if (!info) { $('#rn-err').textContent = 'Không thấy agent này.'; return; }
+  if (info.kind === 'customer') { $('#rn-err').textContent = 'Agent của khách được quản lý ở danh sách khách.'; return; }
+  if (['inventory', 'assistant'].includes(info.role)) { $('#rn-err').textContent = `${info.name} là agent hệ thống, app luôn giữ lại nên không xóa được.`; return; }
+  if (!confirm(`Xóa agent ${info.name}? Hội thoại và kỹ năng của agent này sẽ không dùng được nữa.`)) return;
+  await api.removeAgent(info.id); dlgRn.close();
+};
 rnForm.onsubmit = async (e) => {
   e.preventDefault(); const name = $('#rn-input').value.trim(); if ((!name && !rnTarget?.chat) || !rnTarget) return;
   const r = rnTarget.chat ? await api.renameChat({ name }) : rnTarget.code ? { ok: await api.renameCustomer({ code: rnTarget.code, name }) } : await api.renameAgent({ sid: rnTarget.sid, name });

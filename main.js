@@ -624,7 +624,7 @@ app.whenReady().then(async () => {
     return { ok: true, name };
   });
   ipcMain.handle('agents:rename', (_, d) => { const a = agents.all().find((x) => x.sid === d?.sid || x.id === d?.id); if (!a) return { ok: false, error: 'Không thấy agent này.' }; const r = agents.renameChecked(a.id, d.name); if (r.ok) pushAgents(); return r; });
-  ipcMain.handle('agents:by-sid', (_, sid) => { const a = agents.all().find((x) => x.sid === sid); return a ? { id: a.id, name: a.name, kind: a.kind || 'team' } : null; });
+  ipcMain.handle('agents:by-sid', (_, sid) => { const a = agents.all().find((x) => x.sid === sid); return a ? { id: a.id, name: a.name, kind: a.kind || 'team', role: a.role } : null; });
   // ---------- Kỹ năng của từng agent (Trợ lý riêng ghi và cập nhật; chủ shop xem, sửa, xuất tệp, nạp sang agent khác) ----------
   const teamAgents = () => agents.all().filter((a) => a.kind !== 'customer');
   const skillsPub = () => { skills.prune(agents.all().map((a) => a.id)); return teamAgents().map((a) => ({ id: a.id, name: a.name, role: a.role, roleLabel: agents.list().find((x) => x.id === a.id)?.roleLabel || '', skills: skills.list(a.id) })); };
