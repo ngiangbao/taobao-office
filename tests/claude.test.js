@@ -46,3 +46,23 @@ test('thư mục ảnh sản phẩm dùng chung: chép ảnh, lời dặn nhắc
   const up = JSON.parse(fs.readFileSync(browser.mcpConfig({ isPackaged: false }, d, 'app', { upload: true }), 'utf8')).mcpServers.playwright.args;
   assert.ok(!normal.includes('--upload')); assert.ok(up.includes('--upload'));
 });
+
+test('ảnh kho tự chép vào thư mục chung theo mã; ảnh nhỏ bị đánh dấu thấp; đã thay thì không bị ghi đè; DOI_ANH', () => {
+  const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), assert = require('node:assert/strict');
+  const photos = require('../lib/photos'), { forAgent } = require('../lib/inventory');
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'tbo-photos2-')), img = path.join(d, 'anh'); fs.mkdirSync(img);
+  fs.writeFileSync(path.join(img, 'AC001.jpg'), 'aaaa'); fs.writeFileSync(path.join(img, 'AC002.png'), 'bbbbbb');
+  const sizes = { aaaa: { width: 300, height: 400 }, bbbbbb: { width: 1200, height: 1200 } };
+  const items = [{ sku: 'AC001', image: 'AC001.jpg' }, { sku: 'AC002', image: 'AC002.png' }, { sku: 'AC003' }];
+  const m = photos.syncStock(d, items, img, (b) => sizes[b.toString()]);
+  assert.equal(path.basename(m.get('AC001').file), 'AC001_001.jpg'); assert.equal(m.get('AC001').low, true);
+  assert.equal(path.basename(m.get('AC002').file), 'AC002_001.png'); assert.equal(m.get('AC002').low, false);
+  const a = forAgent({ items: items.map((i) => ({ ...i, name: '', colors: '' })), types: [] }, 'kho/anh/', m).sanPham;
+  assert.equal(a[0].anhThap, true); assert.ok(a[0].anh.endsWith('san-pham/AC001_001.jpg')); assert.equal(a[2].anh, undefined);
+  photos.put(d, 'AC001', 1, Buffer.from('cccc'), 'jpg'); photos.put(d, 'AC001', 2, Buffer.from('dddd'), 'jpg'); photos.markReplaced(d, 'AC001');
+  const m2 = photos.syncStock(d, items, img, () => ({ width: 2000, height: 2000 }));
+  assert.equal(fs.readFileSync(m2.get('AC001').file, 'utf8'), 'cccc'); // không bị ảnh kho cũ ghi đè
+  assert.ok(fs.existsSync(path.join(d, 'anh-san-pham', 'san-pham', 'AC001_002.jpg')));
+  const r = photos.parseReplace('xong [[DOI_ANH ma="AC001" link="https://detail.1688.com/x" anh_url="https://a.alicdn.com/1.jpg|https://a.alicdn.com/2.jpg"]]');
+  assert.deepEqual(r.jobs[0].urls.length, 2); assert.equal(r.jobs[0].sku, 'AC001'); assert.equal(r.rest, 'xong');
+});
