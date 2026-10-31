@@ -65,3 +65,17 @@ test('kiểm tra tự đăng theo kênh: công tắc, khung giờ và giới h�
   assert.equal(autoPostGuard({ ...cfg, groupAuto: true, groupPostFromHour: 18, groupPostToHour: 23 }, approvals, post(GROUP), date(19)).ok, true);
   assert.equal(autoPostGuard(cfg, approvals, post('https://www.facebook.com/groups/khac'), date(9)).ok, false, 'nơi lạ luôn chờ duyệt');
 });
+
+test('đăng bằng tài khoản cá nhân: trang cá nhân (kể cả profile.php?id=) và nhóm của tôi thuộc kênh "bài của tôi"; ô trống là không đăng ở đó', () => {
+  const { ownKind, normalizeUrl } = require('../lib/post-schedule');
+  const cfg = { profileUrl: 'https://www.facebook.com/profile.php?id=100012345', fanpageUrl: 'https://www.facebook.com/groups/nhom-cua-toi', groups: [] };
+  const post = (target) => ({ kind: 'bai_dang', target });
+  assert.equal(channelOf(cfg, post('https://www.facebook.com/profile.php?id=100012345')), 'fanpage');
+  assert.equal(ownKind(cfg, 'https://www.facebook.com/profile.php?id=100012345'), 'profile');
+  assert.equal(ownKind(cfg, 'https://www.facebook.com/profile.php?id=999'), null, 'trang cá nhân của người khác');
+  assert.equal(ownKind(cfg, 'https://www.facebook.com/groups/nhom-cua-toi/'), 'mygroup');
+  assert.equal(channelOf({ ...cfg, profileUrl: '' }, post('https://www.facebook.com/profile.php?id=100012345')), null, 'ô trống = không đăng');
+  assert.equal(channelOf({ ...cfg, fanpageUrl: '' }, post('https://www.facebook.com/groups/nhom-cua-toi')), null);
+  assert.equal(ownKind({ profileUrl: 'https://www.facebook.com/ten.ban' }, 'https://www.facebook.com/ten.ban.khac'), null, 'không khớp tiền tố tên');
+  assert.equal(normalizeUrl('https://www.facebook.com/ten.ban/?ref=x'), 'https://www.facebook.com/ten.ban');
+});

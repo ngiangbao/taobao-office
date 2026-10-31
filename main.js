@@ -46,7 +46,7 @@ const DEFAULT_CFG = {
   browserFull: true, // agent thường được điều khiển Chrome đầy đủ (bấm, gõ); tắt thì chỉ xem và cuộn. Đăng/nhắn vẫn dặn phải qua đề xuất chờ duyệt
   skillsAuto: true, // Trợ lý riêng tự rà soát lời chủ shop và cập nhật kỹ năng cho từng agent (mỗi agent tối đa 1 lần/6 giờ, chỉ khi có ít nhất 3 tin mới)
   chatName: '', // tên khung chat của văn phòng do chủ shop đặt (rỗng = tên mặc định)
-  followupEnabled: true, ordersAutoRefresh: true, fanpageUrl: '',
+  followupEnabled: true, ordersAutoRefresh: true, fanpageUrl: '', profileUrl: '', // fanpageUrl nay là link NHÓM công khai do chủ shop tạo; profileUrl là trang cá nhân; để trống = không đăng ở đó
   // Lịch đăng TÁCH RIÊNG từng kênh (mặc định TẮT): công tắc tự đăng, chờ sau khi agent soạn xong (phút, 0 = ngay), cách bài cuối cùng của kênh (phút), khung giờ
   fanpageAuto: false, fanpageDelayMinutes: 5, fanpageGapMinutes: 1, fanpageFromHour: 8, fanpageToHour: 22,
   groupAuto: false, groupPostDelayMinutes: 5, groupPostGapMinutes: 5, groupPostFromHour: 8, groupPostToHour: 22,
@@ -105,9 +105,11 @@ const STOCK_INVENTORY_HELP = `CẬP NHẬT KHO KHI ĐƯỢC GIAO MẪU MỚI T�
 /** Nhắc agent Đăng bài: nơi đăng mặc định là fanpage trong Cài đặt, và chế độ tự đăng đang bật hay tắt. */
 const postHelp = (cfg) => {
   const kho = hasStockSource(cfg) ? ' LẤY THÔNG TIN MÓN HÀNG TỪ KHO: khi bài đăng nói về một món có trong kho (chủ shop nêu mã hoặc tên món), việc ĐẦU TIÊN là GIAO @Kho hàng bằng khối [[GIAO @Kho hàng]] nhờ xuất thông tin món đó (mã, tên, loại, màu, size, giá bán, ảnh) và giao lại cho bạn; chỉ soạn bài sau khi nhận được thông tin đó, không tự bịa giá hay màu, dùng đúng đường dẫn ảnh Kho hàng gửi trong thuộc tính anh của DE_XUAT.' : '';
-  if (!String(cfg.fanpageUrl || '').trim()) return `FANPAGE: chủ shop chưa nhập link fanpage trong Cài đặt → Đăng fanpage. Nếu được nhờ đăng fanpage, hãy nhắc chủ shop vào đó nhập link trước, đừng tự đoán link.${kho}`;
+  const prof = String(cfg.profileUrl || '').trim(), mine = String(cfg.fanpageUrl || '').trim();
+  if (!prof && !mine) return `NƠI ĐĂNG CỦA CHỦ SHOP: chủ shop chưa nhập link trang cá nhân hay nhóm của mình trong Cài đặt → Đăng bài của tôi, nghĩa là KHÔNG đăng ở đó. Nếu được nhờ đăng, hãy nhắc chủ shop vào đó nhập link trước, đừng tự đoán link.${kho}`;
   const d = Number(cfg.fanpageDelayMinutes) || 0, from = cfg.fanpageFromHour ?? 8, to = cfg.fanpageToHour ?? 22;
-  return `ĐĂNG FANPAGE: link fanpage của shop đã có sẵn (xem phần FANPAGE CỦA SHOP); mọi bài đăng không nói rõ nơi khác đều là bài fanpage, gửi bằng khối DE_XUAT loai="bai_dang" dich=link fanpage. ${cfg.fanpageAuto ? `Chế độ TỰ ĐĂNG fanpage đang BẬT: ${d > 0 ? `sau ${d} phút kể từ khi bạn gửi đề xuất` : 'ngay khi bạn gửi đề xuất'} (trong khung giờ ${from}h–${to}h) app sẽ tự đăng nếu chủ shop không sửa hay tắt, nên hãy soạn bài hoàn chỉnh, đúng sự thật, đúng giọng shop, không hứa điều shop chưa xác nhận.` : 'Chế độ tự đăng fanpage đang TẮT: đề xuất sẽ chờ chủ shop duyệt.'}${kho}`;
+  const where = [prof && 'TRANG CÁ NHÂN', mine && 'NHÓM CÔNG KHAI CỦA CHỦ SHOP'].filter(Boolean).join(' và ');
+  return `ĐĂNG BÀI CỦA CHỦ SHOP: nơi đăng mặc định là ${where} (link có sẵn trong phần NƠI ĐĂNG BÀI CỦA CHỦ SHOP; bài được đăng bằng TÀI KHOẢN CÁ NHÂN, không phải Trang). Bài đăng không nói rõ nơi khác thì đăng vào tất cả nơi trên, mỗi nơi một khối DE_XUAT loai="bai_dang" dich=link tương ứng; chủ shop chỉ nói một nơi thì đăng đúng nơi đó. ${cfg.fanpageAuto ? `Chế độ TỰ ĐĂNG đang BẬT: ${d > 0 ? `sau ${d} phút kể từ khi bạn gửi đề xuất` : 'ngay khi bạn gửi đề xuất'} (trong khung giờ ${from}h–${to}h) app sẽ tự đăng nếu chủ shop không sửa hay tắt, nên hãy soạn bài hoàn chỉnh, đúng sự thật, đúng giọng shop, không hứa điều shop chưa xác nhận.` : 'Chế độ tự đăng đang TẮT: đề xuất sẽ chờ chủ shop duyệt.'}${kho}`;
 };
 const stockFile = (cfg) => (cfg.inventoryFile ? path.join(dataDir, path.basename(cfg.inventoryFile)) : '');
 /** Đọc kho từ file Excel đã nhập (nếu có) hoặc link Google Sheets, kèm mẫu mới do agent thêm. */
@@ -228,9 +230,8 @@ async function runPublisher(item) {
   const cfg = loadCfg();
   const mcpFile = extMode() ? null : browser.mcpConfig(app, dataDir, 'app') /* Chrome chỉ mở khi agent gọi công cụ trình duyệt; chế độ extension Claude thì dùng Chrome thật của chủ shop */;
   const dir = path.join(dataDir, 'agents', '_publisher'); fs.mkdirSync(dir, { recursive: true });
-  const fan = String(loadCfg().fanpageUrl || '').trim().replace(/\/+$/, '').toLowerCase();
-  const isFanpage = (t) => !!fan && String(t).toLowerCase().replace(/\/+$/, '').startsWith(fan);
-  const text = `ĐỀ XUẤT #${item.num} ĐÃ ĐƯỢC CHỦ SHOP DUYỆT.\nLoại: ${KINDS[item.kind]}\nĐích (mở đúng link này): ${item.target}\n${isFanpage(item.target) ? 'ĐÂY LÀ FANPAGE CỦA CHÍNH SHOP: hãy đăng VỚI TƯ CÁCH TRANG (nếu Facebook đang ở hồ sơ cá nhân thì chuyển sang Trang bằng nút Chuyển/Switch trước khi đăng; không đăng bằng hồ sơ cá nhân). Nếu không chuyển được sang Trang, DỪNG và báo.\n' : ''}Nội dung cần đăng, NGUYÊN VĂN (không sửa, không thêm):\n\"\"\"\n${item.text}\n\"\"\"\n${item.files?.length ? `Ảnh cần đính kèm (tải lên bằng browser_file_upload): ${item.files.join(', ')}` : 'Không có ảnh.'}`;
+  const own = schedule.ownKind(loadCfg(), item.target);
+  const text = `ĐỀ XUẤT #${item.num} ĐÃ ĐƯỢC CHỦ SHOP DUYỆT.\nLoại: ${KINDS[item.kind]}\nĐích (mở đúng link này): ${item.target}\n${own === 'profile' ? 'ĐÂY LÀ TRANG CÁ NHÂN CỦA CHỦ SHOP: đăng lên dòng thời gian bằng chính tài khoản cá nhân đang đăng nhập (ô "Bạn đang nghĩ gì?" trên trang này). KHÔNG chuyển sang Trang/fanpage nào khác. Nếu không thấy ô đăng bài trên đúng trang này, DỪNG và báo.\n' : own === 'mygroup' ? 'ĐÂY LÀ NHÓM CÔNG KHAI DO CHỦ SHOP TẠO: đăng bằng chính tài khoản cá nhân đang đăng nhập; KHÔNG chuyển sang Trang/fanpage. Nếu không đăng được vào nhóm này, DỪNG và báo.\n' : ''}Nội dung cần đăng, NGUYÊN VĂN (không sửa, không thêm):\n\"\"\"\n${item.text}\n\"\"\"\n${item.files?.length ? `Ảnh cần đính kèm (tải lên bằng browser_file_upload): ${item.files.join(', ')}` : 'Không có ảnh.'}`;
   let result = '', error = '';
   const { child, done } = runClaude({
     text, cfg, dataDir, hooksFile: null, mcpFile,
@@ -769,7 +770,7 @@ app.whenReady().then(async () => {
       customers, revenue, approvals, style, skills, onSkills: () => send('skills:update', true), onNewCustomer: (c) => appender.enqueue({ 'ID khách': c.code, 'Tên Facebook khách hàng': c.name }, { key: `cust:${c.code}`, once: true }), onStyle: () => send('style:update', style.all()),
       autoApprove: (agent, a) => { // tự đăng theo từng kênh; chỉ agent Đăng bài (bài) và Trả lời comment (bình luận), chỉ khi chủ shop đã bật kênh đó
         const cfg = loadCfg(), channel = schedule.channelOf(cfg, a);
-        if (!channel || (agent.role === 'post') !== (a.kind === 'bai_dang')) return { ok: false, reason: 'nơi đăng không thuộc fanpage hay nhóm trong danh sách' };
+        if (!channel || (agent.role === 'post') !== (a.kind === 'bai_dang')) return { ok: false, reason: 'nơi đăng không thuộc trang cá nhân, nhóm của bạn hay nhóm trong danh sách' };
         const s = schedule.settings(cfg, channel);
         if (!s.auto) return { ok: false, reason: `chưa bật tự đăng ${s.label}` };
         if (s.delay > 0) {
@@ -796,7 +797,7 @@ app.whenReady().then(async () => {
           const channel = schedule.channelOf(cfg, approval), s = channel && schedule.settings(cfg, channel);
           if (!s || !s.auto) { // kênh này đã tắt tự đăng (hoặc nơi đăng không còn hợp lệ): quay về chờ duyệt tay
             approvals.clearAutoPost(approval.id); pushApprovals();
-            dispatcher.sys(`🖐️ Đề xuất #${approval.num} chờ bạn duyệt (${s ? `đã tắt tự đăng ${s.label}` : 'nơi đăng không thuộc fanpage hay nhóm trong danh sách'}).`);
+            dispatcher.sys(`🖐️ Đề xuất #${approval.num} chờ bạn duyệt (${s ? `đã tắt tự đăng ${s.label}` : 'nơi đăng không thuộc trang cá nhân, nhóm của bạn hay nhóm trong danh sách'}).`);
             continue;
           }
           if (!schedule.withinWindow(s)) {

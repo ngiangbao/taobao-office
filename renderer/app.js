@@ -293,7 +293,7 @@ form.addEventListener('submit', async (e) => {
     return;
   }
   for (const k of ['autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
-  for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'model', 'chromeMode', 'fanpageUrl', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
+  for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'model', 'chromeMode', 'fanpageUrl', 'profileUrl', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
   for (const k of ['commentScan', 'browserFull', 'followupEnabled', 'ordersAutoRefresh']) cfg[k] = form.elements[k].value === '1';
   cfg.ordersSheetUrl = $('#o-url').value.trim(); cfg.ordersWebhookUrl = $('#o-hook').value.trim(); cfg.ordersWebhookToken = $('#o-token').value; cfg.ordersSheetName = $('#o-sheetname').value.trim() || 'khách order'; cfg.ordersAutoAppend = $('#o-auto').value === '1';
   cfg.shopName = form.elements.shopName.value.trim().slice(0, 40) || 'Cửa hàng của tôi';
@@ -814,7 +814,7 @@ $('#r-close').onclick = () => dlgR.close();
 
 // ---------- Chờ duyệt: agent chỉ đề xuất, bạn duyệt rồi mới đăng ----------
 const dlgA2 = $('#dlg-appr'), aList = $('#a-list');
-const KIND_VN = { bai_dang: 'Đăng bài (fanpage hoặc nhóm)', binh_luan: 'Bình luận vào bài viết' };
+const KIND_VN = { bai_dang: 'Đăng bài (trang cá nhân hoặc nhóm)', binh_luan: 'Bình luận vào bài viết' };
 const ST_VN = { pending: 'Chờ duyệt', approved: 'Đã duyệt, đang xếp hàng', running: 'Đang đăng…', done: 'Đã đăng', failed: 'Chưa đăng được', rejected: 'Đã từ chối' };
 let apprData = { items: [], today: 0 };
 function updateApprBadge() { // số đề xuất đang chờ duyệt hiện ở ô "chờ duyệt" trong văn phòng

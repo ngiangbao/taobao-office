@@ -34,7 +34,7 @@
       <button type="button" data-nav="inventory">Kho hàng</button>
       <button type="button" data-nav="cust">Khách hàng</button>
       <hr class="s-sep">
-      <button type="button" data-nav="fanpage">Đăng fanpage</button>
+      <button type="button" data-nav="fanpage">Đăng bài của tôi</button>
       <button type="button" data-nav="groups">Đăng nhóm</button>
       <button type="button" data-nav="newsfeed">Bình luận newsfeed</button>
       <hr class="s-sep">
@@ -63,20 +63,21 @@
           <label>Giọng văn của shop<input name="tone" type="text"></label>
         </section>
         <section data-sec="fanpage" hidden>
-          <h3>Đăng fanpage</h3>
-          <h4>Fanpage của tôi</h4>
-          <label>Link fanpage (để đăng bài lên Trang của chính bạn)<input name="fanpageUrl" type="url" placeholder="https://www.facebook.com/ten-trang-cua-ban"></label>
-          <p class="hint">Agent “Đăng bài” được đề xuất bài cho fanpage này; khi đăng, người đăng sẽ đăng <b>với tư cách Trang</b> (không phải trang cá nhân). Tài khoản Facebook trong Chrome phải là quản trị viên của Trang. Chưa thử trên Facebook thật nên hãy duyệt tay vài bài đầu.</p>
+          <h3>Đăng bài của tôi</h3>
+          <h4>Nơi đăng (bằng tài khoản cá nhân của bạn)</h4>
+          <label>Link trang cá nhân của bạn (để trống = không đăng lên trang cá nhân)<input name="profileUrl" type="url" placeholder="https://www.facebook.com/ten-cua-ban"></label>
+          <label>Link nhóm công khai do bạn tạo (để trống = không đăng vào nhóm này)<input name="fanpageUrl" type="url" placeholder="https://www.facebook.com/groups/ten-nhom-cua-ban"></label>
+          <p class="hint">Agent “Đăng bài” tự lấy link từ hai ô này và đề xuất bài vào đó; khi đăng, người đăng dùng <b>chính tài khoản Facebook cá nhân đang đăng nhập trong Chrome</b> (không phải Trang/fanpage). Chỉ điền ô nào bạn muốn đăng; ô trống là không đăng. Muốn đăng vào các nhóm khác thì dùng mục “Đăng nhóm”. Chưa thử trên Facebook thật nên hãy duyệt tay vài bài đầu.</p>
           <hr>
           <h4>Duyệt hay tự đăng</h4>
-          <label>Khi agent soạn xong bài đăng fanpage<select name="fanpageAuto" data-bool><option value="0">Chờ tôi duyệt từng cái (khuyên dùng)</option><option value="1">Agent tự đăng theo lịch bên dưới</option></select></label>
+          <label>Khi agent soạn xong bài cho trang cá nhân / nhóm của tôi<select name="fanpageAuto" data-bool><option value="0">Chờ tôi duyệt từng cái (khuyên dùng)</option><option value="1">Agent tự đăng theo lịch bên dưới</option></select></label>
           <div class="grid">
             <label>Tự đăng sau (phút)<input name="fanpageDelayMinutes" type="number" min="0" max="1440" step="1"></label>
             <label>Mỗi bài cách nhau (phút)<input name="fanpageGapMinutes" type="number" min="0" max="1440" step="1"></label>
             <label>Chỉ đăng từ giờ (0–23)<input name="fanpageFromHour" type="number" min="0" max="23" step="1"></label>
             <label>đến giờ (0–24)<input name="fanpageToHour" type="number" min="0" max="24" step="1"></label>
           </div>
-          <p class="hint"><b>Tự đăng sau</b>: số phút chờ kể từ khi agent soạn xong (0 = đăng ngay). <b>Mỗi bài cách nhau</b>: số phút tối thiểu kể từ bài cuối cùng của kênh này. Cài đặt này <b>chỉ áp dụng cho bài đăng fanpage</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
+          <p class="hint"><b>Tự đăng sau</b>: số phút chờ kể từ khi agent soạn xong (0 = đăng ngay). <b>Mỗi bài cách nhau</b>: số phút tối thiểu kể từ bài cuối cùng của kênh này. Cài đặt này <b>chỉ áp dụng cho bài đăng trang cá nhân và nhóm của tôi</b>, không ảnh hưởng kênh khác. Khung giờ dùng giờ của máy, hằng ngày, có thể qua đêm (ví dụ 22 đến 6). Ngoài khung giờ thì chờ tới đầu khung kế tiếp. Bài tự đăng vẫn phải đạt các giới hạn an toàn; bạn sửa hay từ chối trong thời gian chờ thì sẽ không tự đăng.</p>
           <p class="hint err" id="s-sched-fanpage" aria-live="polite"></p>
         </section>
         <section data-sec="newsfeed" hidden>
