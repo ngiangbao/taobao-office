@@ -2,8 +2,7 @@
 
 **Tiếng Việt** · [English](README.en.md)
 
-Ứng dụng desktop (Windows / macOS / Linux) cho shop order Taobao: chat với Claude, Claude điều khiển trình duyệt
-để báo giá, soạn bài đăng nhóm và tìm khách cần mua. Bên cạnh khung chat là văn phòng 3D (của dự án My Office) cho thấy Claude đang làm gì.
+Ứng dụng desktop (Windows / macOS / Linux) cho shop order Taobao / 1688 bán trên Facebook: chat với một đội agent Claude; các agent dùng Chrome đã đăng nhập của bạn để tìm hàng, báo giá, soạn bài đăng, chăm khách, quản lý kho và đơn. Bên cạnh khung chat là văn phòng 3D (của dự án My Office) cho thấy Claude đang làm gì.
 
 ![Văn phòng 3D của Chie House](docs/screenshots/van-phong.png)
 
@@ -16,7 +15,7 @@
 ## Cách hoạt động
 - **Chỉ một khung chat: nhóm chat của văn phòng.** Bạn gõ vào đó (hoặc gửi ảnh), app đọc tin và giao cho đúng agent. Gọi đích danh bằng `@Tên`.
 - **Mỗi agent là một "người" riêng**: một phiên Claude Code riêng (`claude -p`, nối tiếp bằng `--resume`) với hội thoại, ngữ cảnh và tên riêng.
-  Bấm "＋ Thêm agent" để đặt tên và chọn vai trò. Có sẵn: Chăm sóc khách, Tìm hàng, Báo giá, Đăng bài, Tìm khách.
+  Bấm "＋ Thêm agent" để đặt tên và chọn vai trò. Có sẵn: Kho hàng, Trợ lý riêng, Trả lời comment, Chăm sóc khách, Tìm hàng, Báo giá, Đăng bài, Tìm khách. Kho hàng và Trợ lý riêng luôn có; xoá agent bằng nút ✕ khi rê chuột lên tên.
 - **Agent giao việc cho nhau**: ví dụ Chăm sóc khách → Tìm hàng (kèm ảnh khách) → Báo giá → quay lại Chăm sóc khách với giá cuối.
   Agent ghi khối `[[GIAO @Tên]] … [[/GIAO]]` cuối câu trả lời, app chuyển việc (tối đa 8 bước mỗi chuỗi để không lặp vô hạn).
 - **Dùng bản `claude` đã đăng nhập sẵn trên máy bạn**; app không giữ mật khẩu hay token nào. Mọi câu trả lời đều bằng tiếng Việt.
@@ -25,18 +24,26 @@
 - **Lịch sử chat lưu mãi mãi** trên máy (`history/YYYY-MM.jsonl`), xem và tìm kiếm bằng nút "Lịch sử".
   Xoá được từng tin: rê chuột lên tin trong cửa sổ Lịch sử rồi bấm ✕. Tin nhắn bị **thu hồi** trong nhóm chat
   (rê chuột lên bong bóng của bạn → nút Thu hồi) cũng dừng ngay việc agent đang làm và biến khỏi lịch sử.
-- **Tự cập nhật** từ GitHub Releases (Windows, Linux AppImage). macOS chưa ký nên phải cập nhật tay; lần đầu mở: chuột phải vào app → Mở, hoặc vào Cài đặt hệ thống → Quyền riêng tư & Bảo mật → “Vẫn mở”. Nếu macOS báo “đã hỏng” và không có nút đó, chạy trong Terminal: `xattr -cr "/Applications/Taobao Office.app"` rồi mở lại.
+- **Tự cập nhật** từ GitHub Releases (Windows, Linux AppImage). macOS chưa ký nên phải cập nhật tay; lần đầu mở: chuột phải vào app → Mở, hoặc vào Cài đặt hệ thống → Quyền riêng tư & Bảo mật → “Vẫn mở”. Nếu macOS báo “đã hỏng” và không có nút đó, chạy trong Terminal: `xattr -cr "/Applications/Chie House.app"` rồi mở lại.
 
 ## Hàng chờ duyệt: agent không thể tự đăng
 - **Khóa bằng kỹ thuật, không chỉ lời dặn.** Agent thường chỉ xem, điều hướng và cuộn trang: các công cụ bấm, gõ, điền form, tải file, chạy mã và kể cả phím Enter đều bị khóa (`--disallowedTools`, thắng cả cấu hình trong `~/.claude` của bạn). Đã kiểm chứng bằng Claude thật.
-- Muốn đăng bài hay bình luận, agent gửi **đề xuất** (`[[DE_XUAT]]`) vào nút **Chờ duyệt**. Bạn xem, sửa, rồi bấm *Duyệt và đăng*: một lượt "người đăng" riêng, là lượt duy nhất có quyền thao tác trình duyệt, đăng đúng nguyên văn bản bạn duyệt. Bị từ chối thì không bao giờ được đăng.
-- App tự giới hạn số bài mỗi ngày, giãn cách giữa hai lần đăng, chỉ nhận link Facebook, và nếu app tắt giữa lúc đang đăng thì **không tự đăng lại** (có thể đã đăng rồi), chỉ báo bạn kiểm tra.
-- Chưa kiểm chứng: lượt đăng trên giao diện Facebook thật (cần bạn đăng nhập) và việc tải ảnh lên bài đăng.
+- Muốn đăng bài hay bình luận, agent gửi **đề xuất** (`[[DE_XUAT]]`) vào thẻ **chờ duyệt** (mục Hoạt động của văn phòng, nằm giữa thẻ đang làm và đang nghỉ). Bạn xem, sửa, rồi bấm *Duyệt và đăng*: một lượt "người đăng" riêng, là lượt duy nhất có quyền thao tác trình duyệt, đăng đúng nguyên văn bản bạn duyệt. Bị từ chối thì không bao giờ được đăng.
+- **Nơi đăng**: trang cá nhân và nhóm công khai do bạn tạo (dán link ở Cài đặt → Đăng bài của tôi; để trống = không đăng ở đó), cùng các nhóm khác từ danh sách bạn nhập (Excel / CSV / Google Sheets / Drive) ở Cài đặt → Đăng nhóm khác. Bài đăng bằng tài khoản cá nhân, không phải Trang. Mỗi kênh có giãn cách và khung giờ riêng; chỉ nhận link Facebook; nếu app tắt giữa lúc đang đăng thì **không tự đăng lại**, chỉ báo bạn kiểm tra.
+- **Tự đăng (tuỳ chọn, mặc định tắt, bật riêng từng kênh)**: đề xuất được tự duyệt sau số phút bạn đặt; bạn sửa nội dung hoặc bấm Dừng tất cả thì huỷ. Bài duyệt tay thì đăng ngay, không phải chờ khung giờ.
+- **Đăng bài lấy thông tin từ kho**: agent Đăng bài nhờ agent Kho hàng xuất mã, tên, màu, size, giá và ảnh của món rồi mới soạn bài.
+- Chưa kiểm chứng: lượt đăng trên giao diện Facebook thật (cần bạn đăng nhập) và việc tải ảnh lên bài đăng (bản 1.10.37 vừa sửa lỗi ảnh nằm ngoài thư mục được phép).
 - Ảnh sản phẩm vào khung chat: agent gửi ảnh bằng `[[GUI_ANH]]` (ví dụ khi khách chốt đơn). Khi **bạn gửi ảnh sản phẩm**, app gọi đúng **một** agent Tìm hàng đi tìm, không chuyền tay.
 - Tên cửa hàng đặt ở Cài đặt > Cửa hàng; nó thay nhãn "My Office" cạnh biểu tượng tòa nhà, tiêu đề cửa sổ, và là tên mà agent dùng khi xưng với khách.
 
-## Khách hàng: mỗi khách một agent riêng
-- **Khách nhắn đến thì tự có một agent**, kèm **mã định danh riêng** (dạng `KH-7F3K9`) chỉ bạn và agent đó biết. Khách nhắn lại thì đúng agent đó tự dậy với đầy đủ hồ sơ.
+## Kho hàng và khách hàng: hai file Excel trên máy
+- **Kho hàng** (`du-lieu/kho-hang.xlsx`): nhập một lần từ file Excel, link Google Sheets hoặc KiotViet, rồi dùng file trên máy, giữ đúng định dạng bảng bạn nhập. Khi agent Tìm hàng tìm được mẫu mới (lấy ảnh độ phân giải cao nhất từ trang sản phẩm), agent Kho hàng ghi vào dòng cuối của đúng phân loại. Xem, nhập, xuất file ở Cài đặt → Kho hàng.
+- **Khách hàng** (`du-lieu/khach-hang.xlsx`): 2 trang tính, *Khách hàng* (ID và thông tin) và *Đơn đặt hàng* (chờ hàng về, đã đặt, đã về, đã giao, đã huỷ). Tự cập nhật; đây là bản ghi ra từ dữ liệu của app nên sửa tay trong Excel không được đọc ngược lại. Xuất ở Cài đặt → Khách hàng.
+- **Đồng bộ KiotViet** (một chiều, KiotViet → app): khách, hoá đơn/đơn đặt hàng và sản phẩm. Cần Client ID/Secret của bạn (nhập trong app); ánh xạ trường xem [docs/KIOTVIET.md](docs/KIOTVIET.md), chưa kiểm chứng với tài khoản thật.
+- **Thư mục ảnh sản phẩm dùng chung** (`anh-san-pham/` trong thư mục dữ liệu): agent Kho hàng, Tìm hàng, Đăng bài dùng chung (agent chăm khách thì không). Ảnh kho tự chép vào, đặt tên theo mã (`MÃ_001.jpg`, nhiều ảnh thì `MÃ_002`…). Ảnh nhỏ bị đánh dấu thấp; agent Tìm hàng có thể tìm ảnh nét hơn để thay.
+
+## Khách hàng: mỗi khách một agent riêng, chỉ gọi khi cần
+- **Nhập danh sách khách không tạo agent.** Agent chỉ được tạo khi khách nhắn đến hoặc khi bạn gọi `@Khách Tên` / `@mã`, kèm **mã định danh riêng** (dạng `KH-7F3K9`) chỉ bạn và agent đó biết. Khách nhắn lại thì đúng agent đó dậy với đầy đủ hồ sơ.
 - **Che danh tính**: khi giao việc cho agent chuyên môn (tìm hàng, báo giá), tên và số điện thoại thật của khách được thay bằng mã.
 - **Hồ sơ khách (`ho-so.md`)**: agent tự ghi sau mỗi lần xử lý; là trí nhớ dài hạn. Hội thoại quá dài thì app **làm mới có nhớ**: ghi đầy đủ hồ sơ rồi bắt đầu phiên mới, hồ sơ được nạp lại ở mỗi lượt.
 - **Nhắc khách im lặng**: sau N phút (mặc định 10) không thấy khách trả lời, agent soạn tin nhắc để bạn duyệt và tự gửi. Nhắc tối đa M lần; khách đã chốt hoặc từ chối thì agent trả `[[DUNG_NHAC]]` để dừng.
@@ -51,7 +58,7 @@ npm run prepare:office   # dựng văn phòng một lần
 npm start
 ```
 Kiểm thử (không tốn tiền, dùng agent giả): `node --test tests/`.
-Cài bản beta lên máy mình trước khi phát hành (Linux): `scripts/install-beta.sh` (thêm `--office` khi đã sửa thư mục `office/`). Máy chỉ giữ bản beta mới nhất và một bản beta trước đó; bản beta chỉ tự cập nhật sang bản beta mới hơn.
+Phát hành: đẩy tag `v*` lên `main`, CI dựng cả 3 hệ điều hành và đưa lên GitHub Releases.
 Đóng gói: `npm run dist:linux` / `dist:win` (chạy trên Windows) / `dist:mac` (chạy trên macOS).
 
 Yêu cầu: Node 20+, Claude Code đã cài và đăng nhập, Chrome/Chromium cho Playwright.
