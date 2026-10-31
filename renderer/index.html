@@ -108,11 +108,11 @@
         </section>
         <section data-sec="inventory" hidden>
           <h3>Kho hàng</h3>
-          <p class="hint">Có hai cách đưa kho vào app: <b>nhập file Excel</b> từ máy (app giữ một bản sao trên máy này, không đưa ra ngoài), hoặc dán <b>link Google Sheets</b> (đặt quyền “Bất kỳ ai có liên kết đều có thể xem”). Đã nhập file thì app dùng file; muốn dùng lại link thì dán link mới vào ô bên dưới rồi Lưu thay đổi. App không sửa bảng gốc, chỉ lấy trang tính có cột Mã SP và Tên sản phẩm; trang danh sách khách order không bao giờ được đọc.</p>
-          <div class="row"><button type="button" id="s-inv-view">Xem kho hàng</button><button type="button" id="s-inv-import" class="ghost">Nhập từ file Excel…</button><button type="button" id="s-inv-export" class="ghost">Xuất Excel (kèm mẫu mới)</button></div>
+          <p class="hint">Kho hàng được <b>lưu thành một file Excel trên máy này</b> (file riêng, không lẫn với file khách). Đưa kho vào bằng một trong ba cách: <b>nhập file Excel</b>, <b>chép từ link Google Sheets</b> (đặt quyền “Bất kỳ ai có liên kết đều có thể xem”), hoặc <b>chép từ KiotViet</b> (mục Đồng bộ KiotViet). App chép một lần về file trên máy với <b>đúng định dạng của bảng được nhập</b>, rồi từ đó dùng file này; mẫu mới agent “Tìm hàng” thêm sẽ được ghi thẳng vào dòng cuối của đúng phân loại trong file. Chỉ lấy trang tính có cột Mã SP và Tên sản phẩm; trang danh sách khách order không bao giờ được chép.</p>
+          <p id="s-inv-local" class="hint" aria-live="polite"></p>
+          <div class="row"><button type="button" id="s-inv-view">Xem kho hàng</button><button type="button" id="s-inv-import" class="ghost">Nhập từ file Excel…</button><button type="button" id="s-inv-link" class="ghost">Chép từ link Google về máy</button><button type="button" id="s-inv-export" class="ghost">Xuất file kho…</button><button type="button" id="s-inv-folder" class="ghost">Mở thư mục lưu</button></div>
           <p id="s-inv-file" class="hint" aria-live="polite"></p>
-          <p class="hint">Khi agent <b>Tìm hàng</b> tìm được mẫu mới và bạn đồng ý lưu, mẫu được thêm vào <b>dòng cuối của đúng phân loại</b> trong kho (bảng gốc và link Google không bị sửa; bấm “Xuất Excel” để có file đúng định dạng bảng của bạn kèm mẫu mới, rồi dán/nhập lại vào Google Sheets nếu muốn).</p>
-          <label>Link Google Sheets kho hàng<input name="inventorySheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit"></label>
+          <label>Link Google Sheets kho hàng (chỉ để chép về máy)<input name="inventorySheetUrl" type="url" placeholder="https://docs.google.com/spreadsheets/d/…/edit"></label>
           <label>Tên trang tính (để trống: tự tìm trang có cột Mã SP)<input name="inventoryTab" type="text" placeholder="DS Nón"></label>
           <label>Khi tôi gửi ảnh sản phẩm vào khung chat
             <select name="photoTarget"><option value="kho">Đối chiếu với kho trước (Kho hàng trả mã và ảnh)</option><option value="taobao">Tìm trên Taobao/1688 (Tìm hàng)</option></select></label>
@@ -156,12 +156,17 @@
           <hr>
           <h4>Lấy dữ liệu nào</h4>
           <label class="check"><input id="kv-cust" type="checkbox"> Khách hàng và đơn (hóa đơn, đơn đặt hàng): khách mua thêm, sửa, huỷ đơn trong KiotViet thì app cập nhật theo</label>
-          <label class="check"><input id="kv-inv" type="checkbox"> Kho hàng: dùng sản phẩm trong KiotViet (mã, tên, nhóm hàng, màu/size, giá bán, số tồn, ảnh) làm kho của agent “Kho hàng”. File Excel đã nhập ở mục Kho hàng, nếu có, vẫn được ưu tiên hơn</label>
-          <div class="row-btns"><button type="button" id="kv-save">Lưu và kiểm tra kết nối</button><button type="button" id="kv-sync" class="ghost">Đồng bộ khách và đơn ngay</button><button type="button" id="kv-full" class="ghost">Tải lại toàn bộ khách và đơn</button><button type="button" id="kv-view" class="ghost">Xem kho hàng</button></div>
+          <label class="check"><input id="kv-inv" type="checkbox"> Kho hàng: chép sản phẩm KiotViet (mã, tên, nhóm hàng, màu/size, giá bán, số tồn, ảnh) vào <b>file kho trên máy</b>; mỗi lần đồng bộ chỉ thêm sản phẩm mới (mã chưa có) vào cuối đúng nhóm hàng</label>
+          <div class="row-btns"><button type="button" id="kv-save">Lưu và kiểm tra kết nối</button><button type="button" id="kv-sync" class="ghost">Đồng bộ khách và đơn ngay</button><button type="button" id="kv-full" class="ghost">Tải lại toàn bộ khách và đơn</button><button type="button" id="kv-inv-now" class="ghost">Chép kho KiotViet về máy</button><button type="button" id="kv-view" class="ghost">Xem kho hàng</button></div>
           <p id="kv-status" class="hint" aria-live="polite"></p>
         </section>
         <section data-sec="cust" hidden>
           <h3>Khách hàng</h3>
+          <h4>File khách hàng trên máy</h4>
+          <p class="hint">Khách và đơn được <b>lưu thành một file Excel riêng trên máy này</b> (tách khỏi file kho), gồm 2 trang tính: <b>Khách hàng</b> (ID khách và thông tin) và <b>Đơn đặt hàng</b> (đơn chờ hàng về, đã đặt, đã về, đã giao, đã huỷ, cùng cột với trang “khách order”). File tự cập nhật mỗi khi có khách mới hoặc đơn thay đổi, dù khách đến từ Messenger, nhập tay, link Google hay KiotViet.</p>
+          <p id="s-cust-local" class="hint" aria-live="polite"></p>
+          <div class="row-btns"><button type="button" id="cust-file-export">Xuất file khách hàng và đơn…</button><button type="button" id="cust-file-folder" class="ghost">Mở thư mục lưu</button></div>
+          <hr>
           <h4>Bảng khách order trên Google Sheets</h4>
           <p class="hint">Dán link bảng có trang “khách order” (đặt “Bất kỳ ai có liên kết đều xem được”). Dùng mục xem dữ liệu khách lưu trên máy để quản lý hồ sơ khách đã lưu trên thiết bị.</p>
           <div class="row-btns"><button type="button" id="customers-export">Xuất khách hàng thành Excel</button><button type="button" id="customers-local-open" class="ghost">Xem dữ liệu khách lưu trên máy</button><button type="button" id="orders-open" class="ghost" title="Thêm, sửa, xoá từng dòng đơn khách order">Xem và sửa đơn order…</button></div>

@@ -38,3 +38,9 @@
 - Hóa đơn bị xoá hẳn khỏi KiotViet (không phải huỷ) thì dòng đơn trong app vẫn còn.
 - Chưa ghi ngược (app → KiotViet). Mẫu mới do agent "Tìm hàng" thêm vẫn lưu riêng trên máy (xếp cuối nhóm hàng), chưa đẩy lên KiotViet; kho lấy từ KiotViet cũng chưa xuất Excel theo định dạng bảng.
 - Mỗi lần đọc kho KiotViet gọi API lại toàn bộ sản phẩm (phân trang 100/lần); gian hàng rất lớn có thể chậm.
+
+## Lưu trữ trên máy (kho và khách tách thành 2 file Excel)
+
+- `du-lieu/kho-hang.xlsx`: kho hàng. Nhập từ file Excel, link Google Sheets hoặc KiotViet đều được **chép về đây một lần**, giữ định dạng bảng được nhập (với KiotViet: định dạng chuẩn STT | Ảnh | Mã SP | Tên sản phẩm | Loại | Phân loại màu | Số màu | Phân loại size | Giá (tệ) | GIÁ BÁN | Link 1688 | Tồn kho). Mẫu mới (agent Tìm hàng, hoặc sản phẩm mới của KiotViet) được ghi thẳng vào cuối đúng phân loại. Mã: `lib/local-files.js`, `lib/inventory.js` (`exportWithAdded`), `main.js` (`adoptInventory`, `commitAdded`, `importKvInventory`).
+- `du-lieu/khach-hang.xlsx`: 2 trang tính — "Khách hàng" (ID + thông tin) và "Đơn đặt hàng" (chờ hàng về, đã đặt, đã về, đã giao, đã huỷ). Tự ghi lại khi khách/đơn đổi (`createMirror`, kiểm tra mỗi 5 giây). Lưu ý: dữ liệu đang dùng của app vẫn là `customers.json` và `orders.json`; file Excel là bản ghi ra theo thời gian thực, sửa tay trong file Excel sẽ không tự nạp ngược (muốn nạp thì dùng "Nhập đơn từ file").
+- Cả hai xuất ra được trong Cài đặt (Kho hàng / Khách hàng); "Mở thư mục lưu" mở thư mục `du-lieu`.

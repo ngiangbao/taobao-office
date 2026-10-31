@@ -25,6 +25,7 @@ const { createRevenue, parseVnd } = require('./lib/revenue');
 const { createInbox, READER_PROMPT } = require('./lib/inbox');
 const { readInventory, forAgent, exportWithAdded, parseWorkbook: parseStockBook } = require('./lib/inventory');
 const { createKiotViet } = require('./lib/kiotviet');
+const localFiles = require('./lib/local-files');
 const { createStockAdded, fold: foldStock } = require('./lib/stock-added');
 const { fetchBest: fetchBestImage } = require('./lib/hires-image');
 const { pageImages } = require('./lib/page-images');
@@ -113,7 +114,12 @@ const postHelp = (cfg) => {
   const where = [prof && 'TRANG CÁ NHÂN', mine && 'NHÓM CÔNG KHAI CỦA CHỦ SHOP'].filter(Boolean).join(' và ');
   return `ĐĂNG BÀI CỦA CHỦ SHOP: nơi đăng mặc định là ${where} (link có sẵn trong phần NƠI ĐĂNG BÀI CỦA CHỦ SHOP; bài được đăng bằng TÀI KHOẢN CÁ NHÂN, không phải Trang). Bài đăng không nói rõ nơi khác thì đăng vào tất cả nơi trên, mỗi nơi một khối DE_XUAT loai="bai_dang" dich=link tương ứng; chủ shop chỉ nói một nơi thì đăng đúng nơi đó. ${cfg.fanpageAuto ? `Chế độ TỰ ĐĂNG đang BẬT: ${d > 0 ? `sau ${d} phút kể từ khi bạn gửi đề xuất` : 'ngay khi bạn gửi đề xuất'} (trong khung giờ ${from}h–${to}h) app sẽ tự đăng nếu chủ shop không sửa hay tắt, nên hãy soạn bài hoàn chỉnh, đúng sự thật, đúng giọng shop, không hứa điều shop chưa xác nhận.` : 'Chế độ tự đăng đang TẮT: đề xuất sẽ chờ chủ shop duyệt.'}${kho}`;
 };
-const stockFile = (cfg) => (cfg.inventoryFile ? path.join(dataDir, path.basename(cfg.inventoryFile)) : '');
+const LOCAL_KHO = 'du-lieu/kho-hang.xlsx';
+const stockFile = (cfg) => { // file kho trên máy (nằm trong thư mục dữ liệu của app)
+  if (!cfg.inventoryFile) return '';
+  const f = path.resolve(dataDir, cfg.inventoryFile);
+  return f.startsWith(path.resolve(dataDir) + path.sep) ? f : '';
+};
 /** Đọc kho từ file Excel đã nhập (nếu có) hoặc link Google Sheets, kèm mẫu mới do agent thêm. */
 let kvLoader = null; // đọc kho từ KiotViet (gán khi KiotViet sẵn sàng)
 const readStock = (cfg, dir) => readInventory({ ...cfg, inventoryFile: stockFile(cfg) }, dir, undefined, { added: stockAdded.list(), addedImgDir: stockAdded.imgDir, loader: !cfg.inventoryFile && cfg.kiotvietInventory ? kvLoader : undefined }); // ưu tiên: file Excel đã nhập > KiotViet > link Google Sheets
@@ -437,7 +443,7 @@ app.whenReady().then(async () => {
   // ---------- KiotViet: đồng bộ một chiều khách + hóa đơn/đơn đặt hàng về app ----------
   const kvSecret = () => { const s = String(loadCfg().kiotvietSecret || ''); if (s.startsWith('enc:')) { try { return safeStorage.decryptString(Buffer.from(s.slice(4), 'base64')); } catch { return ''; } } return s.startsWith('raw:') ? s.slice(4) : ''; };
   const kiotviet = createKiotViet({ getConfig: () => { const c = loadCfg(); return { retailer: c.kiotvietRetailer, clientId: c.kiotvietClientId, clientSecret: kvSecret() }; } });
-  kvLoader = async (imagesDir) => { // sản phẩm KiotViet -> kho; ảnh đầu tiên của mỗi sản phẩm tải về một lần rồi dùng lại từ bộ nhớ đệm
+  const kvProducts = async () => { // sản phẩm KiotViet + ảnh đầu tiên tải một lần vào bộ nhớ đệm (kiotviet-img), item.image = tên tệp trong đó
     const items = await kiotviet.products(), cache = path.join(dataDir, 'kiotviet-img'); fs.mkdirSync(cache, { recursive: true });
     const have = new Map(fs.readdirSync(cache).map((f) => [f.replace(/\.[^.]+$/, ''), f]));
     const safe = (s) => String(s).replace(/[^\w-]+/g, '_').slice(0, 60) || 'sp';
@@ -456,10 +462,12 @@ app.whenReady().then(async () => {
         } catch { /* ảnh này lỗi: để lần sau */ }
       }
     }));
-    for (const i of items) {
-      const f = have.get(safe(i.sku)); delete i.imageUrl; delete i.active;
-      if (f) { try { fs.copyFileSync(path.join(cache, f), path.join(imagesDir, f)); i.image = f; } catch { i.image = ''; } } else i.image = '';
-    }
+    for (const i of items) { i.image = have.get(safe(i.sku)) || ''; delete i.imageUrl; delete i.active; }
+    return { items, cache };
+  };
+  kvLoader = async (imagesDir) => { // đọc trực tiếp khi chưa có file kho trên máy
+    const { items, cache } = await kvProducts();
+    for (const i of items) if (i.image) { try { fs.copyFileSync(path.join(cache, i.image), path.join(imagesDir, i.image)); } catch { i.image = ''; } }
     return items;
   };
   let kvLast = { ok: null, at: 0, text: '' }, kvBusy = false;
@@ -470,7 +478,9 @@ app.whenReady().then(async () => {
       const c = loadCfg(), r = await kiotviet.sync({ customers, orders, since: full ? '' : String(c.kiotvietCursor || ''), syncCustomers: c.kiotvietSyncCustomers !== false });
       const back = new Date(Date.parse(r.cursor) - 2 * 60e3).toISOString(); // lùi 2 phút để không sót bản ghi sửa sát giờ
       fs.writeFileSync(cfgPath, JSON.stringify({ ...loadCfg(), kiotvietCursor: back }, null, 2));
-      kvLast = { ok: true, at: Date.now(), text: `${r.customers} khách, ${r.invoices} hóa đơn, ${r.orders} đơn đặt hàng (${r.rows} dòng)` };
+      let inv = '';
+      if (c.kiotvietInventory) { try { const k = await importKvInventory(); inv = `, kho: thêm ${k.added} sản phẩm mới`; } catch (e) { inv = `, kho: lỗi (${e.message})`; } }
+      kvLast = { ok: true, at: Date.now(), text: `${r.customers} khách, ${r.invoices} hóa đơn, ${r.orders} đơn đặt hàng (${r.rows} dòng)${inv}` };
       cleanImages?.(); pushCustomers();
       return { ok: true, ...r };
     } catch (e) { kvLast = { ok: false, at: Date.now(), text: e.message }; return { ok: false, error: e.message }; }
@@ -486,6 +496,7 @@ app.whenReady().then(async () => {
     fs.writeFileSync(cfgPath, JSON.stringify(next, null, 2));
     try { const r = await kiotviet.test(); return { ok: true, customers: r.customers, ...kvStatus() }; } catch (e) { return { ok: false, error: e.message, ...kvStatus() }; }
   });
+  ipcMain.handle('kiotviet:import-inventory', async () => { try { return { ok: true, ...(await importKvInventory()) }; } catch (e) { return { ok: false, error: e.message }; } });
   ipcMain.handle('kiotviet:sync', (_, d) => runKvSync(!!d?.full));
   setInterval(() => { const c = loadCfg(); if (Number(c.kiotvietMinutes) > 0 && c.kiotvietRetailer && Date.now() - (kvLast.at || 0) >= Number(c.kiotvietMinutes) * 60e3) runKvSync(false); }, 60e3);
   ipcMain.handle('inventory:open', () => ({ ok: hasStockSource(loadCfg()) })); // bấm "Kho hàng" trong văn phòng: xem kho ngay trong app
@@ -503,32 +514,101 @@ app.whenReady().then(async () => {
     const f = viewImages.get(foldStock(sku)); if (!f) return '';
     try { const b = fs.readFileSync(path.join(viewDir(), 'anh', path.basename(f))); return `data:image/${path.extname(f).slice(1).replace('jpg', 'jpeg')};base64,${b.toString('base64')}`; } catch { return ''; }
   });
+  // ---------- File kho và file khách trên máy (du-lieu/kho-hang.xlsx, du-lieu/khach-hang.xlsx) ----------
+  const localDir = path.join(dataDir, 'du-lieu');
+  const khoPath = path.join(dataDir, LOCAL_KHO), custPath = path.join(localDir, 'khach-hang.xlsx');
+  const setCfgKeys = (o) => fs.writeFileSync(cfgPath, JSON.stringify({ ...loadCfg(), ...o }, null, 2));
+  /** Ghi mẫu mới của agent thẳng vào file kho trên máy (cuối đúng phân loại, đúng định dạng); xong thì bỏ danh sách tạm. */
+  const commitAdded = async () => {
+    const cfg = loadCfg(), file = stockFile(cfg), added = stockAdded.list();
+    if (!file || !fs.existsSync(file) || !added.length) return 0;
+    const tmp = `${file}.${process.pid}.new`;
+    try { const r = await exportWithAdded(file, added, tmp, { addedImgDir: stockAdded.imgDir, tab: cfg.inventoryTab }); fs.renameSync(tmp, file); stockAdded.clear(); return r.added; }
+    finally { fs.rmSync(tmp, { force: true }); }
+  };
+  /** Chép kho về máy từ một file Excel (Buffer hoặc đường dẫn): chỉ giữ trang tính kho, sao lưu bản cũ, ghi file kho trên máy rồi dùng nó làm nguồn. */
+  const adoptInventory = async (source) => {
+    const buf = await localFiles.isolateInventorySheet(source, loadCfg().inventoryTab);
+    const tmp = path.join(app.getPath('temp'), `tbo-kho-nhap-${process.pid}`);
+    let info;
+    try { const parsed = await parseStockBook(buf, { imagesDir: tmp }); info = { items: parsed.items.length, images: parsed.items.filter((i) => i.image).length, sheet: parsed.sheet, types: Object.keys(parsed.types).length }; }
+    finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+    if (fs.existsSync(khoPath)) fs.copyFileSync(khoPath, khoPath.replace(/\.xlsx$/, '.cu.xlsx'));
+    localFiles.atomicWrite(khoPath, buf);
+    setCfgKeys({ inventoryFile: LOCAL_KHO });
+    await commitAdded().catch(() => {});
+    return info;
+  };
+  const khoInfo = async () => {
+    const cfg = loadCfg(), f = stockFile(cfg);
+    if (!f || !fs.existsSync(f)) return { exists: false };
+    try { const p = await parseStockBook(f, { tab: cfg.inventoryTab }); return { exists: true, items: p.items.length, types: Object.keys(p.types).length, updatedAt: fs.statSync(f).mtimeMs, path: f }; }
+    catch (e) { return { exists: true, error: e.message, path: f }; }
+  };
+  /** KiotViet → file kho trên máy: chưa có file thì tạo mới theo định dạng chuẩn; có rồi thì chỉ thêm sản phẩm mới (mã chưa có) vào cuối đúng nhóm hàng. */
+  const importKvInventory = async () => {
+    const { items, cache } = await kvProducts();
+    if (!items.length) throw new Error('KiotViet chưa có sản phẩm nào đang kinh doanh.');
+    const cfg = loadCfg(), f = stockFile(cfg);
+    if (f && fs.existsSync(f)) {
+      const tmp = `${f}.${process.pid}.new`;
+      try { const r = await exportWithAdded(f, items, tmp, { addedImgDir: cache, tab: cfg.inventoryTab }); fs.renameSync(tmp, f); return { added: r.added, total: items.length }; }
+      finally { fs.rmSync(tmp, { force: true }); }
+    }
+    localFiles.atomicWrite(khoPath, await localFiles.createInventoryWorkbook(items, cache));
+    setCfgKeys({ inventoryFile: LOCAL_KHO });
+    return { added: items.length, total: items.length, created: true };
+  };
   ipcMain.handle('inventory:import-file', async () => {
     try {
       const r = await dialog.showOpenDialog(win, { title: 'Chọn file Excel kho hàng', properties: ['openFile'], filters: [{ name: 'Tệp Excel', extensions: ['xlsx'] }] });
       if (r.canceled || !r.filePaths[0]) return { ok: false, canceled: true };
-      const tmp = path.join(app.getPath('temp'), `tbo-kho-nhap-${process.pid}`);
-      let info;
-      try { const parsed = await parseStockBook(r.filePaths[0], { imagesDir: tmp, tab: loadCfg().inventoryTab }); info = { items: parsed.items.length, images: parsed.items.filter((i) => i.image).length, sheet: parsed.sheet, types: Object.keys(parsed.types).length }; }
-      finally { fs.rmSync(tmp, { recursive: true, force: true }); }
-      fs.copyFileSync(r.filePaths[0], path.join(dataDir, 'kho-local.xlsx'));
-      fs.writeFileSync(cfgPath, JSON.stringify({ ...loadCfg(), inventoryFile: 'kho-local.xlsx' }, null, 2));
-      return { ok: true, ...info };
+      return { ok: true, ...(await adoptInventory(r.filePaths[0])) };
     } catch (error) { return { ok: false, error: error.message }; }
   });
+  ipcMain.handle('inventory:import-link', async (_, url) => { // link Google Sheets công khai → chép về máy một lần
+    try { return { ok: true, ...(await adoptInventory(await downloadSheet(String(url || loadCfg().inventorySheetUrl || '')))) }; }
+    catch (error) { return { ok: false, error: error.message }; }
+  });
+  ipcMain.handle('inventory:local-info', () => khoInfo());
   ipcMain.handle('inventory:remove-added', (_, sku) => ({ ok: stockAdded.remove(sku) }));
-  ipcMain.handle('inventory:export', async () => {
+  ipcMain.handle('inventory:export', async () => { // xuất bản sao file kho trên máy (đã gồm mẫu mới)
     try {
-      const cfg = loadCfg();
-      if (!hasStockSource(cfg)) return { ok: false, error: 'Chưa có kho để xuất. Nhập file Excel hoặc link Google Sheets trước.' };
-      const { canceled, filePath } = await dialog.showSaveDialog(win, { title: 'Xuất kho hàng (kèm mẫu mới)', defaultPath: path.join(app.getPath('documents'), `Kho-hang-${new Date().toISOString().slice(0, 10)}.xlsx`), filters: [{ name: 'Tệp Excel', extensions: ['xlsx'] }] });
+      await commitAdded().catch(() => {});
+      const f = stockFile(loadCfg());
+      if (!f || !fs.existsSync(f)) return { ok: false, error: 'Chưa có file kho trên máy. Nhập từ file Excel, link Google hoặc KiotViet trước.' };
+      const { canceled, filePath } = await dialog.showSaveDialog(win, { title: 'Xuất file kho hàng', defaultPath: path.join(app.getPath('documents'), `Kho-hang-${new Date().toISOString().slice(0, 10)}.xlsx`), filters: [{ name: 'Tệp Excel', extensions: ['xlsx'] }] });
       if (canceled || !filePath) return { ok: false, canceled: true };
-      if (!cfg.inventoryFile && cfg.kiotvietInventory) return { ok: false, error: 'Kho đang lấy từ KiotViet nên không xuất theo định dạng bảng được. Muốn xuất, hãy nhập file Excel hoặc dùng link Google Sheets.' };
-      const source = cfg.inventoryFile ? stockFile(cfg) : await downloadSheet(cfg.inventorySheetUrl);
-      const r = await exportWithAdded(source, stockAdded.list(), filePath, { addedImgDir: stockAdded.imgDir, tab: cfg.inventoryTab });
-      return { ok: true, added: r.added, path: filePath };
+      fs.copyFileSync(f, filePath);
+      return { ok: true, path: filePath };
     } catch (error) { return { ok: false, error: error.message }; }
   });
+  ipcMain.handle('local:open-folder', () => { fs.mkdirSync(localDir, { recursive: true }); return shell.openPath(localDir); });
+  ipcMain.handle('customers:file-info', () => { try { const st = fs.statSync(custPath); return { exists: true, updatedAt: st.mtimeMs, path: custPath, customers: customers.all().length, orders: orders.all().length }; } catch { return { exists: false, customers: customers.all().length, orders: orders.all().length }; } });
+  ipcMain.handle('customers:file-export', async () => { // xuất file khách (2 trang tính: Khách hàng, Đơn đặt hàng)
+    try {
+      await custMirror.flush(true);
+      const { canceled, filePath } = await dialog.showSaveDialog(win, { title: 'Xuất file khách hàng và đơn', defaultPath: path.join(app.getPath('documents'), `Khach-hang-${new Date().toISOString().slice(0, 10)}.xlsx`), filters: [{ name: 'Tệp Excel', extensions: ['xlsx'] }] });
+      if (canceled || !filePath) return { ok: false, canceled: true };
+      fs.copyFileSync(custPath, filePath);
+      return { ok: true, path: filePath };
+    } catch (error) { return { ok: false, error: error.message }; }
+  });
+  // file khách trên máy tự cập nhật mỗi khi có khách mới hoặc đơn đổi
+  const custMirror = localFiles.createMirror({
+    file: custPath,
+    stamp: () => ['customers.json', 'orders.json', 'revenue.jsonl'].map((n) => { try { const st = fs.statSync(path.join(dataDir, n)); return `${st.mtimeMs}:${st.size}`; } catch { return '-'; } }).join('|'),
+    build: async () => localFiles.buildCustomersBook({
+      rows: buildCustomerRows(customers.all(), revenue.list(), (c) => { const a = agents.get(c.agentId); if (!a) return ''; try { return fs.readFileSync(customers.profileFile(a), 'utf8'); } catch { return ''; } }),
+      orders: orders.all(), ordersImgDir: orders.imgDir, sourceOf: (code) => (String(code).startsWith('KV-') ? 'KiotViet' : 'Nhập tay / Messenger'),
+    }),
+    log: (l) => fs.appendFile(path.join(dataDir, 'dispatch.log'), `${new Date().toISOString()} ${l}\n`, () => {}),
+  });
+  custMirror.start();
+  setTimeout(async () => { // máy đang dùng link Google hoặc KiotViet mà chưa có file kho trên máy: chép về một lần
+    const c = loadCfg(), f = stockFile(c); if (f && fs.existsSync(f)) return;
+    try { if (c.inventorySheetUrl) await adoptInventory(await downloadSheet(c.inventorySheetUrl)); else if (c.kiotvietInventory && c.kiotvietRetailer) await importKvInventory(); } catch { /* không có mạng: thử lại lần mở sau */ }
+  }, 8000).unref();
   ipcMain.handle('inventory:check', async (_, settings) => {
     const tmp = path.join(app.getPath('temp'), `tbo-kho-check-${process.pid}`);
     try {
@@ -820,7 +900,7 @@ app.whenReady().then(async () => {
       stockAdd: async (adds, agent) => { // agent Tìm hàng thêm mẫu mới: xếp vào kho-them, không sửa bảng gốc
         const cfg = loadCfg(); let existing = new Set();
         try { existing = new Set((await readStock(cfg, viewDir())).items.map((i) => foldStock(i.sku))); } catch { /* chưa đọc được kho: vẫn chống trùng với mẫu đã thêm */ }
-        return stockAdded.add(adds, { existing, agentName: agent.name, copyImage: async (it, to) => {
+        const res = await stockAdded.add(adds, { existing, agentName: agent.name, copyImage: async (it, to) => {
           fs.mkdirSync(to, { recursive: true });
           const safe = String(it.sku).replace(/[^\w-]+/g, '_').slice(0, 60);
           const urls = [...(it.imageUrls || [])];
@@ -831,6 +911,8 @@ app.whenReady().then(async () => {
           }
           return '';
         } });
+        try { await commitAdded(); } catch (e) { dispatcher?.sys?.(`⚠️ Mẫu mới chưa ghi được vào file kho trên máy (${e.message}); đang giữ tạm, sẽ ghi lại lần sau.`); }
+        return res;
       },
       officeUrl: () => office.url, agents, run: runAgent, uploadsDir: path.join(dataDir, 'uploads'), history,
       killAgent: (id) => children.get(id)?.kill(),

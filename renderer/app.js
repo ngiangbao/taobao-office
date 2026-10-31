@@ -10,7 +10,8 @@ const api = window.api || (() => {
   return {
     getCfg: async () => ({ cfg: { shopName: 'Lan Fashion', rate: 3600, shipPerKg: 25000, servicePct: 5, tone: '', browser: 'playwright', claudePath: '', groupsSheetUrl: '', groups: [] }, claude: null }),
     setCfg: async () => true, openData: async () => {}, openLogin: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }),
-    kiotvietStatus: async () => ({ ok: true, configured: false, minutes: 10, last: {} }), kiotvietSave: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), kiotvietSync: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }),
+    kiotvietImportInventory: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), kiotvietStatus: async () => ({ ok: true, configured: false, minutes: 10, last: {} }), kiotvietSave: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), kiotvietSync: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }),
+    inventoryImportLink: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), inventoryLocalInfo: async () => ({ exists: false }), localOpenFolder: async () => '', customersFileInfo: async () => ({ exists: false, customers: 0, orders: 0 }), customersFileExport: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }),
     importGroups: async () => ({ ok: false, error: 'Đọc Google Sheets chỉ có trong app desktop.' }), importGroupsFile: async () => ({ ok: false, canceled: true }),
     syncStatus: async () => ({ connected: false, email: '' }),
     connectSync: async () => ({ ok: false, error: 'Đồng bộ riêng tư chỉ có trong app desktop.' }),
@@ -89,7 +90,7 @@ formA.addEventListener('submit', async (e) => {
 $('#btn-stop').onclick = () => api.stopAll();
 // ---------- Cửa sổ Cài đặt (kiểu Claude): mở từ nút bánh răng của văn phòng ----------
 const dlgS = $('#dlg-settings'), form = $('#cfgform');
-const FORM_SECS = ['shop', 'fanpage', 'groups', 'newsfeed', 'inventory', 'cust', 'sync', 'conn', 'claude']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
+const FORM_SECS = ['shop', 'fanpage', 'groups', 'newsfeed', 'inventory', 'cust', 'kiotviet', 'sync', 'conn', 'claude']; // các mục có ô nhập, dùng chung nút Lưu thay đổi
 let curSec = 'shop', histAgent = '';
 function renderGroupList(groups) {
   const box = $('#s-groups-list'); box.replaceChildren();
@@ -106,7 +107,7 @@ function showSection(id) {
   dlgS.querySelectorAll('.s-nav button').forEach((b) => b.classList.toggle('on', b.dataset.nav === id));
   dlgS.querySelectorAll('section[data-sec]').forEach((sec) => { sec.hidden = sec.dataset.sec !== id; });
   form.hidden = !FORM_SECS.includes(id);
-  $('#s-save').hidden = id === 'sync';
+  $('#s-save').hidden = id === 'sync' || id === 'kiotviet'; // KiotViet có nút lưu riêng
   $('#s-save').textContent = id === 'groups' ? 'Lưu cài đặt & đọc nhóm' : 'Lưu thay đổi';
   $('#s-saved').textContent = '';
   if (id === 'hist') { const ag = histAgent; histAgent = ''; initHist(ag); }
@@ -186,11 +187,23 @@ $('#k-q').oninput = renderStock; $('#k-type').onchange = renderStock; $('#k-clos
 const exportStock = async (say) => { say('Đang xuất…'); const r = await api.inventoryExport(); say(r.canceled ? '' : r.ok ? `Đã xuất file kèm ${r.added} mẫu mới: ${r.path}` : r.error); };
 $('#k-export').onclick = () => exportStock((t) => { $('#k-info').textContent = t; });
 $('#s-inv-view').onclick = () => openStock();
+async function refreshLocalInfo() { // dòng trạng thái file kho / file khách trên máy
+  const k = await api.inventoryLocalInfo().catch(() => null), c = await api.customersFileInfo().catch(() => null), when = (t) => new Date(t).toLocaleString('vi-VN');
+  $('#s-inv-local').textContent = !k ? '' : k.exists ? (k.error ? `File kho trên máy có lỗi: ${k.error}` : `File kho trên máy: ${k.items} mã, ${k.types} loại, cập nhật ${when(k.updatedAt)}.`) : 'Chưa có file kho trên máy: hãy nhập file Excel, chép từ link Google hoặc từ KiotViet.';
+  $('#s-cust-local').textContent = !c ? '' : `Đang có ${c.customers} khách và ${c.orders} dòng đơn.${c.exists ? ` File trên máy cập nhật lúc ${when(c.updatedAt)}.` : ' File sẽ được tạo trong ít giây.'}`;
+}
+$('#s-inv-folder').onclick = () => api.localOpenFolder(); $('#cust-file-folder').onclick = () => api.localOpenFolder();
+$('#cust-file-export').onclick = async () => { const r = await api.customersFileExport(); if (!r.canceled) $('#s-cust-local').textContent = r.ok ? `Đã xuất: ${r.path}` : r.error; };
+$('#s-inv-link').onclick = async () => {
+  const st = $('#s-inv-file'), url = form.elements.inventorySheetUrl.value.trim(); if (!url) { st.textContent = 'Hãy dán link Google Sheets vào ô bên dưới trước.'; return; }
+  st.textContent = 'Đang tải bảng từ Google…'; const r = await api.inventoryImportLink(url);
+  st.textContent = r.ok ? `Đã chép về máy: ${r.items} mã (${r.images} có ảnh), ${r.types} loại. Từ giờ app dùng file trên máy.` : r.error; refreshLocalInfo();
+};
 $('#s-inv-export').onclick = () => exportStock((t) => { $('#s-inv-file').textContent = t; });
 $('#s-inv-import').onclick = async () => {
   const st = $('#s-inv-file'); st.textContent = 'Đang đọc file…';
   const r = await api.inventoryImportFile();
-  st.textContent = r.canceled ? '' : r.ok ? `Đã nhập: ${r.items} mã (${r.images} có ảnh), ${r.types} loại, trang “${r.sheet}”. Từ giờ app dùng file này (dán link mới và Lưu thay đổi nếu muốn dùng lại link).` : r.error;
+  st.textContent = r.canceled ? '' : r.ok ? `Đã chép về máy: ${r.items} mã (${r.images} có ảnh), ${r.types} loại, trang “${r.sheet}”. Từ giờ app dùng file trên máy.` : r.error; refreshLocalInfo();
 };
 $('#s-groups-file').onclick = async () => { // nhập danh sách nhóm từ file Excel/CSV trên máy
   const msg = $('#s-groups-msg'); msg.classList.remove('err'); msg.textContent = 'Đang đọc file…';
@@ -205,7 +218,7 @@ $('#s-groups-file').onclick = async () => { // nhập danh sách nhóm từ file
 async function fillSettings() {
   const { cfg, claude } = await api.getCfg();
   for (const el of form.elements) if (el.name) el.value = el.hasAttribute('data-bool') ? (cfg[el.name] ? '1' : '0') : (cfg[el.name] ?? '');
-  renderGroupList(cfg.groups || []); fillOrdersSettings(); fillKiotviet();
+  renderGroupList(cfg.groups || []); fillOrdersSettings(); fillKiotviet(); refreshLocalInfo();
   $('#s-groups-msg').textContent = '';
   form.elements.syncClientSecret.value = '';
   const syncStatus = await api.syncStatus();
@@ -303,7 +316,6 @@ form.addEventListener('submit', async (e) => {
     return;
   }
   for (const k of ['autoOffMinutes', 'chromeIdleMinutes', 'commentMinutes', 'commentPerScan', 'commentAutoMax', 'rate', 'shipPerKg', 'servicePct', 'followupMinutes', 'followupMax', 'refreshTokens', 'sleepHours', 'inboxMinutes', 'photoSearchSeconds']) cfg[k] = Number(form.elements[k].value) || 0;
-  if (form.elements.inventorySheetUrl.value.trim() && form.elements.inventorySheetUrl.value.trim() !== String(cfg.inventorySheetUrl || '').trim()) cfg.inventoryFile = ''; // dán link kho mới thì quay lại dùng link
   for (const k of ['inventorySheetUrl', 'inventoryTab', 'photoTarget', 'model', 'chromeMode', 'fanpageUrl', 'profileUrl', 'tone', 'claudePath', 'inboxUrl', 'groupsSheetUrl', 'syncSpreadsheetUrl', 'syncClientId']) cfg[k] = form.elements[k].value;
   for (const k of ['commentScan', 'browserFull', 'followupEnabled', 'ordersAutoRefresh']) cfg[k] = form.elements[k].value === '1';
   cfg.ordersSheetUrl = $('#o-url').value.trim(); cfg.ordersWebhookUrl = $('#o-hook').value.trim(); cfg.ordersWebhookToken = $('#o-token').value; cfg.ordersSheetName = $('#o-sheetname').value.trim() || 'khách order'; cfg.ordersAutoAppend = $('#o-auto').value === '1';
@@ -532,6 +544,7 @@ const kvRun = async (full) => {
   kvSay(r.ok ? `Xong: ${r.customers} khách, ${r.invoices} hóa đơn, ${r.orders} đơn đặt hàng (${r.rows} dòng đơn).` : r.error, !r.ok);
 };
 $('#kv-view').onclick = () => openStock();
+$('#kv-inv-now').onclick = async () => { kvSay('Đang chép sản phẩm từ KiotViet…'); const r = await api.kiotvietImportInventory(); kvSay(r.ok ? `Xong: ${r.created ? 'đã tạo file kho trên máy' : 'đã cập nhật file kho'}; thêm ${r.added} sản phẩm (KiotViet có ${r.total}).` : r.error, !r.ok); };
 $('#kv-sync').onclick = () => kvRun(false); $('#kv-full').onclick = () => kvRun(true);
 async function fillOrdersSettings() {
   const { cfg } = await api.getCfg();
