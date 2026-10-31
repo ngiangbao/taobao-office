@@ -455,7 +455,7 @@ $('#o-close').onclick = () => dlgO.close();
 $('#o-q').oninput = renderOrders;
 $('#o-add').onclick = () => editOrder(null);
 const oSay = (t, err) => { const m = $('#o-msg'); m.textContent = t; m.classList.toggle('err', !!err); };
-const afterImport = (r) => { if (r.canceled) return oSay(''); if (!r.ok) return oSay(r.error, true); oData = r; renderOrders(); oSay(`Đọc ${r.read} dòng: thêm ${r.added}, bỏ ${r.skipped} dòng trùng/thiếu; dọn ${r.removedDuplicates || 0} dòng trùng đã có. Đã chuẩn bị agent chăm sóc riêng cho ${r.linkedCustomers || 0} khách${r.createdAgents ? `, tạo ${r.createdAgents} agent mới` : ''}. Tổng ${r.total} dòng.`); };
+const afterImport = (r) => { if (r.canceled) return oSay(''); if (!r.ok) return oSay(r.error, true); oData = r; renderOrders(); oSay(`Đọc ${r.read} dòng: thêm ${r.added}, bỏ ${r.skipped} dòng trùng/thiếu; dọn ${r.removedDuplicates || 0} dòng trùng đã có. Đã lưu ${r.linkedCustomers || 0} khách vào sổ khách${r.createdAgents ? ` (${r.createdAgents} khách mới)` : ''}; agent chăm sóc chỉ được gọi khi khách nhắn tin hoặc bạn @ gọi. Tổng ${r.total} dòng.`); };
 $('#o-import').onclick = async () => { oSay('Đang tải bảng…'); afterImport(await api.ordersImport({ url: $('#o-url').value, mode: $('#o-mode').value })); };
 $('#o-import-file').onclick = async () => afterImport(await api.ordersImportFile({ mode: $('#o-mode').value }));
 $('#o-open-sheet').onclick = async () => { if (!(await api.ordersOpenSheet())) oSay('Hãy nhập link Google Sheets rồi bấm “Nhập từ link” trước.', true); };

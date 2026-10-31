@@ -344,6 +344,7 @@ app.whenReady().then(async () => {
   agents.ensureDefaults(DEFAULT_AGENTS.filter((a) => ['inventory', 'assistant'].includes(a.role))); // Kho hàng và Trợ lý riêng luôn có, kể cả khi lần chạy đầu bị tắt giữa chừng
   history = createHistory(dataDir);
   customers = createCustomers(dataDir, agents);
+  customers.dropIdleAgents(); // bản cũ tạo sẵn agent cho từng khách nhập từ bảng đơn: bỏ những agent chưa từng chạy
   revenue = createRevenue(dataDir);
   approvals = createApprovals(dataDir);
   orders = createOrders(dataDir);
@@ -471,7 +472,7 @@ app.whenReady().then(async () => {
       },
       mergeCustomer(remote) {
         const customer = customers.mergeSynced(remote);
-        const agent = agents.get(customer.agentId);
+        const agent = typeof remote.profile === 'string' && remote.profile.trim() ? customers.agentOf(customer) : agents.get(customer.agentId);
         if (!agent || typeof remote.profile !== 'string') return;
         const file = customers.profileFile(agent);
         let current = '';

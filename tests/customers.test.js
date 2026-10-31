@@ -92,7 +92,9 @@ test('liên kết từng khách trong đơn hàng với đúng một agent, tái
   assert.ok(orders.all().slice(0, 2).every((order) => order.custId === existing.code));
   assert.equal(orders.all()[2].custId, 'KH-MAI01');
   assert.equal(t.customers.all().length, 2);
-  assert.ok(t.customers.all().every((customer) => t.agents.get(customer.agentId)?.kind === 'customer'));
+  const mai = t.customers.byCode('KH-MAI01');
+  assert.equal(mai.agentId, '', 'khách nhập từ bảng đơn chỉ là dữ liệu, chưa có agent');
+  assert.equal(t.agents.get(t.customers.agentOf(mai).id).kind, 'customer', 'agent chỉ tạo khi cần'); assert.equal(t.customers.agentOf(mai).id, mai.agentId, 'gọi lại thì dùng lại');
   const second = linkOrderCustomers(orders, t.customers);
   assert.equal(second.created, 0);
   assert.equal(t.customers.all().length, 2, 'chạy liên kết lại không tạo agent trùng');
@@ -228,4 +230,24 @@ test('khách cũ có sẵn từ bảng đơn nhắn Messenger lần đầu: dùn
     customers.mergeSynced({ code: 'KH-DUP01', name: 'Lan', createdAt: 1 }); customers.mergeSynced({ code: 'KH-DUP02', name: 'Lan', createdAt: 1 });
     assert.equal(customers.ensure({ key: 't_lan', name: 'Lan' }).created, true, 'trùng tên: tạo riêng để chủ shop gộp tay');
   } finally { fs2.rmSync(d, { recursive: true, force: true }); }
+});
+
+test('@Khách chưa có agent: chủ shop gọi đích danh thì mới tạo agent; dọn agent chưa chạy của bản cũ', async () => {
+  const t = await setup(async () => ({ text: 'ok' }));
+  try {
+    t.customers.mergeSynced({ code: 'KH-LAN01', name: 'Lan Anh', createdAt: 1 });
+    assert.equal(t.customers.byCode('KH-LAN01').agentId, '');
+    t.d.start(); await new Promise((r) => setTimeout(r, 300));
+    t.msgs.push({ id: 'o9', from: 'me', typed: true, kind: 'text', text: '@Khách Lan Anh gửi báo giá giúp mình' });
+    await new Promise((r) => setTimeout(r, 2800)); await t.idle();
+    const a = t.agents.get(t.customers.byCode('KH-LAN01').agentId);
+    assert.equal(a?.kind, 'customer', 'được gọi đích danh thì mới tạo agent');
+    assert.ok(t.runs.some((r) => r.agent.id === a.id), 'và agent đó nhận việc');
+  } catch (e) { t.close(); throw e; }
+  try {
+    const old = t.agents.addCustomer({ name: 'Khách Cũ', code: 'KH-OLD01' });
+    t.customers.mergeSynced({ code: 'KH-OLD01', name: 'Cũ', createdAt: 1 });
+    t.customers.byCode('KH-OLD01').agentId = old.id; t.customers.save();
+    assert.equal(t.customers.dropIdleAgents(), 1); assert.equal(t.agents.get(old.id), undefined); assert.equal(t.customers.byCode('KH-OLD01').agentId, '');
+  } finally { t.close(); }
 });
