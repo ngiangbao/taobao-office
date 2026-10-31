@@ -24,6 +24,7 @@ const schedule = require('./lib/post-schedule');
 const { createRevenue, parseVnd } = require('./lib/revenue');
 const { createInbox, READER_PROMPT } = require('./lib/inbox');
 const { readInventory, forAgent, exportWithAdded, parseWorkbook: parseStockBook } = require('./lib/inventory');
+const { createKiotViet } = require('./lib/kiotviet');
 const { createStockAdded, fold: foldStock } = require('./lib/stock-added');
 const { fetchBest: fetchBestImage } = require('./lib/hires-image');
 const { pageImages } = require('./lib/page-images');
@@ -46,6 +47,7 @@ const DEFAULT_CFG = {
   browserFull: true, // agent thường được điều khiển Chrome đầy đủ (bấm, gõ); tắt thì chỉ xem và cuộn. Đăng/nhắn vẫn dặn phải qua đề xuất chờ duyệt
   skillsAuto: true, // Trợ lý riêng tự rà soát lời chủ shop và cập nhật kỹ năng cho từng agent (mỗi agent tối đa 1 lần/6 giờ, chỉ khi có ít nhất 3 tin mới)
   chatName: '', // tên khung chat của văn phòng do chủ shop đặt (rỗng = tên mặc định)
+  kiotvietRetailer: '', kiotvietClientId: '', kiotvietSecret: '', kiotvietMinutes: 10, kiotvietCursor: '',
   followupEnabled: true, ordersAutoRefresh: true, fanpageUrl: '', profileUrl: '', // fanpageUrl nay là link NHÓM công khai do chủ shop tạo; profileUrl là trang cá nhân; để trống = không đăng ở đó
   // Lịch đăng TÁCH RIÊNG từng kênh (mặc định TẮT): công tắc tự đăng, chờ sau khi agent soạn xong (phút, 0 = ngay), cách bài cuối cùng của kênh (phút), khung giờ
   fanpageAuto: false, fanpageDelayMinutes: 5, fanpageGapMinutes: 1, fanpageFromHour: 8, fanpageToHour: 22,
@@ -431,6 +433,35 @@ app.whenReady().then(async () => {
     const r = await appender.test(); if (r.ok) appender.flush(); return r;
   });
   ipcMain.handle('orders:open-sheet', () => { try { const u = new URL(String(loadCfg().ordersSheetUrl || '')); if (u.protocol === 'https:' && u.hostname === 'docs.google.com') { shell.openExternal(u.href); return true; } } catch { /* chưa nhập */ } return false; });
+  // ---------- KiotViet: đồng bộ một chiều khách + hóa đơn/đơn đặt hàng về app ----------
+  const kvSecret = () => { const s = String(loadCfg().kiotvietSecret || ''); if (s.startsWith('enc:')) { try { return safeStorage.decryptString(Buffer.from(s.slice(4), 'base64')); } catch { return ''; } } return s.startsWith('raw:') ? s.slice(4) : ''; };
+  const kiotviet = createKiotViet({ getConfig: () => { const c = loadCfg(); return { retailer: c.kiotvietRetailer, clientId: c.kiotvietClientId, clientSecret: kvSecret() }; } });
+  let kvLast = { ok: null, at: 0, text: '' }, kvBusy = false;
+  const runKvSync = async (full = false) => {
+    if (kvBusy) return { ok: false, error: 'Đang đồng bộ, hãy chờ xong.' };
+    kvBusy = true;
+    try {
+      const c = loadCfg(), r = await kiotviet.sync({ customers, orders, since: full ? '' : String(c.kiotvietCursor || '') });
+      const back = new Date(Date.parse(r.cursor) - 2 * 60e3).toISOString(); // lùi 2 phút để không sót bản ghi sửa sát giờ
+      fs.writeFileSync(cfgPath, JSON.stringify({ ...loadCfg(), kiotvietCursor: back }, null, 2));
+      kvLast = { ok: true, at: Date.now(), text: `${r.customers} khách, ${r.invoices} hóa đơn, ${r.orders} đơn đặt hàng (${r.rows} dòng)` };
+      cleanImages?.(); pushCustomers();
+      return { ok: true, ...r };
+    } catch (e) { kvLast = { ok: false, at: Date.now(), text: e.message }; return { ok: false, error: e.message }; }
+    finally { kvBusy = false; }
+  };
+  const kvStatus = () => { const c = loadCfg(); return { ok: true, configured: !!(c.kiotvietRetailer && c.kiotvietClientId && kvSecret()), retailer: c.kiotvietRetailer, clientId: c.kiotvietClientId, hasSecret: !!c.kiotvietSecret, minutes: c.kiotvietMinutes, cursor: c.kiotvietCursor, last: kvLast }; };
+  ipcMain.handle('kiotviet:status', () => kvStatus());
+  ipcMain.handle('kiotviet:save', async (_, d) => { // lưu mã API (secret mã hoá bằng kho khoá của hệ điều hành nếu có) rồi thử kết nối
+    const c = loadCfg(), next = { ...c, kiotvietRetailer: String(d?.retailer || '').trim().slice(0, 80), kiotvietClientId: String(d?.clientId || '').trim().slice(0, 80), kiotvietMinutes: Math.max(0, Math.min(1440, Math.round(Number(d?.minutes) || 0))) };
+    const sec = String(d?.secret || '').trim();
+    if (sec) next.kiotvietSecret = safeStorage.isEncryptionAvailable() ? 'enc:' + safeStorage.encryptString(sec).toString('base64') : 'raw:' + sec;
+    if (next.kiotvietRetailer !== c.kiotvietRetailer || sec) next.kiotvietCursor = ''; // đổi gian hàng hoặc mã: lần sau tải lại từ đầu
+    fs.writeFileSync(cfgPath, JSON.stringify(next, null, 2));
+    try { const r = await kiotviet.test(); return { ok: true, customers: r.customers, ...kvStatus() }; } catch (e) { return { ok: false, error: e.message, ...kvStatus() }; }
+  });
+  ipcMain.handle('kiotviet:sync', (_, d) => runKvSync(!!d?.full));
+  setInterval(() => { const c = loadCfg(); if (Number(c.kiotvietMinutes) > 0 && c.kiotvietRetailer && Date.now() - (kvLast.at || 0) >= Number(c.kiotvietMinutes) * 60e3) runKvSync(false); }, 60e3);
   ipcMain.handle('inventory:open', () => ({ ok: hasStockSource(loadCfg()) })); // bấm "Kho hàng" trong văn phòng: xem kho ngay trong app
   const viewDir = () => path.join(dataDir, 'kho-xem');
   let viewImages = new Map(); // mã -> tên tệp ảnh của lần xem gần nhất

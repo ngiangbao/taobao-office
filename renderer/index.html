@@ -165,6 +165,17 @@
             <p id="o-hook-msg" class="hint" aria-live="polite"></p>
           </details>
           <hr>
+          <h4>Đồng bộ khách và đơn từ KiotViet</h4>
+          <p class="hint">Khi khách mua hàng, thêm hoặc sửa/huỷ đơn trong <b>KiotViet</b>, app tự kéo về khách hàng và hóa đơn (một chiều: KiotViet → app, app không sửa dữ liệu KiotViet). Trong KiotViet vào <b>Thiết lập → Thiết lập kết nối API</b> để lấy <b>Client ID</b> và <b>Client Secret</b>; <b>Tên gian hàng</b> là tên miền gian hàng của bạn (phần trước .kiotviet.vn). Khách từ KiotViet chỉ là dữ liệu; agent chăm khách chỉ được gọi khi khách nhắn tin hoặc bạn @ gọi.</p>
+          <div class="grid">
+            <label>Tên gian hàng (Retailer)<input id="kv-retailer" type="text" autocomplete="off" placeholder="ten-gian-hang"></label>
+            <label>Client ID<input id="kv-id" type="text" autocomplete="off"></label>
+            <label>Client Secret<input id="kv-secret" type="password" autocomplete="off" placeholder="để trống nếu đã lưu"></label>
+            <label>Tự đồng bộ mỗi (phút, 0 = tắt)<input id="kv-minutes" type="number" min="0" max="1440" step="1"></label>
+          </div>
+          <div class="row-btns"><button type="button" id="kv-save">Lưu và kiểm tra kết nối</button><button type="button" id="kv-sync" class="ghost">Đồng bộ ngay</button><button type="button" id="kv-full" class="ghost">Tải lại toàn bộ</button></div>
+          <p id="kv-status" class="hint" aria-live="polite"></p>
+          <hr>
           <h4>Nhắc khách im lặng</h4>
           <label>Soạn tin nhắc khi khách im lặng<select name="followupEnabled" data-bool><option value="1">Bật</option><option value="0">Tắt (agent không tự soạn tin nhắc)</option></select></label>
           <div class="grid">

@@ -10,6 +10,7 @@ const api = window.api || (() => {
   return {
     getCfg: async () => ({ cfg: { shopName: 'Lan Fashion', rate: 3600, shipPerKg: 25000, servicePct: 5, tone: '', browser: 'playwright', claudePath: '', groupsSheetUrl: '', groups: [] }, claude: null }),
     setCfg: async () => true, openData: async () => {}, openLogin: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }),
+    kiotvietStatus: async () => ({ ok: true, configured: false, minutes: 10, last: {} }), kiotvietSave: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }), kiotvietSync: async () => ({ ok: false, error: 'Chỉ có trong app desktop.' }),
     importGroups: async () => ({ ok: false, error: 'Đọc Google Sheets chỉ có trong app desktop.' }), importGroupsFile: async () => ({ ok: false, canceled: true }),
     syncStatus: async () => ({ connected: false, email: '' }),
     connectSync: async () => ({ ok: false, error: 'Đồng bộ riêng tư chỉ có trong app desktop.' }),
@@ -511,7 +512,28 @@ $('#o-form-cancel').onclick = () => dlgOE.close();
 async function openOrders(query = '') {
   oData = await api.ordersList(); $('#o-q').value = query; renderOrders(); if (!dlgO.open) dlgO.showModal();
 }
+// ---- KiotViet ----
+const kvSay = (t, err) => { const el = $('#kv-status'); el.classList.toggle('err', !!err); el.textContent = t; };
+const kvDescribe = (s) => `${s.configured ? 'Đã cấu hình.' : 'Chưa cấu hình đủ.'}${s.last?.at ? ` Lần đồng bộ gần nhất ${new Date(s.last.at).toLocaleTimeString('vi-VN')}: ${s.last.ok ? `đã kéo ${s.last.text}` : `lỗi, ${s.last.text}`}.` : ''}`;
+async function fillKiotviet() {
+  const s = await api.kiotvietStatus();
+  $('#kv-retailer').value = s.retailer || ''; $('#kv-id').value = s.clientId || ''; $('#kv-secret').value = ''; $('#kv-minutes').value = s.minutes ?? 10;
+  $('#kv-secret').placeholder = s.hasSecret ? 'đã lưu (nhập mới để thay)' : ''; kvSay(kvDescribe(s));
+}
+$('#kv-save').onclick = async () => {
+  kvSay('Đang kiểm tra kết nối…');
+  const r = await api.kiotvietSave({ retailer: $('#kv-retailer').value, clientId: $('#kv-id').value, secret: $('#kv-secret').value, minutes: $('#kv-minutes').value });
+  if (r.ok) { $('#kv-secret').value = ''; $('#kv-secret').placeholder = 'đã lưu (nhập mới để thay)'; }
+  kvSay(r.ok ? `Kết nối được: gian hàng có ${r.customers} khách. Bấm “Đồng bộ ngay” để kéo về.` : r.error, !r.ok);
+};
+const kvRun = async (full) => {
+  kvSay(full ? 'Đang tải lại toàn bộ từ KiotViet…' : 'Đang đồng bộ…');
+  const r = await api.kiotvietSync({ full });
+  kvSay(r.ok ? `Xong: ${r.customers} khách, ${r.invoices} hóa đơn, ${r.orders} đơn đặt hàng (${r.rows} dòng đơn).` : r.error, !r.ok);
+};
+$('#kv-sync').onclick = () => kvRun(false); $('#kv-full').onclick = () => kvRun(true);
 async function fillOrdersSettings() {
+  fillKiotviet();
   const { cfg } = await api.getCfg();
   $('#o-url').value = cfg.ordersSheetUrl || ''; $('#o-hook').value = cfg.ordersWebhookUrl || ''; $('#o-token').value = cfg.ordersWebhookToken || '';
   $('#o-sheetname').value = cfg.ordersSheetName || 'khách order'; $('#o-auto').value = cfg.ordersAutoAppend === false ? '0' : '1'; $('#o-msg').textContent = '';
